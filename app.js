@@ -36,7 +36,7 @@ async function load(){
   }catch(e){console.warn('Supabase unavailable',e)}}
   if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
   if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
-  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
+  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();if(window.P5)await P5.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
 }
 // ---------- curation ----------
 const has=p=>p.images&&p.images.length;

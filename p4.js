@@ -15,10 +15,10 @@ function build(){const g={};
   rows().forEach(l=>{const s=shopOf(l.shop_id);if(!s||!(+l.retail_price>0))return;const k=l.sku;
     g[k]=g[k]||{sku:k,name:l.name,images:l.image?[l.image]:[],category:l.category||'',offers:[],listing:true};
     if(!g[k].images.length&&l.image)g[k].images=[l.image];
-    g[k].offers.push({listing_id:l.id,shop_id:s.id,shop:s,price:+l.retail_price,stock:l.stock,updated:l.updated_at||l.created_at||'',dist:dOf(s)})});
+    g[k].offers.push({listing_id:l.id,shop_id:s.id,shop:s,price:+l.retail_price,cmp:+l.compare_at_price||null,stock:l.stock,updated:l.updated_at||l.created_at||'',dist:dOf(s)})});
   const out=Object.values(g).filter(p=>p.images.length).map(p=>{
     p.offers.sort((a,b)=>(!!b.stock-!!a.stock)||((a.dist??1e9)-(b.dist??1e9))||a.price-b.price);
-    const b=p.offers[0];return {...p,listing_id:b.listing_id,shop_id:b.shop_id,stock:b.stock,price:Math.min(...p.offers.map(o=>o.price)),
+    const b=p.offers[0];return {...p,cmp:b.cmp&&b.cmp>b.price?b.cmp:null,listing_id:b.listing_id,shop_id:b.shop_id,stock:b.stock,price:Math.min(...p.offers.map(o=>o.price)),
       dist:Math.min(...p.offers.map(o=>o.dist??1e9)),updated:p.offers.map(o=>o.updated).sort().pop()}});
   out.forEach(p=>{if(p.dist===1e9)p.dist=null});
   return out.sort((a,b)=>(a.dist??1e9)-(b.dist??1e9))}
@@ -135,7 +135,7 @@ addEventListener('hashchange',hroute);
 // clicking a link to the current info page should still scroll to top
 document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(a&&INFO[a.getAttribute('href').slice(1)]&&location.hash===a.getAttribute('href'))scrollTo(0,0)});
 
-window.P4={card,regroup,async init(){
+window.P4={card,regroup,F,gsheet:g=>gsheet(g),ssheet:p=>ssheet(p),cat:()=>CAT,async init(){
   CAT=A0.catalog||await fetch('products.json').then(r=>r.json()).catch(()=>[]);
   if(MOCK&&M.shops[0]&&Q.get('multi')!=='0'){ // a second approved shop sharing SKUs, to show grouping
     if(!M.shops.find(s=>s.id==='s3')){M.shops.push({id:'s3',owner_id:'u3',name:'High Street Cards & Gifts',address:'40 Market Street, Leicester',postcode:'LE1 6DP',lat:52.6335,lng:-1.1325,phone:'0116 765 4321',status:'approved',active:true,delivery_options:{collect:true,delivery:false}});

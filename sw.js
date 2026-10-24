@@ -1,4 +1,4 @@
-const C='nearbuy-v6',SHELL=['/','/index.html','/style.css','/app.js','/p2.js','/p3.js','/p4.js','/config.js','/manifest.json','/icon-192.png'];
+const C='nearbuy-v7',SHELL=['/','/index.html','/style.css','/app.js','/p2.js','/p3.js','/p4.js','/p5.js','/config.js','/manifest.json','/icon-192.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(SHELL)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);

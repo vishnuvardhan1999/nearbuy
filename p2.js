@@ -133,6 +133,7 @@ const lrow=l=>{const m=pct(l.retail_price,l.trade_price);return `<div class="li 
  <div class="lm"><span>Trade ${l.trade_price!=null?gbp(l.trade_price):'–'}</span>${l.source==='wholesale'?'<span class="src">Auto</span>':''}</div>
  <div class="lc"><label class="pf2">£<input type="number" step="0.01" min="0" value="${(+l.retail_price).toFixed(2)}" data-f="retail_price" aria-label="Retail price"></label>
  <span class="mg ${m<20?'lo':m>=35?'hi':''}">${m}%</span>
+ <label class="sk was" title="Optional 'was' price, shown struck through with a discount badge">Was<input type="number" step="0.01" min="0" placeholder="–" value="${l.compare_at_price!=null?(+l.compare_at_price).toFixed(2):''}" data-f="compare_at_price"></label>
  <label class="sk">Stock<input type="number" min="0" step="1" value="${l.stock}" data-f="stock"></label>
  <label class="sw" title="Live"><input type="checkbox" data-f="active" ${l.active?'checked':''}><i></i></label></div></div></div>`};
 V.addprod=function(){const q=(A.aq||'').toLowerCase(),have=new Set(A.listings.map(l=>l.sku));
@@ -200,7 +201,7 @@ document.addEventListener('input',e=>{const t=e.target;
   if(t.dataset.f==='retail_price'){const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);const m=pct(+t.value,l.trade_price);const g=row.querySelector('.mg');g.textContent=m+'%';g.className='mg '+(m<20?'lo':m>=35?'hi':'')}
   if(t.id==='s_logo'||t.id==='s_cover'){const f=t.files[0];if(f)$('#pv_'+t.id.slice(2)).innerHTML=`<img src="${URL.createObjectURL(f)}">`}});
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.f)return;const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);
-  const val=t.type==='checkbox'?t.checked:t.dataset.f==='stock'?Math.max(0,parseInt(t.value)||0):Math.max(0,+(+t.value).toFixed(2));
+  const val=t.type==='checkbox'?t.checked:t.dataset.f==='compare_at_price'&&(t.value===''||+t.value<=0)?null:t.dataset.f==='stock'?Math.max(0,parseInt(t.value)||0):Math.max(0,+(+t.value).toFixed(2));
   try{await DB.updListing(l.id,{[t.dataset.f]:val});l[t.dataset.f]=val;if(t.type==='checkbox')row.classList.toggle('off',!val);toast('Saved')}catch(err){toast(err.message)}});
 window.P2={A,DB,M,MOCK,Q,refresh,toast,isAdmin,go,async init(){if(MOCK)await seedMock();await refresh();if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
   const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='admin')A.pending=await DB.pending();if(v==='signup')A.tab='signup';window.P2_START=v==='signup'?'account':v}},
