@@ -150,8 +150,8 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${d.delivery_radius_miles?'within '+d.delivery_radius_miles+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
    <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${s.opening_hours?`<div class="line"><span>Hours</span><span>${esc(s.opening_hours)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
-  <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
-async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
+  <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
+async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
 V.admin=function(){if(!isAdmin())return '<div class="empty">Admins only</div>';
   return `<section class="sec"><div class="sh"><h2>Pending shops <span class="sample">${A.pending.length}</span></h2><a href="#" data-act="go" data-v="admin">Refresh</a></div>
@@ -202,7 +202,7 @@ document.addEventListener('input',e=>{const t=e.target;
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.f)return;const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);
   const val=t.type==='checkbox'?t.checked:t.dataset.f==='stock'?Math.max(0,parseInt(t.value)||0):Math.max(0,+(+t.value).toFixed(2));
   try{await DB.updListing(l.id,{[t.dataset.f]:val});l[t.dataset.f]=val;if(t.type==='checkbox')row.classList.toggle('off',!val);toast('Saved')}catch(err){toast(err.message)}});
-window.P2={async init(){if(MOCK)await seedMock();await refresh();if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
+window.P2={A,DB,M,MOCK,Q,refresh,toast,isAdmin,go,async init(){if(MOCK)await seedMock();await refresh();if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
   const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='admin')A.pending=await DB.pending();if(v==='signup')A.tab='signup';window.P2_START=v==='signup'?'account':v}},
   register(){go('register')}};
 })();

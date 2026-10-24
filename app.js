@@ -29,14 +29,14 @@ async function load(){
   $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
   if(sb){try{
     const [l,s]=await Promise.all([
-      sb.from('shop_listings').select('retail_price,shop_id,sku,name,image,category,trade_price,stock').eq('active',true).gt('retail_price',0).limit(2000),
+      sb.from('shop_listings').select('id,retail_price,shop_id,sku,name,image,category,trade_price,stock').eq('active',true).gt('retail_price',0).limit(2000),
       sb.from('shops').select('id,name,postcode,lat,lng,delivery_options,logo_url,cover_url,opening_hours').eq('active',true).eq('status','approved').limit(500)]);
     if(s.error)throw s.error; S.shops=s.data||[];
-    if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};l.data.filter(x=>ok.has(x.shop_id)&&x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
+    if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};l.data.filter(x=>ok.has(x.shop_id)&&x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={listing_id:x.id,stock:x.stock,sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
   }catch(e){console.warn('Supabase unavailable',e)}}
   if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
   if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
-  saveB();if(window.P2)await P2.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
+  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
 }
 // ---------- curation ----------
 const has=p=>p.images&&p.images.length;
@@ -50,8 +50,8 @@ const CATS=[['Stationery',kw('pen ','pens','pencil','notebook')],['Party',kw('ba
 const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to school',kw('pencil','notebook','ruler','eraser','sharpener','highlighter','glue stick','pencil case','exercise book'),5],
  ['Art & craft picks',p=>p.category==='Art & Craft'||kw('paint','glitter','craft','colouring')(p),2],['Party time',kw('balloon','party','banner','candle','napkin','gift bag'),4]];
 // ---------- templates ----------
-const pcard=p=>`<div class="pc"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
-<div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
+const pcard=p=>`<div class="pc" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
+<div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
 const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
 function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
  const open=s.open!==false;return `<div class="shop" data-shop="${esc(s.id)}"><div class="cover" style="background:${s.cover_url?`center/cover url('${esc(s.cover_url)}')`:grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${open?'':'closed'}"><i></i>${open?'Open now':'Closed'}</span></div>
