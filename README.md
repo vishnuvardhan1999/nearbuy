@@ -24,3 +24,30 @@ While `config.js` holds the placeholders, or Supabase returns no listings, the a
 
 ## Next (Phase 2)
 Shop owner sign-up (match on Bluepark customer email), auto-listing purchased SKUs, price editing, checkout writing to orders/order_items, and postcode → lat/lng distance sorting (postcodes.io).
+
+---
+# Phase 2: shop side
+
+New files: `p2.js` (auth, register shop, My shop dashboard, public shop page `/#shop=<id>`, admin), `migration_002_phase2.sql`, `import-orders.py`.
+Changed: `app.js` (real approved shops + listing prices on the homepage), `index.html` (loads p2.js), `style.css`, `sw.js` (cache v4), `config.js` (`ADMIN_EMAILS`).
+
+## Deploy steps
+1. **SQL**: open `migration_002_phase2.sql`, replace `REPLACE_WITH_VISHNU_EMAIL` with the admin's login email, then run the whole file in Supabase → SQL Editor.
+   It adds: `profiles` (+ signup trigger), `admins` + `is_admin()`, shop columns `status/phone/opening_hours/logo_url/cover_url/approved_at`,
+   an approval guard trigger, display columns on `shop_listings` (FK to products dropped), `wholesale_orders` + auto-listing trigger,
+   `backfill_shop_listings()`, the public `shop-media` storage bucket and its policies.
+2. **config.js**: set `ADMIN_EMAILS: ["<same email>"]`.
+3. **Supabase → Authentication → URL configuration**: Site URL = your Vercel URL (e.g. `https://nearbuy.vercel.app`); add it and `http://localhost:8765` to Redirect URLs.
+4. **Authentication → Providers → Email**: enabled. "Confirm email" ON is recommended (the app tells users to check their inbox, then log in). Turn it OFF only for quick testing.
+   The built-in mailer is rate-limited (a few emails/hour); set up custom SMTP before launch.
+5. Upload the changed files to GitHub; Vercel redeploys.
+
+## Importing wholesaler orders (auto-listing)
+1. In Bluepark admin export orders (order lines) as CSV.
+2. `python3 import-orders.py orders.csv --list-columns` to check the guessed columns; override any with `--email/--sku/--qty/--shipped/--ref/--status` (or `--items` for a combined items column).
+3. `python3 import-orders.py orders.csv --since 2026-10-01 > orders.sql`, then run `orders.sql` in the SQL editor.
+   Each shipped line adds stock to the matching shop's listing (matched on the trade email entered at registration); new items get retail = trade × 1.5.
+   Lines for emails with no shop yet are stored and back-filled when that shop registers.
+
+## Local preview with mock data (no Supabase writes)
+`python3 -m http.server 8765` then open e.g. `/?mock=1&as=owner&view=myshop`, `&view=register&shop=none`, `&view=addprod`, `&as=admin&view=admin`, `/?mock=1&as=owner#shop=s1`.

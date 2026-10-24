@@ -29,14 +29,14 @@ async function load(){
   $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
   if(sb){try{
     const [l,s]=await Promise.all([
-      sb.from('shop_listings').select('retail_price,shop_id,sku,products(sku,name,images,category)').eq('active',true).limit(1000),
-      sb.from('shops').select('id,name,postcode,lat,lng,delivery_options').eq('active',true).limit(500)]);
+      sb.from('shop_listings').select('retail_price,shop_id,sku,name,image,category,trade_price,stock').eq('active',true).gt('retail_price',0).limit(2000),
+      sb.from('shops').select('id,name,postcode,lat,lng,delivery_options,logo_url,cover_url,opening_hours').eq('active',true).eq('status','approved').limit(500)]);
     if(s.error)throw s.error; S.shops=s.data||[];
-    if(!l.error){const seen=new Set();S.products=l.data.filter(x=>x.products&&!seen.has(x.sku)&&seen.add(x.sku)).map(x=>({...x.products,price:x.retail_price,shop_id:x.shop_id}))}
+    if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};l.data.filter(x=>ok.has(x.shop_id)&&x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
   }catch(e){console.warn('Supabase unavailable',e)}}
   if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
   if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
-  saveB();route('home');
+  saveB();if(window.P2)await P2.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
 }
 // ---------- curation ----------
 const has=p=>p.images&&p.images.length;
@@ -53,9 +53,9 @@ const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to sc
 const pcard=p=>`<div class="pc"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
 <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
 const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
-function scard(s,i){const imgs=pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
- const open=s.open!==false;return `<div class="shop"><div class="cover" style="background:${grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${open?'':'closed'}"><i></i>${open?'Open now':'Closed'}</span></div>
- <div class="sb"><div class="sav">${esc(s.name[0])}</div><h4>${esc(s.name)}${s.demo?'<span class="sample">Sample</span>':''}</h4>
+function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
+ const open=s.open!==false;return `<div class="shop" data-shop="${esc(s.id)}"><div class="cover" style="background:${s.cover_url?`center/cover url('${esc(s.cover_url)}')`:grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${open?'':'closed'}"><i></i>${open?'Open now':'Closed'}</span></div>
+ <div class="sb"><div class="sav">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</div><h4>${esc(s.name)}${s.demo?'<span class="sample">Sample</span>':''}</h4>
  <div class="meta">${s.rating?`<span class="star">${svg('star')}${s.rating}</span><span class="dot"></span>`:'<span class="star">New</span><span class="dot"></span>'}${d?`<span>${d}</span><span class="dot"></span>`:''}<span>${s.mins||'30–60'} min</span></div>
  <div class="tags">${s.delivery_options?.collect!==false?'<span class="tg">Click & collect</span>':''}${s.delivery_options?.delivery?'<span class="tg">Delivery</span>':''}</div></div></div>`}
 function shopsSection(){
@@ -106,15 +106,16 @@ function carousel(){const s=$('#slides'),d=[...document.querySelectorAll('#dots 
  s.addEventListener('scroll',()=>{const i=Math.round(s.scrollLeft/s.clientWidth);d.forEach((e,k)=>e.classList.toggle('on',k===i))},{passive:true});
  clearInterval(window._ct);window._ct=setInterval(()=>{if(!document.body.contains(s)||innerWidth>=768)return;const i=(Math.round(s.scrollLeft/s.clientWidth)+1)%3;s.scrollTo({left:i*s.clientWidth,behavior:'smooth'})},5000)}
 async function askPostcode(){const v=prompt('Enter your postcode',S.pc);if(!v)return;try{const r=await lookupPostcode(v.trim());setMe({lat:r.lat,lng:r.lng},r.pc)}catch(e){alert('Sorry, we could not find that postcode.')}}
-document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-cat],[data-sec],[data-sku],[data-rm],[data-r],#loc,#setpc2,#geo,#checkout,[id^=register]');if(!el)return;e.preventDefault();
+document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-cat],[data-sec],[data-sku],[data-rm],[data-r],[data-shop],#loc,#setpc2,#geo,#checkout,[id^=register]');if(!el)return;e.preventDefault();
  if(el.dataset.t)return route(el.dataset.t);if(el.dataset.cat)return route('cat',+el.dataset.cat);if(el.dataset.sec)return route('sec',+el.dataset.sec);
+ if(el.dataset.shop&&!S.shops.find(s=>s.id===el.dataset.shop)?.demo){location.hash='shop='+el.dataset.shop;return route('shop',el.dataset.shop)}
  if(el.dataset.r){S.radius=+el.dataset.r;localStorage.nb_r=S.radius;return render()}
  if(el.dataset.sku){const p=S.products.find(x=>x.sku===el.dataset.sku),b=S.basket.find(x=>x.sku===p.sku);b?b.qty++:S.basket.push({sku:p.sku,name:p.name,price:p.price,shop_id:p.shop_id||null,qty:1});saveB();el.classList.add('done');el.innerHTML=svg('check');return}
  if(el.dataset.rm){S.basket.splice(+el.dataset.rm,1);saveB();return route('basket')}
  if(el.id==='loc'||el.id==='setpc2')return askPostcode();
  if(el.id==='geo'){if(!navigator.geolocation)return askPostcode();navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng))},()=>askPostcode());return}
  if(el.id==='checkout')return alert('Checkout is coming in Phase 2.');
- if(el.id.startsWith('register'))return alert('Shop registration opens in Phase 2.');});
+ if(el.id.startsWith('register'))return window.P2?P2.register():alert('Shop registration coming soon.');});
 $('#sf').addEventListener('submit',e=>{e.preventDefault();$('#q').blur();route('search')});
 $('#q').addEventListener('input',()=>{if($('#q').value.length>1)route('search')});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
