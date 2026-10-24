@@ -102,7 +102,7 @@ const V={home,
  account(){return `<section class="sec"><div class="sh"><h2>Account</h2></div><div class="panel"><div class="line"><span>Postcode</span><a href="#" id="setpc2">${esc(S.pc||'Set')}</a></div>
   <button class="btn full" id="register">Register your shop</button></div></section>`}};
 let cur=['home'];
-function route(t,...a){cur=[t,...a];document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===(V[t]&&['cat','sec'].includes(t)?'search':t)));$('#view').innerHTML=V[t](...a);if(t==='home')carousel();scrollTo(0,0)}
+function route(t,...a){cur=[t,...a];document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===(V[t]&&['cat','sec'].includes(t)?'search':t)));if(!V[t]){t="home";a=[];cur=[t]}$("#view").innerHTML=V[t](...a);if(t==='home')carousel();scrollTo(0,0)}
 function render(){const y=scrollY;$('#view').innerHTML=V[cur[0]](...cur.slice(1));if(cur[0]==='home')carousel();scrollTo(0,y)}
 function carousel(){const s=$('#slides'),d=[...document.querySelectorAll('#dots i')];if(!s)return;
  s.addEventListener('scroll',()=>{const i=Math.round(s.scrollLeft/s.clientWidth);d.forEach((e,k)=>e.classList.toggle('on',k===i))},{passive:true});

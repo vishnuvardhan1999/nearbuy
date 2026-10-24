@@ -1,10 +1,9 @@
-// Nearbuy (a NuvonHub product) · Phase 2: auth, shop registration, owner dashboard, public shop page, admin.
+// Nearbuy (a NuvonHub product) · Phase 2: auth, shop registration, owner dashboard, public shop page.
 // Loaded after app.js and reuses its globals (S, V, sb, $, esc, gbp, svg, route, render, miles, lookupPostcode).
 // ?mock=1 runs everything against in-memory data (for local screenshots); nothing is sent to Supabase.
 (function(){
 const Q=new URLSearchParams(location.search),MOCK=Q.get('mock')==='1';
-const ADMINS=(CFG.ADMIN_EMAILS||[]).map(e=>e.toLowerCase());
-const A={user:null,profile:null,shop:null,listings:[],catalog:null,pending:[],tab:'login',msg:''};
+const A={user:null,profile:null,shop:null,listings:[],catalog:null,tab:'login',msg:''};
 const toast=m=>{let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}t.textContent=m;t.className='on';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',2600)};
 const pct=(r,t)=>t>0?Math.round((r-t)/r*100):0;   // margin % of retail price
 async function catalog(){if(!A.catalog)A.catalog=await (await fetch('products.json')).json();return A.catalog}
@@ -12,7 +11,7 @@ async function catalog(){if(!A.catalog)A.catalog=await (await fetch('products.js
 // ---------- data layer (Supabase or mock) ----------
 const M={users:{},shops:[],listings:[]};
 const DB=MOCK?{
-  async session(){return Q.get('as')?{user:{id:'u1',email:Q.get('as')==='admin'?(ADMINS[0]||'admin@example.com'):'owner@example.com'}}:null},
+  async session(){return Q.get('as')?{user:{id:'u1',email:'owner@example.com'}}:null},
   async signUp(e,p,role,name){A.user={id:'u1',email:e};return{}}, async signIn(e){A.user={id:'u1',email:e};return{}}, async signOut(){},
   async profile(){return{role:Q.get('as')==='shopper'?'shopper':'owner',full_name:'Priya Shah'}},
   async myShop(){return M.shops.find(s=>s.owner_id==='u1')||null},
@@ -22,7 +21,6 @@ const DB=MOCK?{
   async updListing(id,ch){Object.assign(M.listings.find(l=>l.id===id),ch)}, async delListing(id){M.listings=M.listings.filter(l=>l.id!==id)},
   async bulk(ids,ch){ids.forEach((id,i)=>Object.assign(M.listings.find(l=>l.id===id),ch[i]))},
   async shop(id){return M.shops.find(s=>s.id===id)}, async shopListings(id){return M.listings.filter(l=>l.active)},
-  async pending(){return M.shops.filter(s=>s.status==='pending')}, async setStatus(id,st){M.shops.find(s=>s.id===id).status=st},
   async backfill(){return 0}
 }:{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
@@ -41,11 +39,8 @@ const DB=MOCK?{
   async bulk(ids,ch){for(let i=0;i<ids.length;i++)await this.updListing(ids[i],ch[i])},
   async shop(id){const {data}=await sb.from('shops').select('*').eq('id',id).maybeSingle();return data},
   async shopListings(id){const {data}=await sb.from('shop_listings').select('*').eq('shop_id',id).eq('active',true).order('name');return data||[]},
-  async pending(){const {data,error}=await sb.from('shops').select('*').eq('status','pending').order('created_at');if(error)throw error;return data},
-  async setStatus(id,status){const {error}=await sb.from('shops').update({status,active:status==='approved'}).eq('id',id);if(error)throw error},
   async backfill(id){const {data}=await sb.rpc('backfill_shop_listings',{p_shop:id});return data||0}
 };
-const isAdmin=()=>!!A.user&&ADMINS.includes((A.user.email||'').toLowerCase());
 async function refresh(){
   const s=await DB.session();A.user=s?.user||null;A.profile=null;A.shop=null;A.listings=[];
   if(!A.user)return;
@@ -85,7 +80,6 @@ V.account=function(){
    ${owner?(A.shop?`<button class="tile" data-act="go" data-v="myshop">${svg('store')}<span><b>My shop</b><small>${esc(A.shop.name)} · ${statusLabel(A.shop.status)}</small></span></button>`
      :`<button class="tile hot" data-act="go" data-v="register">${svg('store')}<span><b>Register your shop</b><small>Takes about 3 minutes</small></span></button>`)
      :`<button class="tile" data-act="go" data-v="register">${svg('store')}<span><b>Run a shop? Sell on Nearbuy</b><small>Register your shop</small></span></button>`}
-   ${isAdmin()?`<button class="tile" data-act="go" data-v="admin">${svg('check')}<span><b>Admin</b><small>Approve new shops</small></span></button>`:''}
    <div class="panel"><div class="line"><span>Postcode</span><a href="#" id="setpc2">${esc(S.pc||'Set')}</a></div></div>
    <button class="btn ghost full" data-act="logout">Log out</button></section>`};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s);
@@ -154,14 +148,10 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
   <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
-V.admin=function(){if(!isAdmin())return '<div class="empty">Admins only</div>';
-  return `<section class="sec"><div class="sh"><h2>Pending shops <span class="sample">${A.pending.length}</span></h2><a href="#" data-act="go" data-v="admin">Refresh</a></div>
-  ${A.pending.length?A.pending.map(s=>`<div class="panel"><b>${esc(s.name)}</b><div class="hint">${esc(s.address||'')} · ${esc(s.postcode||'')}<br>Trade email: <b>${esc(s.bluepark_customer_email||'–')}</b>${s.phone?' · '+esc(s.phone):''}</div>
-   <div class="acts"><button class="btn" data-act="approve" data-v="${esc(s.id)}">Approve</button><button class="btn ghost" data-act="reject" data-v="${esc(s.id)}">Reject</button></div></div>`).join(''):'<div class="empty">No shops waiting</div>'}</section>`};
 
 // ---------- actions ----------
-async function go(v){A.msg='';if(v==='addprod')await catalog();if(v==='admin')try{A.pending=await DB.pending()}catch(e){A.msg=e.message}
-  route(['register','myshop','addprod','admin'].includes(v)?v:v);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t==='account'))}
+async function go(v){A.msg='';if(v==='addprod')await catalog();
+  route(v);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t==='account'))}
 async function busy(btn,fn){const t=btn?.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='Please wait…'}try{await fn()}catch(e){A.msg=e.message||String(e);render();toast(A.msg)}finally{if(btn&&document.body.contains(btn)){btn.disabled=false;btn.innerHTML=t}}}
 document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
   const v=id=>(f.querySelector('#'+id)?.value||'').trim();
@@ -188,7 +178,6 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
   if(a==='applymargin')return busy(el,async()=>{const r=marginRows();await DB.bulk(r.map(x=>x.l.id),r.map(x=>({retail_price:x.p})));r.forEach(x=>x.l.retail_price=x.p);toast(`Updated ${r.length} prices`);render()});
   if(a==='addsku')return busy(null,async()=>{const p=A.catalog.find(x=>x.sku===val);const l=await DB.addListing({shop_id:A.shop.id,sku:p.sku,name:p.name,image:p.images[0]||null,category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*1.5).toFixed(2),stock:0,active:true,source:'manual'});
     A.listings.unshift(l);toast('Added. Set stock in My shop');render()});
-  if(a==='approve'||a==='reject')return busy(el,async()=>{await DB.setStatus(val,a==='approve'?'approved':'rejected');A.pending=A.pending.filter(s=>s.id!==val);toast(a==='approve'?'Shop approved':'Shop rejected');render()});
 });
 const r05=n=>Math.max(0.05,Math.round(n*20)/20);
 function marginRows(){const m=Math.min(90,Math.max(0,+$('#m_pct').value||0))/100,sc=$('#m_scope').value;
@@ -203,7 +192,7 @@ document.addEventListener('input',e=>{const t=e.target;
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.f)return;const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);
   const val=t.type==='checkbox'?t.checked:t.dataset.f==='compare_at_price'&&(t.value===''||+t.value<=0)?null:t.dataset.f==='stock'?Math.max(0,parseInt(t.value)||0):Math.max(0,+(+t.value).toFixed(2));
   try{await DB.updListing(l.id,{[t.dataset.f]:val});l[t.dataset.f]=val;if(t.type==='checkbox')row.classList.toggle('off',!val);toast('Saved')}catch(err){toast(err.message)}});
-window.P2={A,DB,M,MOCK,Q,refresh,toast,isAdmin,go,async init(){if(MOCK)await seedMock();await refresh();if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
-  const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='admin')A.pending=await DB.pending();if(v==='signup')A.tab='signup';window.P2_START=v==='signup'?'account':v}},
+window.P2={A,DB,M,MOCK,Q,refresh,toast,go,async init(){if(MOCK)await seedMock();await refresh();if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
+  const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';window.P2_START=v==='signup'?'account':v}},
   register(){go('register')}};
 })();

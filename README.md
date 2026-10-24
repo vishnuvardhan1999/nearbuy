@@ -28,15 +28,15 @@ Shop owner sign-up (match on Bluepark customer email), auto-listing purchased SK
 ---
 # Phase 2: shop side
 
-New files: `p2.js` (auth, register shop, My shop dashboard, public shop page `/#shop=<id>`, admin), `migration_002_phase2.sql`, `import-orders.py`.
-Changed: `app.js` (real approved shops + listing prices on the homepage), `index.html` (loads p2.js), `style.css`, `sw.js` (cache v4), `config.js` (`ADMIN_EMAILS`).
+New files: `p2.js` (auth, register shop, My shop dashboard, public shop page `/#shop=<id>`), `migration_002_phase2.sql`, `import-orders.py`.
+Changed: `app.js` (real approved shops + listing prices on the homepage), `index.html` (loads p2.js), `style.css`, `sw.js` (cache v4).
 
 ## Deploy steps
 1. **SQL**: open `migration_002_phase2.sql`, replace `REPLACE_WITH_VISHNU_EMAIL` with the admin's login email, then run the whole file in Supabase → SQL Editor.
    It adds: `profiles` (+ signup trigger), `admins` + `is_admin()`, shop columns `status/phone/opening_hours/logo_url/cover_url/approved_at`,
    an approval guard trigger, display columns on `shop_listings` (FK to products dropped), `wholesale_orders` + auto-listing trigger,
    `backfill_shop_listings()`, the public `shop-media` storage bucket and its policies.
-2. **config.js**: set `ADMIN_EMAILS: ["<same email>"]`.
+2. The operator dashboard is a separate site (see `../admin/README.md`).
 3. **Supabase → Authentication → URL configuration**: Site URL = your Vercel URL (e.g. `https://nearbuy.vercel.app`); add it and `http://localhost:8765` to Redirect URLs.
 4. **Authentication → Providers → Email**: enabled. "Confirm email" ON is recommended (the app tells users to check their inbox, then log in). Turn it OFF only for quick testing.
    The built-in mailer is rate-limited (a few emails/hour); set up custom SMTP before launch.
@@ -50,4 +50,4 @@ Changed: `app.js` (real approved shops + listing prices on the homepage), `index
    Lines for emails with no shop yet are stored and back-filled when that shop registers.
 
 ## Local preview with mock data (no Supabase writes)
-`python3 -m http.server 8765` then open e.g. `/?mock=1&as=owner&view=myshop`, `&view=register&shop=none`, `&view=addprod`, `&as=admin&view=admin`, `/?mock=1&as=owner#shop=s1`.
+`python3 -m http.server 8765` then open e.g. `/?mock=1&as=owner&view=myshop`, `&view=register&shop=none`, `&view=addprod`, `/?mock=1&as=owner#shop=s1`.

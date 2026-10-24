@@ -1,25 +1,18 @@
-// Nearbuy (a NuvonHub product) · Phase 5: premium storefront — hero carousel, ticker, deals, promotions/ads, trust, newsletter, mega-menu, admin promos.
-(()=>{const {M,MOCK,Q,toast,isAdmin,A}=P2;
+// Nearbuy (a NuvonHub product) · Phase 5: premium storefront — hero carousel, ticker, deals, promotions/ads, trust, newsletter, mega-menu.
+(()=>{const {M,MOCK,Q,toast,A}=P2;
 Object.assign(I,{lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
  chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/>',heart:'<path d="M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.7-8 11-8 11z"/>',
  gift:'<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M12 8v13M3 12h18M12 8S10.5 3 8 3.5 7 8 12 8zm0 0s1.5-5 4-4.5S17 8 12 8z"/>',arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',fire:'<path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-6-2 3-4 6-4 10 0 5 3 9 7 9z"/>',spark:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'});
-const P={list:[],loaded:false},PA={all:[],edit:null,msg:'',busy:false};
+const P={list:[],loaded:false};
 const now=()=>Date.now(),liveP=p=>p.active&&(!p.start_at||Date.parse(p.start_at)<=now())&&(!p.end_at||Date.parse(p.end_at)>now());
 const CAT=()=>P4.cat();
 const cpick=(w,n=3,off=0)=>{const c=CAT().filter(p=>p.images?.length&&w.some(k=>p.name.toLowerCase().includes(k)));const o=[],f=new Set();for(let i=off;i<c.length&&o.length<n;i+=3){const k=c[i].name.slice(0,14);if(f.has(k))continue;f.add(k);o.push(c[i])}return o};
 const preview=()=>!!S.products[0]?.demo;
 // ---------- data ----------
-const PD=MOCK||!sb?{async list(){return (M.promos||[]).filter(liveP)},async all(){return M.promos||[]},
-  async save(p){M.promos=M.promos||[];if(p.id){Object.assign(M.promos.find(x=>x.id===p.id),p)}else M.promos.unshift({...p,id:'p'+Date.now(),created_at:new Date().toISOString()})},
-  async del(id){M.promos=M.promos.filter(x=>x.id!==id)},async upload(f){return URL.createObjectURL(f)},
+const PD=MOCK||!sb?{async list(){return (M.promos||[]).filter(liveP)},
   async sub(r){const l=JSON.parse(localStorage.nb_subs||'[]');if(l.includes(r.email))return 'dup';l.push(r.email);localStorage.nb_subs=JSON.stringify(l)}}
  :{async list(){const {data,error}=await sb.from('promotions').select('*').eq('active',true).order('priority',{ascending:false}).limit(60);if(error)throw error;return data.filter(liveP)},
-  async all(){const {data,error}=await sb.from('promotions').select('*').order('priority',{ascending:false}).order('created_at',{ascending:false});if(error)throw error;return data},
-  async save(p){const r={...p};delete r.id;const q=p.id?sb.from('promotions').update(r).eq('id',p.id):sb.from('promotions').insert(r);const {error}=await q;if(error)throw error},
-  async del(id){const {error}=await sb.from('promotions').delete().eq('id',id);if(error)throw error},
-  async upload(f){const ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=`promos/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
-    const {error}=await sb.storage.from('shop-media').upload(path,f,{contentType:f.type});if(error)throw error;return sb.storage.from('shop-media').getPublicUrl(path).data.publicUrl},
   async sub(r){const {error}=await sb.from('subscribers').insert(r);if(error){if(error.code==='23505')return 'dup';throw error}}};
 const of=t=>P.list.filter(p=>p.type===t).sort((a,b)=>(b.priority||0)-(a.priority||0));
 
@@ -57,6 +50,7 @@ function hero(){const B=banners();return `<section class="h5" id="h5" aria-roled
   return `<div class="h5i th-${esc(b.theme||'teal')} ${i?'':'on'}" ${b.image?`style="--bg:url('${esc(b.image)}')"`:''} data-i="${i}">${b.image?'<div class="h5bg"></div>':''}<div class="h5o"></div>
    <div class="h5t"><span class="h5k">${esc(b.k||'Nearbuy')}</span><h1>${esc(b.title)}</h1>${b.subtitle?`<p>${esc(b.subtitle)}</p>`:''}<button class="h5c" data-plink="${esc(b.link||'#search')}">${esc(b.cta||'Shop now')}${svg('arrow')}</button></div>
    <div class="h5p">${im}<i class="orb o1"></i><i class="orb o2"></i></div></div>`}).join('')}</div>
+  <button type="button" class="h5a h5prev" data-h5go="-1" aria-label="Previous slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="h5a h5next" data-h5go="1" aria-label="Next slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
   <div class="h5d">${B.map((_,i)=>`<button data-h5="${i}" class="${i?'':'on'}" aria-label="Slide ${i+1}"><i></i></button>`).join('')}</div></section>`}
 const trust=()=>`<div class="trust">${[['lock','Secure ordering','Sign-in & verified shops'],['store','Local shops','Independents near you'],['clock','Quick collection','Often ready same day'],['chat','Friendly support','Real people, UK based']].map(([i,t,s])=>`<div>${svg(i)}<span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>`;
 function deals(){let L=S.products.filter(p=>p.cmp>p.price&&!p.demo),demo=false;
@@ -113,7 +107,7 @@ function show(i){const s=[...document.querySelectorAll('.h5i')],d=[...document.q
 function wire(){const h=$('#h5');if(!h)return;hi=0;show(0);let x0=null;
   h.addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});h.addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>40)show(hi+(dx<0?1:-1));x0=null});
   tick()}
-addEventListener('click',e=>{const b=e.target.closest('[data-h5]');if(b){e.preventDefault();e.stopPropagation();show(+b.dataset.h5)}},true);
+addEventListener('click',e=>{const b=e.target.closest('[data-h5]');if(b){e.preventDefault();e.stopPropagation();show(+b.dataset.h5)}const a=e.target.closest('[data-h5go]');if(a){e.preventDefault();e.stopPropagation();show(hi+(+a.dataset.h5go))}},true);
 function tick(){const c=$('#cd');if(!c)return;const n=new Date(),m=new Date(n);m.setHours(24,0,0,0);let s=Math.max(0,Math.floor((m-n)/1000));const p=v=>String(v).padStart(2,'0');
   c.querySelector('[data-h]').textContent=p(Math.floor(s/3600));c.querySelector('[data-m]').textContent=p(Math.floor(s%3600/60));c.querySelector('[data-s]').textContent=p(s%60)}
 setInterval(tick,1000);
@@ -135,51 +129,7 @@ function chrome(){const top=$('.top');if(!top||$('.ticker'))return;
   const mm=CATS.map(([l,t],i)=>{const ps=CAT().filter(p=>p.images?.length&&t(p));const thumbs=[0,7,15,23].map(k=>ps[k]).filter(Boolean);
     return `<div class="mi"><button data-cat="${i}">${l}</button><div class="mp"><div class="mpl"><b>${l}</b><a href="#" data-cat="${i}">Shop all ${l.toLowerCase()} ${svg('arrow')}</a><a href="#" data-plink="max:5">Under £5</a><a href="#" data-plink="q:pack">Bundle & save</a></div>
      <div class="mpg">${thumbs.map(p=>`<a href="#" data-cat="${i}"><img src="${esc(p.images[0])}" alt=""><span>${esc(p.name.split(/[,–-]/)[0].slice(0,34))}</span></a>`).join('')}</div></div></div>`}).join('');
-  top.insertAdjacentHTML('beforeend',`<nav class="mega desk" aria-label="Categories"><div class="wrap mgi">${mm}<span class="mgs"></span><a href="#" class="mgd" data-plink="#search">${svg('fire')}Deals</a><a href="#sell" class="mgsell">Sell on Nearbuy</a></div></nav>`)}
-
-// ---------- admin: promotions ----------
-const TYPES={banner:'Banner',sponsored:'Sponsored product',featured_shop:'Featured shop',deal:'Deal tile'},THEMES=['teal','coral','lime','night','gold'];
-const dtl=v=>v?new Date(v).toISOString().slice(0,16):'';
-const state=p=>!p.active?['off','Paused']:p.start_at&&Date.parse(p.start_at)>now()?['sched','Scheduled']:p.end_at&&Date.parse(p.end_at)<=now()?['ended','Ended']:['live','Live'];
-async function loadAll(){try{PA.all=await PD.all();PA.msg=''}catch(e){PA.msg=/relation|promotions/.test(e.message)?'Run migration_004_promos.sql to enable promotions.':e.message}PA.loaded=true}
-function promoAdmin(){if(!PA.loaded){loadAll().then(()=>{if(cur[0]==='admin')render()});return '<section class="sec pa"><div class="sk5" style="height:120px"></div></section>'}
-  const e=PA.edit,shops=S.shops.filter(s=>!s.demo);
-  const form=e?`<form class="panel paf" id="paf"><h3>${e.id?'Edit promotion':'New promotion'}</h3>
-   <div class="g2"><label class="fl"><span>Type</span><select id="pa_type">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${e.type===k?'selected':''}>${v}</option>`).join('')}</select></label>
-    <label class="fl"><span>Placement (banners)</span><select id="pa_place"><option value="hero" ${e.placement!=='mid'?'selected':''}>Hero carousel</option><option value="mid" ${e.placement==='mid'?'selected':''}>Mid-page banner</option></select></label></div>
-   <label class="fl"><span>Title *</span><input id="pa_title" required maxlength="80" value="${esc(e.title||'')}"></label>
-   <label class="fl"><span>Subtitle</span><input id="pa_sub" maxlength="140" value="${esc(e.subtitle||'')}"></label>
-   <div class="g2"><label class="fl"><span>Button label</span><input id="pa_cta" maxlength="30" placeholder="Shop now" value="${esc(e.cta||'')}"></label>
-    <label class="fl"><span>Link</span><input id="pa_link" placeholder="#sell, q:balloons, sec:1, #shop=…, https://…" value="${esc(e.link||'')}"></label></div>
-   <div class="g2"><label class="fl"><span>Product SKU (sponsored)</span><input id="pa_sku" value="${esc(e.sku||'')}"></label>
-    <label class="fl"><span>Shop (featured / sponsor)</span><select id="pa_shop"><option value="">None</option>${shops.map(s=>`<option value="${esc(s.id)}" ${e.shop_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label></div>
-   <div class="g2"><label class="fl"><span>Theme</span><select id="pa_theme">${THEMES.map(t=>`<option ${e.theme===t?'selected':''}>${t}</option>`).join('')}</select></label>
-    <label class="fl"><span>Priority (higher first)</span><input id="pa_pri" type="number" step="1" value="${e.priority??0}"></label></div>
-   <div class="g2"><label class="fl"><span>Starts</span><input id="pa_start" type="datetime-local" value="${dtl(e.start_at||new Date().toISOString())}"></label>
-    <label class="fl"><span>Ends (optional)</span><input id="pa_end" type="datetime-local" value="${dtl(e.end_at)}"></label></div>
-   <label class="fl"><span>Image (uploads to shop-media/promos, max 5 MB)</span><div class="paim">${e.image?`<img src="${esc(e.image)}" alt="">`:'<span class="ph">No image</span>'}<input id="pa_file" type="file" accept="image/*"></div></label>
-   <label class="fl"><span>…or image URL</span><input id="pa_img" value="${esc(e.image||'')}" placeholder="https://"></label>
-   <label class="chk"><input type="checkbox" id="pa_active" ${e.active!==false?'checked':''}> Active</label>
-   <div class="acts"><button class="btn" type="submit" ${PA.busy?'disabled':''}>${PA.busy?'Saving…':'Save promotion'}</button><button class="btn ghost" type="button" data-pa="cancel">Cancel</button>${e.id?`<button class="btn ghost danger" type="button" data-pa="del" data-id="${esc(e.id)}">Delete</button>`:''}</div></form>`:'';
-  return `<section class="sec pa"><div class="sh"><h2>Promotions <span class="sample">${PA.all.length}</span></h2><a href="#" data-pa="new">+ New promotion</a></div>
-   ${PA.msg?`<div class="msg err">${esc(PA.msg)}</div>`:''}${form}
-   <div class="pal">${PA.all.map(p=>{const [c,l]=state(p);return `<div class="pai"><div class="pat th-${esc(p.theme||'teal')}" ${p.image?`style="background:center/cover url('${esc(p.image)}')"`:''}></div>
-    <div class="pab"><div class="pah"><span class="ptype">${TYPES[p.type]||p.type}${p.type==='banner'?' · '+(p.placement==='mid'?'mid-page':'hero'):''}</span><span class="pst ${c}">${l}</span></div><b>${esc(p.title)}</b>
-    <small>${p.start_at?new Date(p.start_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'Now'} → ${p.end_at?new Date(p.end_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'no end'} · priority ${p.priority||0}</small></div>
-    <button class="btn ghost sm" data-pa="edit" data-id="${esc(p.id)}">Edit</button></div>`}).join('')||(PA.msg?'':'<div class="empty">No promotions yet. House promos are showing on the homepage.</div>')}</div></section>`}
-const _admin=V.admin;V.admin=function(){const h=_admin();return isAdmin()?h+promoAdmin():h};
-addEventListener('click',async e=>{const b=e.target.closest('[data-pa]');if(!b)return;e.preventDefault();e.stopPropagation();const a=b.dataset.pa;
-  if(a==='new'){PA.edit={type:'banner',active:true,priority:0,theme:'teal',placement:'hero'};render();$('#paf')?.scrollIntoView({block:'start'});return}
-  if(a==='edit'){PA.edit={...PA.all.find(p=>String(p.id)===b.dataset.id)};render();$('#paf')?.scrollIntoView({block:'start'});return}
-  if(a==='cancel'){PA.edit=null;return render()}
-  if(a==='del'){if(!confirm('Delete this promotion?'))return;try{await PD.del(b.dataset.id);PA.edit=null;await loadAll();await refreshPromos();toast('Promotion deleted')}catch(err){toast(err.message)}render()}},true);
-document.addEventListener('submit',async e=>{if(e.target.id!=='paf')return;e.preventDefault();e.stopImmediatePropagation();const v=id=>$('#'+id).value.trim();
-  try{PA.busy=true;let image=v('pa_img')||null;const f=$('#pa_file').files[0];if(f){if(f.size>5e6)throw new Error('Image must be under 5 MB');image=await PD.upload(f)}
-    const st=v('pa_start'),en=v('pa_end');if(en&&st&&new Date(en)<=new Date(st))throw new Error('End must be after start');
-    const r={id:PA.edit.id,type:v('pa_type'),placement:v('pa_place'),title:v('pa_title'),subtitle:v('pa_sub')||null,cta:v('pa_cta')||null,link:v('pa_link')||null,sku:v('pa_sku')||null,shop_id:v('pa_shop')||null,
-      theme:v('pa_theme'),priority:parseInt(v('pa_pri'))||0,start_at:st?new Date(st).toISOString():new Date().toISOString(),end_at:en?new Date(en).toISOString():null,image,active:$('#pa_active').checked};
-    if(!r.title)throw new Error('Title is required');if(r.type==='featured_shop'&&!r.shop_id)throw new Error('Choose a shop to feature');if(r.type==='sponsored'&&!r.sku)throw new Error('Enter the SKU to sponsor');
-    await PD.save(r);PA.edit=null;PA.busy=false;await loadAll();await refreshPromos();toast('Promotion saved');render()}catch(err){PA.busy=false;toast(err.message||String(err))}},true);
+  top.insertAdjacentHTML('beforeend',`<nav class="mega desk" aria-label="Categories"><div class="wrap mgi">${mm}<span class="mgs"></span><a href="#" class="mgd" data-plink="#search">${svg('fire')}Deals</a></div></nav>`)}
 
 async function refreshPromos(){try{P.list=await PD.list()}catch(e){P.list=[]}}
 window.P5={async init(){
@@ -198,6 +148,5 @@ window.P5={async init(){
   if(sb&&!MOCK&&S.L?.length){try{const {data,error}=await sb.from('shop_listings').select('id,compare_at_price').in('id',S.L.map(x=>x.id)).not('compare_at_price','is',null);
     if(!error&&data.length){const m=Object.fromEntries(data.map(x=>[x.id,x.compare_at_price]));S.L.forEach(x=>{if(m[x.id]!=null)x.compare_at_price=m[x.id]});P4.regroup()}}catch(e){}}
   await refreshPromos();chrome();
-  if(Q.get('view')==='promoedit'){PA.all=await PD.all();PA.loaded=true;PA.edit={...PA.all[0]};window.P2_START='admin'}
 }};
 })();
