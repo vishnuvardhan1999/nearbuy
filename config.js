@@ -1,5 +1,5 @@
-// Fill these in from Supabase > Project Settings > API. Leave as-is to run in demo mode (products.json).
+// Supabase public (publishable) config. Safe to expose; access is controlled by RLS.
 window.APP_CONFIG = {
-  SUPABASE_URL: "YOUR_SUPABASE_URL",
-  SUPABASE_KEY: "YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY",
+  SUPABASE_URL: "https://nvkfatgnlydgznzczehj.supabase.co",
+  SUPABASE_KEY: "sb_publishable_jQ-2c28tQuv_nCUyzq94eQ_HlGoPYaQ",
 };
