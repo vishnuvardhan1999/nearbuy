@@ -22,21 +22,21 @@ const saveB=()=>{localStorage.nb_basket=JSON.stringify(S.basket);const n=S.baske
 const miles=(a,b)=>{const R=3958.8,r=x=>x*Math.PI/180,dLa=r(b.lat-a.lat),dLo=r(b.lng-a.lng),h=Math.sin(dLa/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 async function lookupPostcode(pc){const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\s+/g,'')));const j=await r.json();if(j.status!==200)throw new Error('Postcode not found');return{lat:j.result.latitude,lng:j.result.longitude,pc:j.result.postcode}}
 async function reversePc(lat,lng){try{const j=await (await fetch(`https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1`)).json();return j.result?.[0]?.postcode||'Current location'}catch{return 'Current location'}}
-function setMe(me,pc){S.me=me;S.pc=pc;localStorage.nb_me=JSON.stringify(me);localStorage.nb_pc=pc;$('#pc').textContent=pc;render()}
+function setMe(me,pc){S.me=me;S.pc=pc;localStorage.nb_me=JSON.stringify(me);localStorage.nb_pc=pc;$('#pc').textContent=pc;if(window.P4)P4.regroup();render()}
 
 async function load(){
   if(S.pc)$('#pc').textContent=S.pc;
   $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
   if(sb){try{
     const [l,s]=await Promise.all([
-      sb.from('shop_listings').select('id,retail_price,shop_id,sku,name,image,category,trade_price,stock').eq('active',true).gt('retail_price',0).limit(2000),
+      sb.from('shop_listings').select('id,retail_price,shop_id,sku,name,image,category,trade_price,stock,updated_at').eq('active',true).gt('retail_price',0).limit(2000),
       sb.from('shops').select('id,name,postcode,lat,lng,delivery_options,logo_url,cover_url,opening_hours').eq('active',true).eq('status','approved').limit(500)]);
     if(s.error)throw s.error; S.shops=s.data||[];
-    if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};l.data.filter(x=>ok.has(x.shop_id)&&x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={listing_id:x.id,stock:x.stock,sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
+    if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};S.L=l.data.filter(x=>ok.has(x.shop_id));S.L.filter(x=>x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={listing_id:x.id,stock:x.stock,sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
   }catch(e){console.warn('Supabase unavailable',e)}}
   if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
   if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
-  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
+  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
 }
 // ---------- curation ----------
 const has=p=>p.images&&p.images.length;
@@ -50,7 +50,7 @@ const CATS=[['Stationery',kw('pen ','pens','pencil','notebook')],['Party',kw('ba
 const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to school',kw('pencil','notebook','ruler','eraser','sharpener','highlighter','glue stick','pencil case','exercise book'),5],
  ['Art & craft picks',p=>p.category==='Art & Craft'||kw('paint','glitter','craft','colouring')(p),2],['Party time',kw('balloon','party','banner','candle','napkin','gift bag'),4]];
 // ---------- templates ----------
-const pcard=p=>`<div class="pc" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
+const pcard=p=>window.P4?P4.card(p):`<div class="pc" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
 <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
 const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
 function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
@@ -70,7 +70,7 @@ function home(){
   const h1=pick(kw('pen','notebook','glue'),3,4),h2=pick(kw('pencil','ruler','notebook'),3,9),h3=pick(kw('balloon','gift bag'),3,2);
   const art=a=>`<div class="art">${a.map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
   const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0];return `<button class="cat" data-cat="${i}"><span class="ci">${p?`<img src="${esc(p.images[0])}" alt="">`:''}</span>${l}</button>`}).join('');
-  const secs=SECTIONS.map(([t,f,s],i)=>`<section class="sec"><div class="sh"><h2>${t}</h2><a href="#" data-sec="${i}">See all</a></div><div class="row prods">${pick(f,12,s).map(pcard).join('')}</div></section>`).join('');
+  const secs=SECTIONS.map(([t,f,s],i)=>`<section class="sec"><div class="sh"><h2>${t}${S.products[0]?.demo?'<span class="sample soon">Coming soon</span>':''}</h2><a href="#" data-sec="${i}">See all</a></div><div class="row prods">${pick(f,12,s).map(pcard).join('')}</div></section>`).join('');
   return `<section class="hero"><div class="slides" id="slides">
    <div class="slide s1"><div class="tag">Shop local</div><h3>Your local shops, delivered in hours</h3><p>Click & collect or same-day delivery from independents near you.</p><button class="cta" data-t="search">Start shopping</button>${art(h1)}</div>
    <div class="slide s2"><div class="tag">New term</div><h3>Back to school essentials</h3><p>Pens, pads and pencil cases.</p><button class="cta" data-sec="1">Shop now</button>${art(h2)}</div>
@@ -78,15 +78,17 @@ function home(){
   </div><div class="dots" id="dots"><i class="on"></i><i></i><i></i></div></section>
   <div class="chips"><button class="chip" data-t="search">${svg('bag')}Click &amp; collect</button><button class="chip" data-t="search">${svg('bolt')}Same-day delivery</button><button class="chip" data-sec="0">${svg('tag')}Offers</button><button class="chip" id="register2">${svg('store')}Sell on Nearbuy</button></div>
   ${shopsSection()}
+  ${S.products[0]?.demo?`<div class="soonbar">${svg('pin')}<div><b>Coming soon to shops near you</b><p>A preview of what local shops can stock on Nearbuy. Tap <i>Notify me</i> and we'll flag items when a shop near you lists them.</p></div></div>`:''}
   <section class="sec"><div class="sh"><h2>Shop by category</h2></div><div class="cats">${cats}</div></section>
   ${secs}
   <section class="sell"><div><h3>Shop owner? Sell on Nearbuy</h3><p>Get a free online shop for your store. Your products are listed for you with photos and descriptions. Just set your prices.</p></div>
    <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}No setup fee</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
   ${S.products[0]?.demo?'<p class="note">Preview catalogue: prices are illustrative until shops set their own.</p>':''}
-  <footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark" style="background:var(--navy)"></span><span class="word" style="color:var(--navy)">near<b>buy</b></span></a><p>Independent shops, on your doorstep.</p></div>
+  ${foot()}`}
+function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark" style="background:var(--navy)"></span><span class="word" style="color:var(--navy)">near<b>buy</b></span></a><p>Independent shops, on your doorstep.</p></div>
    <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
-   <div><h5>Sellers</h5><a href="#" id="register4">Register your shop</a><a href="#">Seller help</a></div>
-   <div><h5>Help</h5><a href="#">Contact</a><a href="#">Privacy</a><a href="#">Terms</a></div></div>
+   <div><h5>Sellers</h5><a href="#sell">Sell on Nearbuy</a><a href="#" id="register4">Register your shop</a><a href="#how">How it works</a></div>
+   <div><h5>Nearbuy</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a><a href="#terms">Terms of Use</a><a href="#privacy">Privacy Policy</a></div></div>
    <div class="fb"><span>© ${new Date().getFullYear()} Nearbuy</span><span>Nearbuy, a NuvonHub product</span></div></footer>`}
 function list(title,items){return `<section class="sec"><div class="sh"><h2>${esc(title)}</h2><span class="note" style="margin:0">${items.length} items</span></div>${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:`<div class="empty">${svg('search')}<br>No matches yet</div>`}</section>`}
 const V={home,

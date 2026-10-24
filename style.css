@@ -232,3 +232,34 @@ a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}svg{widt
 .sh-f .btn{flex:1;margin:0;padding:14px}
 @media (min-width:768px){.sh-card{left:50%;right:auto;width:560px;bottom:auto;top:50%;border-radius:24px;transform:translate(-50%,-40%);opacity:0;max-height:86vh}
  #sheet.on .sh-card{transform:translate(-50%,-50%);opacity:1}.sh-f{position:sticky}}
+/* Phase 4 */
+.pmeta{font-size:11px;color:var(--mut);margin-top:4px;display:flex;align-items:center;gap:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pmeta svg{width:12px;height:12px;flex:none;stroke:currentColor;fill:none;stroke-width:2}.pmeta b{color:#0f766e;font-weight:700}
+.pmeta.soonm{color:#c2410c}.pr small{font-size:11px;font-weight:600;color:var(--mut)}.pr.soonp{font-size:12px;color:#c2410c;font-weight:700}
+.pc.soon .pim img{opacity:.82}.ntf{border:1.5px solid #0f766e;color:#0f766e;background:#fff;border-radius:999px;font:700 11px inherit;font-family:inherit;padding:6px 10px;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
+.ntf.on{background:#0f766e;color:#fff}.ntf svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5}
+.sample.soon{background:#fff1ec;color:#c2410c}
+.soonbar{display:flex;gap:12px;align-items:flex-start;background:#fff1ec;border:1px solid #ffd3c6;border-radius:16px;padding:14px 16px;margin:18px 0 4px}.soonbar svg{width:22px;height:22px;flex:none;stroke:#ff6b4a;fill:none;stroke-width:2}.soonbar b{color:#134e4a}.soonbar p{margin:2px 0 0;font-size:13px;color:#475569}
+.sgrp{margin-bottom:12px}.sl{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.sl a{text-transform:none;color:#0f766e}
+.qchips{display:flex;flex-wrap:wrap;gap:6px}.qchips button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font:500 13px inherit;font-family:inherit;display:flex;gap:5px;align-items:center;cursor:pointer}.qchips svg{width:13px;height:13px;stroke:var(--mut);fill:none;stroke-width:2}.qchips.pop button{background:#ecfdf5;border-color:#ccebe4;color:#134e4a}
+.filters{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin:4px 0 16px;display:grid;gap:10px}
+.frow{display:flex;gap:8px;align-items:center}.fsel{flex:1;display:grid;gap:2px;font-size:11px;font-weight:600;color:var(--mut)}.fsel select{font:600 13px inherit;font-family:inherit;border:1.5px solid var(--line);border-radius:10px;padding:7px 8px;background:#fff;color:#134e4a;width:100%}
+.fchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.fchips::-webkit-scrollbar{display:none}.fchips button{flex:none;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font:600 12px inherit;font-family:inherit;color:#134e4a;display:flex;gap:4px;align-items:center;cursor:pointer}
+.fchips button.on{background:#0f766e;border-color:#0f766e;color:#fff}.fchips svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2}.fchips .sep{flex:none;width:1px;background:var(--line);margin:2px}
+.frow.price{font-size:12px;font-weight:600;color:var(--mut)}.frow.price .pf2 input{width:56px}.frow.price a{margin-left:auto;color:#ff6b4a;font-size:12px}
+.soonh{margin-top:26px}
+.pick{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}.pick h5{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between}.pick h5 span{color:var(--mut);font-weight:500;font-size:12px}
+.po{width:100%;display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:8px;font-family:inherit;text-align:left;cursor:pointer}
+.po i{width:18px;height:18px;border-radius:50%;border:2px solid #cbd5e1;flex:none}.po.on{border-color:#0f766e;background:#f0fdfa}.po.on i{border:5px solid #0f766e}.po:disabled{opacity:.5}
+.pon{flex:1;display:grid}.pon b{font-size:14px;color:#134e4a}.pon small{font-size:12px;color:var(--mut)}.poprc{font-weight:800;color:#134e4a;text-align:right;display:grid}.poprc em{font-style:normal;font-size:10px;color:#fff;background:#ff6b4a;border-radius:6px;padding:1px 5px;margin-top:2px}
+.sh-soon{margin:0;font-size:13px;color:var(--mut);flex:1}
+.info{max-width:760px;margin:0 auto;padding:8px 0 24px;line-height:1.6;color:#1f2937}.ih{background:linear-gradient(135deg,#134e4a,#0f766e);color:#fff;border-radius:20px;padding:24px 20px;margin:12px 0 20px}
+.ih .tag{display:inline-block;background:rgba(255,255,255,.15);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}.ih h1{margin:10px 0 4px;font-size:28px;letter-spacing:-.5px;line-height:1.15}.ih p{margin:0;opacity:.9}
+.info h3{color:#134e4a;margin:22px 0 6px;font-size:17px}.info .lead{font-size:17px}
+.cards3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:16px 0}.cards3>div{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}.cards3 svg{width:24px;height:24px;stroke:#0f766e;fill:none;stroke-width:2}.cards3 h4{margin:6px 0 2px;color:#134e4a}.cards3 p{margin:0;font-size:13px;color:#475569;line-height:1.45}
+.steps{padding-left:0;list-style:none;counter-reset:s}.steps li{counter-increment:s;position:relative;padding:0 0 12px 40px}.steps li:before{content:counter(s);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:#ff6b4a;color:#fff;font-weight:800;display:grid;place-items:center;font-size:13px}
+.free{display:flex;gap:12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:16px;padding:16px}.free svg{width:26px;height:26px;stroke:#0f766e;fill:none;stroke-width:2;flex:none}.free b{font-size:17px;color:#134e4a}.free p{margin:2px 0 0;font-size:14px}
+.draft{background:#fff7ed;border:1.5px dashed #fb923c;border-radius:12px;padding:12px 14px;font-size:13px;color:#7c2d12}
+.qa{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px}.qa summary{font-weight:700;color:#134e4a;cursor:pointer}.qa p{margin:8px 0 0;font-size:14px}
+.cpanel{display:grid;gap:12px}.cpanel .btn{display:inline-flex;gap:8px;align-items:center;justify-self:start;text-decoration:none}.cpanel svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}
+.btn.ghost{background:#fff;color:#0f766e;border:1.5px solid #0f766e;text-decoration:none;display:inline-block}
+.qchips button{width:auto!important;flex:none!important}.pc.soon .pf{justify-content:flex-start}.pc.soon .ntf{width:100%;justify-content:center}

@@ -184,7 +184,7 @@ document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')
     const r=await D.place(a);O.lastShop=B()[0].shop_name;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;scrollTo(0,0);route('placed',r)}
   catch(err){CO.err=err.message||String(err);render()}},true);
 
-window.P3={after:null,async init(){
+window.P3={add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
       M.orders.push({id:'o'+n,order_number:'NB-'+(1000+n),shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,

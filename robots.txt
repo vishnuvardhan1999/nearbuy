@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nearbuy-uk.vercel.app/sitemap.xml
