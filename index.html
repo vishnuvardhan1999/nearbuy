@@ -1,0 +1,14 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nearbuy · Shop local</title><meta name="theme-color" content="#0b2d52">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="style.css"></head><body>
+<header class="top"><div class="brand"><span class="logo">N</span>Nearbuy<span id="mode" class="mode"></span></div>
+<div class="loc" id="loc">📍 Set your postcode</div>
+<form id="sf" class="search"><input id="q" type="search" placeholder="Search products or shops near you" autocomplete="off"></form></header>
+<main id="view"></main>
+<nav class="tabs" id="tabs">
+<button data-t="home" class="on"><span>🏠</span>Home</button><button data-t="search"><span>🔍</span>Search</button>
+<button data-t="basket"><span>🧺</span>Basket<b id="bc" class="badge hidden">0</b></button><button data-t="orders"><span>📦</span>Orders</button><button data-t="account"><span>👤</span>Account</button></nav>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script><script src="app.js"></script></body></html>
