@@ -1,67 +1,120 @@
-// Nearbuy Phase 1 – static PWA. Uses Supabase when config.js is filled in, otherwise demo mode with products.json.
+// Nearbuy (a NuvonHub product) – homepage v2. Supabase when config.js is filled in; catalogue falls back to products.json.
+// Shops are ONLY real registered shops (shops.active=true). Sample shops appear only with ?demo=1.
 const CFG=window.APP_CONFIG||{};
-const LIVE=CFG.SUPABASE_URL&&/^https:\/\//.test(CFG.SUPABASE_URL)&&CFG.SUPABASE_KEY&&!/YOUR_/.test(CFG.SUPABASE_KEY);
+const LIVE=!!(CFG.SUPABASE_URL&&/^https:\/\//.test(CFG.SUPABASE_URL)&&CFG.SUPABASE_KEY&&!/YOUR_/.test(CFG.SUPABASE_KEY));
+const DEMO=new URLSearchParams(location.search).get('demo')==='1';
 const sb=LIVE&&window.supabase?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY):null;
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const gbp=n=>'£'+Number(n).toFixed(2);
-const DEMO_SHOPS=[
- {id:'demo-1',name:'Corner News & Stationers',postcode:'Demo',distance:0.3,delivery_options:{collect:true,delivery:true},demo:true},
- {id:'demo-2',name:'High Street Cards & Gifts',postcode:'Demo',distance:0.8,delivery_options:{collect:true,delivery:false},demo:true},
- {id:'demo-3',name:'Village Post Office Store',postcode:'Demo',distance:1.4,delivery_options:{collect:true,delivery:true},demo:true}];
-const ICON={'Stationery & Essentials':'✏️','Stationery':'📎','Party & Event Supplies':'🎉','Art & Craft':'🎨','House Hold':'🧽','Tapes & Adhesives':'🩹','Packaging & Mailing':'📦','Toys':'🧸','Diaries & Calendars':'📅','Hardware & Electronics':'🔋','Notepads':'🗒️','Office Supplies':'🗂️','Greeting Cards':'💌','Candles':'🕯️'};
-const S={products:[],shops:[],listings:[],basket:JSON.parse(localStorage.nb_basket||'[]'),pc:localStorage.nb_pc||''};
-const saveB=()=>{localStorage.nb_basket=JSON.stringify(S.basket);const n=S.basket.reduce((a,b)=>a+b.qty,0);$('#bc').textContent=n;$('#bc').classList.toggle('hidden',!n)};
+const I={home:'<path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+ basket:'<path d="M5 8h14l-1.5 11h-11z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',orders:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+ account:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',plus:'<path d="M12 5v14M5 12h14"/>',check:'<path d="m5 12 5 5 9-10"/>',
+ star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',bag:'<path d="M6 7h12l1 14H5z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
+ bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',tag:'<path d="M20 12 12 20l-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',store:'<path d="M3 9 5 4h14l2 5M4 9v11h16V9M3 9h18M9 20v-6h6v6"/>',
+ pin:'<path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>'};
+const svg=n=>`<svg viewBox="0 0 24 24">${I[n]}</svg>`;
+const S={products:[],shops:[],basket:JSON.parse(localStorage.nb_basket||'[]'),pc:localStorage.nb_pc||'',me:JSON.parse(localStorage.nb_me||'null'),radius:+(localStorage.nb_r||5)};
+const DEMO_SHOPS=[{id:'d1',name:'Corner News & Stationers',postcode:'Sample',lat:0,lng:0,demoMi:0.3,rating:4.8,mins:'25–35',open:true,delivery_options:{collect:true,delivery:true},cat:'Stationery'},
+ {id:'d2',name:'High Street Cards & Gifts',postcode:'Sample',demoMi:0.8,rating:4.6,mins:'30–45',open:true,delivery_options:{collect:true,delivery:false},cat:'Party'},
+ {id:'d3',name:'Village Post Office Store',postcode:'Sample',demoMi:1.4,rating:4.7,mins:'40–55',open:false,delivery_options:{collect:true,delivery:true},cat:'Craft'}];
+
+const saveB=()=>{localStorage.nb_basket=JSON.stringify(S.basket);const n=S.basket.reduce((a,b)=>a+b.qty,0);document.querySelectorAll('[data-bc]').forEach(e=>{e.textContent=n;e.classList.toggle('hidden',!n)})};
+const miles=(a,b)=>{const R=3958.8,r=x=>x*Math.PI/180,dLa=r(b.lat-a.lat),dLo=r(b.lng-a.lng),h=Math.sin(dLa/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+async function lookupPostcode(pc){const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\s+/g,'')));const j=await r.json();if(j.status!==200)throw new Error('Postcode not found');return{lat:j.result.latitude,lng:j.result.longitude,pc:j.result.postcode}}
+async function reversePc(lat,lng){try{const j=await (await fetch(`https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1`)).json();return j.result?.[0]?.postcode||'Current location'}catch{return 'Current location'}}
+function setMe(me,pc){S.me=me;S.pc=pc;localStorage.nb_me=JSON.stringify(me);localStorage.nb_pc=pc;$('#pc').textContent=pc;render()}
 
 async function load(){
-  $('#mode').textContent=LIVE?'':'Demo';$('#mode').classList.toggle('hidden',!!LIVE);
-  if(S.pc)$('#loc').textContent='📍 Near '+S.pc;
+  if(S.pc)$('#pc').textContent=S.pc;
+  $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
   if(sb){try{
     const [l,s]=await Promise.all([
-      sb.from('shop_listings').select('id,retail_price,stock,shop_id,sku,products(sku,name,images,category,description)').eq('active',true).limit(500),
-      sb.from('shops').select('id,name,postcode,lat,lng,delivery_options').limit(50)]);
-    if(l.error||s.error)throw l.error||s.error;
-    S.shops=s.data;S.listings=l.data;
-    const seen=new Set();S.products=l.data.filter(x=>x.products&&!seen.has(x.sku)&&seen.add(x.sku)).map(x=>({...x.products,price:x.retail_price,shop_id:x.shop_id}));
-  }catch(e){console.warn('Supabase failed, falling back',e)}}
-  if(!S.products.length){const r=await fetch('products.json');S.products=(await r.json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}));}
-  if(!S.shops.length)S.shops=DEMO_SHOPS;
+      sb.from('shop_listings').select('retail_price,shop_id,sku,products(sku,name,images,category)').eq('active',true).limit(1000),
+      sb.from('shops').select('id,name,postcode,lat,lng,delivery_options').eq('active',true).limit(500)]);
+    if(s.error)throw s.error; S.shops=s.data||[];
+    if(!l.error){const seen=new Set();S.products=l.data.filter(x=>x.products&&!seen.has(x.sku)&&seen.add(x.sku)).map(x=>({...x.products,price:x.retail_price,shop_id:x.shop_id}))}
+  }catch(e){console.warn('Supabase unavailable',e)}}
+  if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
+  if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
   saveB();route('home');
 }
-const card=p=>`<div class="card"><img loading="lazy" src="${esc(p.images?.[0]||'icon-192.png')}" alt="" onerror="this.src='icon-192.png'">
-<div class="b"><div class="n">${esc(p.name)}</div><div class="p">${gbp(p.price)} ${p.demo?'<small>demo price</small>':''}</div>
-<button class="add" data-sku="${esc(p.sku)}">Add</button></div></div>`;
-const shopCard=s=>`<div class="shop"><div class="av">${esc(s.name[0])}</div><b>${esc(s.name)}</b>
-<div class="m">${s.distance!=null?s.distance+' mi · ':''}${esc(s.postcode||'')}</div><div style="clear:both"></div>
-${s.demo?'<span class="chip demo">Sample shop</span>':''}${s.delivery_options?.collect!==false?'<span class="chip">Click &amp; collect</span>':''}${s.delivery_options?.delivery?'<span class="chip">Delivery</span>':''}</div>`;
-function cats(){const c={};S.products.forEach(p=>c[p.category]=(c[p.category]||0)+1);
-  return Object.entries(c).filter(([k])=>!/image|^Other$|SIL-|^\*/i.test(k)).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k])=>k)}
-function popular(){const seen={};return S.products.filter(p=>p.images?.length&&(seen[p.category]=(seen[p.category]||0)+1)<=2).slice(0,10)}
-const V={
- home(){return `<h2>Shops near you <small>${S.shops[0]?.demo?'Sample data':'See all'}</small></h2><div class="hs">${S.shops.map(shopCard).join('')}</div>
- <h2>Categories</h2><div class="cats">${cats().map(c=>`<div class="cat" data-cat="${esc(c)}"><i>${ICON[c]||'🛍️'}</i>${esc(c.replace(' Supplies',''))}</div>`).join('')}</div>
- <h2>Popular products</h2><div class="grid">${popular().map(card).join('')}</div>
- ${S.products[0]?.demo?'<p class="note">Demo mode: catalogue from products.json, prices are illustrative. Connect Supabase in config.js for real shops and prices.</p>':''}`},
- search(q=$('#q').value.trim(),cat){const t=q.toLowerCase();
-  const r=S.products.filter(p=>(!cat||p.category===cat)&&(!t||(p.name+' '+p.category).toLowerCase().includes(t))).slice(0,60);
-  return `<h2>${cat?esc(cat):q?'Results for “'+esc(q)+'”':'Search'} <small>${r.length}${r.length==60?'+':''}</small></h2>${r.length?`<div class="grid">${r.map(card).join('')}</div>`:'<div class="empty">No matches yet</div>'}`},
- basket(){if(!S.basket.length)return '<div class="empty">🧺<br>Your basket is empty</div>';
-  const tot=S.basket.reduce((a,b)=>a+b.price*b.qty,0);
-  return `<h2>Basket</h2><div class="panel">${S.basket.map((b,i)=>`<div class="row"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)} <a href="#" data-rm="${i}">✕</a></span></div>`).join('')}
-  <div class="row"><b>Total</b><b>${gbp(tot)}</b></div><button class="btn" id="checkout">Checkout (click &amp; collect)</button></div>`},
- orders(){return `<h2>Orders</h2><div class="empty">📦<br>${LIVE?'Sign in to see your orders':'Orders appear here once Supabase is connected'}</div>`},
- account(){return `<h2>Account</h2><div class="panel"><div class="row"><span>Postcode</span><a href="#" id="setpc">${esc(S.pc||'Set')}</a></div>
- <div class="row"><span>Run a shop?</span><span>Suman Bros trade customers</span></div><button class="btn" id="shopsignup">Open your Nearbuy shop</button>
- <p class="note">Phase 1: shop sign-up and order flow come in Phase 2.</p></div>`}};
-function route(t,...a){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));$('#view').innerHTML=V[t](...a);scrollTo(0,0)}
-document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-cat],[data-sku],[data-rm],#setpc,#loc,#checkout,#shopsignup');if(!el)return;
- if(el.dataset.t)return route(el.dataset.t);
- if(el.dataset.cat)return route('search','',el.dataset.cat);
- if(el.dataset.sku){const p=S.products.find(x=>x.sku===el.dataset.sku),b=S.basket.find(x=>x.sku===p.sku);b?b.qty++:S.basket.push({sku:p.sku,name:p.name,price:p.price,shop_id:p.shop_id||null,qty:1});saveB();el.textContent='Added ✓';return}
- e.preventDefault();
+// ---------- curation ----------
+const has=p=>p.images&&p.images.length;
+function pick(test,n=12,seed=1){const pool=S.products.filter(p=>has(p)&&test(p)),out=[],fam=new Set();
+  if(!pool.length)return out;const step=Math.max(1,Math.floor(pool.length/(n*2)));
+  for(let k=0;k<step&&out.length<n;k++)for(let i=(k*7+seed)%step;i<pool.length&&out.length<n;i+=step){const p=pool[i],f=p.name.toLowerCase().split(/[\s–-]+/).slice(0,2).join(' ');if(fam.has(f)||out.includes(p))continue;fam.add(f);out.push(p)}
+  return out}
+const kw=(...w)=>p=>{const s=(p.name+' '+p.category).toLowerCase();return w.some(x=>s.includes(x))};
+const CATS=[['Stationery',kw('pen ','pens','pencil','notebook')],['Party',kw('balloon','party')],['Art & craft',p=>p.category==='Art & Craft'],['Gift wrap',kw('gift wrap','gift bag','wrapping')],
+ ['Packaging',p=>/Packaging|Mailing|Envelopes|postal/i.test(p.category)],['Tapes',p=>/Tapes/.test(p.category)],['Household',p=>p.category==='House Hold'],['Toys',p=>/Toys/.test(p.category)]];
+const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to school',kw('pencil','notebook','ruler','eraser','sharpener','highlighter','glue stick','pencil case','exercise book'),5],
+ ['Art & craft picks',p=>p.category==='Art & Craft'||kw('paint','glitter','craft','colouring')(p),2],['Party time',kw('balloon','party','banner','candle','napkin','gift bag'),4]];
+// ---------- templates ----------
+const pcard=p=>`<div class="pc"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
+<div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
+const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
+function scard(s,i){const imgs=pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
+ const open=s.open!==false;return `<div class="shop"><div class="cover" style="background:${grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${open?'':'closed'}"><i></i>${open?'Open now':'Closed'}</span></div>
+ <div class="sb"><div class="sav">${esc(s.name[0])}</div><h4>${esc(s.name)}${s.demo?'<span class="sample">Sample</span>':''}</h4>
+ <div class="meta">${s.rating?`<span class="star">${svg('star')}${s.rating}</span><span class="dot"></span>`:'<span class="star">New</span><span class="dot"></span>'}${d?`<span>${d}</span><span class="dot"></span>`:''}<span>${s.mins||'30–60'} min</span></div>
+ <div class="tags">${s.delivery_options?.collect!==false?'<span class="tg">Click & collect</span>':''}${s.delivery_options?.delivery?'<span class="tg">Delivery</span>':''}</div></div></div>`}
+function shopsSection(){
+  let list=S.shops.map(s=>({...s,dist:s.demo?s.demoMi:(S.me&&s.lat!=null&&s.lng!=null?miles(S.me,s):null)}));
+  if(S.me)list=list.filter(s=>s.dist!=null&&s.dist<=S.radius).sort((a,b)=>a.dist-b.dist);
+  const n=list.length,head=n?`${n} shop${n>1?'s':''} near you`:'Shops near you';
+  const filt=`<div class="dist">${[1,3,5,10].map(r=>`<button data-r="${r}" class="${r===S.radius?'on':''}">${r} mi</button>`).join('')}<button class="geo" id="geo">${svg('target')}Use my location</button></div>`;
+  const body=n?`<div class="row">${list.map(scard).join('')}</div>`:`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No Nearbuy shops near you yet</h4>
+   <p>${S.me?`Nothing within ${S.radius} miles of ${esc(S.pc)}. Try a wider distance.`:'Set your postcode to find registered shops nearby.'}</p><button class="btn" id="register">Register your shop</button></div>`;
+  return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2>${S.me?'':'<a href="#" id="setpc2">Set postcode</a>'}</div>${filt}${body}</section>`}
+function home(){
+  const h1=pick(kw('pen','notebook','glue'),3,4),h2=pick(kw('pencil','ruler','notebook'),3,9),h3=pick(kw('balloon','gift bag'),3,2);
+  const art=a=>`<div class="art">${a.map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
+  const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0];return `<button class="cat" data-cat="${i}"><span class="ci">${p?`<img src="${esc(p.images[0])}" alt="">`:''}</span>${l}</button>`}).join('');
+  const secs=SECTIONS.map(([t,f,s],i)=>`<section class="sec"><div class="sh"><h2>${t}</h2><a href="#" data-sec="${i}">See all</a></div><div class="row prods">${pick(f,12,s).map(pcard).join('')}</div></section>`).join('');
+  return `<section class="hero"><div class="slides" id="slides">
+   <div class="slide s1"><div class="tag">Shop local</div><h3>Your local shops, delivered in hours</h3><p>Click & collect or same-day delivery from independents near you.</p><button class="cta" data-t="search">Start shopping</button>${art(h1)}</div>
+   <div class="slide s2"><div class="tag">New term</div><h3>Back to school essentials</h3><p>Pens, pads and pencil cases.</p><button class="cta" data-sec="1">Shop now</button>${art(h2)}</div>
+   <div class="slide s3"><div class="tag">Celebrate</div><h3>Party &amp; gifts</h3><p>Balloons, wrap and cards.</p><button class="cta" data-sec="3">Explore</button>${art(h3)}</div>
+  </div><div class="dots" id="dots"><i class="on"></i><i></i><i></i></div></section>
+  <div class="chips"><button class="chip" data-t="search">${svg('bag')}Click &amp; collect</button><button class="chip" data-t="search">${svg('bolt')}Same-day delivery</button><button class="chip" data-sec="0">${svg('tag')}Offers</button><button class="chip" id="register2">${svg('store')}Sell on Nearbuy</button></div>
+  ${shopsSection()}
+  <section class="sec"><div class="sh"><h2>Shop by category</h2></div><div class="cats">${cats}</div></section>
+  ${secs}
+  <section class="sell"><div><h3>Shop owner? Sell on Nearbuy</h3><p>Get a free online shop for your store. Your products are listed for you with photos and descriptions. Just set your prices.</p></div>
+   <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}No setup fee</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
+  ${S.products[0]?.demo?'<p class="note">Preview catalogue: prices are illustrative until shops set their own.</p>':''}
+  <footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark" style="background:var(--navy)"></span><span class="word" style="color:var(--navy)">near<b>buy</b></span></a><p>Independent shops, on your doorstep.</p></div>
+   <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
+   <div><h5>Sellers</h5><a href="#" id="register4">Register your shop</a><a href="#">Seller help</a></div>
+   <div><h5>Help</h5><a href="#">Contact</a><a href="#">Privacy</a><a href="#">Terms</a></div></div>
+   <div class="fb"><span>© ${new Date().getFullYear()} Nearbuy</span><span>Nearbuy, a NuvonHub product</span></div></footer>`}
+function list(title,items){return `<section class="sec"><div class="sh"><h2>${esc(title)}</h2><span class="note" style="margin:0">${items.length} items</span></div>${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:`<div class="empty">${svg('search')}<br>No matches yet</div>`}</section>`}
+const V={home,
+ search(q=$('#q').value.trim()){const t=q.toLowerCase();return list(q?`Results for “${q}”`:'All products',S.products.filter(p=>has(p)&&(!t||(p.name+' '+p.category).toLowerCase().includes(t))).slice(0,60))},
+ cat(i){return list(CATS[i][0],S.products.filter(p=>has(p)&&CATS[i][1](p)).slice(0,60))},
+ sec(i){return list(SECTIONS[i][0],pick(SECTIONS[i][1],48,SECTIONS[i][2]))},
+ basket(){if(!S.basket.length)return `<div class="empty">${svg('basket')}<br>Your basket is empty</div>`;const tot=S.basket.reduce((a,b)=>a+b.price*b.qty,0);
+  return `<section class="sec"><div class="sh"><h2>Basket</h2></div><div class="panel">${S.basket.map((b,i)=>`<div class="line"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)} <a href="#" data-rm="${i}">✕</a></span></div>`).join('')}
+  <div class="line"><b>Total</b><b>${gbp(tot)}</b></div><button class="btn full" id="checkout">Checkout</button></div></section>`},
+ orders(){return `<div class="empty">${svg('orders')}<br>${LIVE?'Sign in to see your orders':'Your orders will appear here'}</div>`},
+ account(){return `<section class="sec"><div class="sh"><h2>Account</h2></div><div class="panel"><div class="line"><span>Postcode</span><a href="#" id="setpc2">${esc(S.pc||'Set')}</a></div>
+  <button class="btn full" id="register">Register your shop</button></div></section>`}};
+let cur=['home'];
+function route(t,...a){cur=[t,...a];document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===(V[t]&&['cat','sec'].includes(t)?'search':t)));$('#view').innerHTML=V[t](...a);if(t==='home')carousel();scrollTo(0,0)}
+function render(){const y=scrollY;$('#view').innerHTML=V[cur[0]](...cur.slice(1));if(cur[0]==='home')carousel();scrollTo(0,y)}
+function carousel(){const s=$('#slides'),d=[...document.querySelectorAll('#dots i')];if(!s)return;
+ s.addEventListener('scroll',()=>{const i=Math.round(s.scrollLeft/s.clientWidth);d.forEach((e,k)=>e.classList.toggle('on',k===i))},{passive:true});
+ clearInterval(window._ct);window._ct=setInterval(()=>{if(!document.body.contains(s)||innerWidth>=768)return;const i=(Math.round(s.scrollLeft/s.clientWidth)+1)%3;s.scrollTo({left:i*s.clientWidth,behavior:'smooth'})},5000)}
+async function askPostcode(){const v=prompt('Enter your postcode',S.pc);if(!v)return;try{const r=await lookupPostcode(v.trim());setMe({lat:r.lat,lng:r.lng},r.pc)}catch(e){alert('Sorry, we could not find that postcode.')}}
+document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-cat],[data-sec],[data-sku],[data-rm],[data-r],#loc,#setpc2,#geo,#checkout,[id^=register]');if(!el)return;e.preventDefault();
+ if(el.dataset.t)return route(el.dataset.t);if(el.dataset.cat)return route('cat',+el.dataset.cat);if(el.dataset.sec)return route('sec',+el.dataset.sec);
+ if(el.dataset.r){S.radius=+el.dataset.r;localStorage.nb_r=S.radius;return render()}
+ if(el.dataset.sku){const p=S.products.find(x=>x.sku===el.dataset.sku),b=S.basket.find(x=>x.sku===p.sku);b?b.qty++:S.basket.push({sku:p.sku,name:p.name,price:p.price,shop_id:p.shop_id||null,qty:1});saveB();el.classList.add('done');el.innerHTML=svg('check');return}
  if(el.dataset.rm){S.basket.splice(+el.dataset.rm,1);saveB();return route('basket')}
- if(el.id==='setpc'||el.id==='loc'){const v=prompt('Your postcode',S.pc);if(v!=null){S.pc=v.toUpperCase().trim();localStorage.nb_pc=S.pc;$('#loc').textContent='📍 Near '+S.pc;}return}
- if(el.id==='checkout')return alert(LIVE?'Checkout is coming in Phase 2.':'Demo mode: checkout needs Supabase.');
- if(el.id==='shopsignup')return alert('Shop sign-up arrives in Phase 2.');});
+ if(el.id==='loc'||el.id==='setpc2')return askPostcode();
+ if(el.id==='geo'){if(!navigator.geolocation)return askPostcode();navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng))},()=>askPostcode());return}
+ if(el.id==='checkout')return alert('Checkout is coming in Phase 2.');
+ if(el.id.startsWith('register'))return alert('Shop registration opens in Phase 2.');});
 $('#sf').addEventListener('submit',e=>{e.preventDefault();$('#q').blur();route('search')});
 $('#q').addEventListener('input',()=>{if($('#q').value.length>1)route('search')});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));

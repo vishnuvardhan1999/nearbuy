@@ -1,4 +1,5 @@
 # Nearbuy – Phase 1
+\nA NuvonHub product.
 
 Local marketplace PWA. Suman Bros trade customers each get a shop. Products they bought are listed from wholesaler data, they set retail prices, and local shoppers order for click & collect or delivery.
 Plain static files (no build step), the same pattern as ecity-temple: supabase-js from a CDN, keys in `config.js`.
