@@ -1,6 +1,6 @@
 // Nearbuy (a NuvonHub product) · Phase 6: "Become a seller" landing + seller dashboard (seller.html).
 // Uses the same Supabase tables, RPCs and RLS as p2/p3/p5 (shops, shop_listings, orders, order_items, order_events,
-// update_order_status). Sign-up, login and shop registration stay in index.html (p2.js).
+// update_order_status). Seller login/sign-up live here (#login, #signup); shop registration stays in index.html (p2.js).
 // ?mock=1 runs everything on in-memory data (mock shop "Suman Bros");&as=none shows the signed-out gate.
 (()=>{
 const CFG=window.APP_CONFIG||{},Q=new URLSearchParams(location.search),MOCK=Q.get('mock')==='1';
@@ -40,9 +40,11 @@ const chip=s=>`<span class="st ${esc(s)}">${esc(LBL[s]||s)}</span>`;
 const D={user:null,shop:null,L:[],O:[],cat:null,ui:{oq:'',of:'open',pq:'',pf:'all',pn:60,drawer:null,cat:false,newIds:new Set()}};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s||'');
 // ---------- data layer: Supabase (same calls/RLS as p2/p3/p5) or in-memory mock ----------
-const M={shops:[],L:[],O:[]};
+const M={shops:[],L:[],O:[],user:null};
 const API=MOCK?{
-  async session(){const a=Q.get('as');if(a==='none')return null;return{user:{id:'u1',email:'owner@sumanbros.example'}}},
+  async session(){if(M.user)return{user:M.user};const a=Q.get('as');if(a==='none')return null;return{user:{id:'u1',email:'owner@sumanbros.example'}}},
+  async signUp(email,pw,name){M.user={id:'u1',email,user_metadata:{role:'owner',full_name:name}};if(Q.get('shop')!=='none')M.shops=[];return{session:{user:M.user}}},
+  async signIn(email){M.user={id:'u1',email};return{session:{user:M.user}}},
   async signOut(){},async myShop(){return Q.get('shop')==='none'?null:M.shops.find(s=>s.owner_id==='u1')||null},
   async listings(){return M.L.filter(l=>l.shop_id===D.shop.id)},async orders(){return M.O.filter(o=>o.shop_id===D.shop.id)},
   async updListing(id,ch){Object.assign(M.L.find(l=>l.id===id)||{},ch)},async addListing(l){l.id='l'+Math.random().toString(36).slice(2,8);l.updated_at=new Date().toISOString();M.L.unshift(l);return l},
@@ -52,6 +54,9 @@ const API=MOCK?{
 }:{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
   async signOut(){await sb.auth.signOut()},
+  // Seller accounts are always role 'owner' (same metadata p2.js used for “Sell on Nearbuy”). The confirmation link returns to seller.html.
+  async signUp(email,password,full_name){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'owner',full_name},emailRedirectTo:location.origin+'/seller.html'}});if(error)throw error;return data},
+  async signIn(email,password){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;return data},
   async myShop(){const {data,error}=await sb.from('shops').select('*').eq('owner_id',D.user.id).maybeSingle();if(error)throw error;return data},
   async listings(){const out=[];for(let f=0;;f+=1000){const {data,error}=await sb.from('shop_listings').select('*').eq('shop_id',D.shop.id).order('updated_at',{ascending:false}).range(f,f+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out},
   async orders(){const {data,error}=await sb.from('orders').select('*,order_items(*),order_events(status,note,at)').eq('shop_id',D.shop.id).order('created_at',{ascending:false}).limit(200);if(error)throw error;data.forEach(o=>o.order_events?.sort((a,b)=>a.at<b.at?-1:1));return data},
@@ -93,10 +98,27 @@ async function load(){const s=await API.session();D.user=s?.user||null;D.shop=nu
   if(D.shop){[D.L,D.O]=await Promise.all([API.listings(),API.orders()]);if(!MOCK)API.live(D.shop.id,onLive)}}
 async function boot(){try{if(MOCK)await seed();await load()}catch(e){console.warn(e);toast(e.message||'Could not load your shop')}
   if(sb)sb.auth.onAuthStateChange(async ev=>{if(ev==='SIGNED_OUT'||ev==='SIGNED_IN'){await load().catch(()=>{});render()}});
-  addEventListener('hashchange',()=>{D.ui.drawer=null;render();scrollTo(0,0)});render()}
+  addEventListener('hashchange',()=>{D.ui.drawer=null;if(!AUTH()&&!fromAuth())D.ui.amsg='';render();scrollTo(0,0)});render()}
 const DASH=['overview','orders','products','deals','settings','payouts'];
 function page(){const h=location.hash.slice(1);if(h==='dash')return 'overview';return DASH.includes(h)?h:''}
-function render(){const p=page();if(!p){document.body.className='land';document.title='Sell on Nearbuy · Put your shop online';$('#app').innerHTML=landing();return}
+const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?h:''};
+const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
+// after login / email confirmation: dashboard if there is a shop, otherwise shop registration
+function landSeller(){if(D.shop){location.hash='overview';return true}if(D.user){location.href=idx('view=register&seller=1');return true}return false}
+function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">N</span><span>near<b>buy</b></span><small class="fs">for sellers</small></a>`;
+  return `<div class="gate sauth"><div class="card">${brand}<h2>${su?'Create your seller account':'Seller login'}</h2>
+   <p>${su?'Put your shop on Nearbuy. Free during the pilot. Every shop is reviewed before it goes live.':'Log in to manage your shop, orders and products.'}</p>
+   ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
+   <form id="authf" data-mode="${mode}" class="af">
+    ${su?`<label><span>Your name</span><input name="name" autocomplete="name" required></label>`:''}
+    <label><span>Email</span><input name="email" type="email" autocomplete="email" required></label>
+    <label><span>Password</span><input name="pw" type="password" minlength="8" autocomplete="${su?'new':'current'}-password" required></label>
+    <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Log in'}</button></form>
+   <div class="alt">${su?'Already selling on Nearbuy? <a href="#login">Seller login</a>':'New to Nearbuy? <a href="#signup">Create a seller account</a>'}</div>
+   <div class="xl">Shopping? <a href="${idx('view=account')}">Customer login</a></div></div></div>`}
+function render(){if(fromAuth()&&D.user){history.replaceState(null,'',location.pathname+location.search);if(landSeller())return}
+  const am=AUTH();if(am){if(D.user&&!D.ui.busy){if(landSeller())return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller login')+' · Nearbuy for sellers';$('#app').innerHTML=authView(am);return}
+  const p=page();if(!p){document.body.className='land';document.title='Sell on Nearbuy · Put your shop online';$('#app').innerHTML=landing();return}
   document.body.className='dash';$('#app').innerHTML=dash(p);document.title=(TITLE[p]||'Dashboard')+' · Nearbuy Seller'}
 // =================== LANDING ===================
 const BEN=[['sync','Listed from your wholesale orders','Products you buy wholesale appear in your shop automatically after they ship, with name, category and trade price filled in.'],
@@ -105,7 +127,7 @@ const BEN=[['sync','Listed from your wholesale orders','Products you buy wholesa
  ['bag','Click & collect or delivery','Offer collection, local delivery within the radius you choose, or both. You set the delivery fee.'],
  ['bell','Instant order alerts','New orders ping your dashboard with a sound. Accept, mark ready and complete in one tap.'],
  ['pound','Paid in store','Customers pay you on collection or delivery, so the money goes straight to you. Online payments come later.']];
-const HOW=[['Create your account','Sign up in under a minute with your email and choose “Sell on Nearbuy”.'],['Register your shop','Add your address, opening hours, delivery options and the email you order wholesale with.'],
+const HOW=[['Create your account','Sign up in under a minute with your email on the seller sign-up page.'],['Register your shop','Add your address, opening hours, delivery options and the email you order wholesale with.'],
  ['We approve and list you','We check every shop, usually within a working day. Your wholesale products appear automatically.'],['Set prices, take orders','Fine-tune prices and stock in your seller dashboard, then start receiving local orders.']];
 const FAQ=[['How much does it cost?','Nothing during the pilot: no setup fee, no monthly fee and no commission. After the pilot we plan to introduce optional paid plans. We will give you plenty of notice and you can leave at any time.'],
  ['How do my products get on Nearbuy?','When you register, you tell us the email you use for your wholesale account. Products you order with that account are added to your shop automatically after they ship, with photos and descriptions. You can also add any catalogue product by hand.'],
@@ -116,7 +138,7 @@ const FAQ=[['How much does it cost?','Nothing during the pilot: no setup fee, no
  ['Can I leave at any time?','Yes. There is no contract during the pilot. Switch products off, or ask us to close your shop, whenever you like.'],
  ['Who runs Nearbuy?','Nearbuy is a NuvonHub product, built to help independent shops sell online without the cost of their own website.']];
 function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>p.images?.length),sample=[cat[120],cat[640],cat[1180],cat[1730]].filter(Boolean);
-  const SU=idx('view=signup&seller=1'),LI=idx('view=account&seller=1'),RG=idx('view=register&seller=1');
+  const SU='#signup',LI='#login',RG=idx('view=register&seller=1');
   const primary=has?`<a class="btn coral lg" href="#dash">Open seller dashboard ${svg('arrow')}</a>`:signed?`<a class="btn coral lg" href="${RG}">Register your shop ${svg('arrow')}</a>`:`<a class="btn coral lg" href="${SU}">Start selling free ${svg('arrow')}</a>`;
   const second=signed?`<a class="btn line lg" href="${home()}">Back to shopping</a>`:`<a class="btn line lg" href="${LI}">Log in</a>`;
   return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="Nearbuy home"><span class="mark">N</span><span>near<b>buy</b></span><small>Sellers</small></a>
@@ -154,7 +176,7 @@ const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','
 const newCount=()=>D.O.filter(o=>o.status==='placed').length;
 function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">N</span><span>near<b>buy</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller dashboard</h2><p>Log in with your shop owner account to manage orders, products and your shop.</p>
-   <div class="btns"><a class="btn lg" href="${idx('view=account&seller=1')}">Log in</a><a class="btn ghost lg" href="${idx('view=signup&seller=1')}">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on Nearbuy</a></div></div></div>`;
+   <div class="btns"><a class="btn lg" href="#login">Log in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on Nearbuy</a></div></div></div>`;
   return `<div class="gate"><div class="card">${brand}<h2>Register your shop</h2><p>You’re logged in as ${esc(D.user.email)}, but there’s no shop on this account yet. It takes about three minutes.</p>
    <div class="btns"><a class="btn coral lg" href="${idx('view=register&seller=1')}">Register your shop</a><a class="btn ghost" href="#" data-a="logout">Log out</a></div></div></div>`}
 function dash(p){
@@ -248,7 +270,7 @@ PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
     <label class="fld"><span>Phone</span><input name="phone" type="tel" value="${esc(s.phone||'')}"></label>
     <label class="fld"><span>Address</span><input name="address" required value="${esc(s.address||'')}"></label>
     <label class="fld"><span>Postcode</span><input name="postcode" required value="${esc(s.postcode||'')}"><small class="mut" id="pcok">${s.lat?'Location set ✓':''}</small></label>
-    <label class="fld"><span>Opening hours</span><textarea name="opening_hours" rows="4">${esc(s.opening_hours||'')}</textarea></label>
+    <div class="fld"><span>Opening hours</span>${HoursPicker.html('opening_hours',s.opening_hours)}</div>
     <label class="fld"><span>Wholesale account email</span><input name="bluepark_customer_email" type="email" value="${esc(s.bluepark_customer_email||'')}"><small class="mut">Products ordered with this account are listed automatically. Changing it sends your shop for re-approval.</small></label></div></div>
    <div class="cards"><div class="card fs"><div class="chd"><h3>Collection &amp; delivery</h3></div><div class="cb">
      <label class="tg"><span><b>Click &amp; collect</b><small>Customers collect and pay in store</small></span><span class="sw"><input type="checkbox" name="collect" ${d.collect!==false?'checked':''}><i></i></span></label>
@@ -299,7 +321,12 @@ document.addEventListener('input',e=>{const t=e.target;if(t.id==='oq'){D.ui.oq=t
 document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.f){saveField(t);return}
   if(t.name==='postcode'&&t.form?.id==='setf'){const pc=t.value.trim();try{const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc)).then(r=>r.json());if(r.result){t.dataset.lat=r.result.latitude;t.dataset.lng=r.result.longitude;t.value=r.result.postcode;$('#pcok').textContent='Location found ✓'}else $('#pcok').textContent='Postcode not found'}catch{}}
   if(t.dataset.up&&t.files[0]){const f=t.files[0];if(f.size>5e6)return toast('Image must be under 5MB');try{toast('Uploading…');const url=await API.upload(f,t.dataset.up),k=t.dataset.up+'_url';const s=await API.saveShop({id:D.shop.id,[k]:url});D.shop={...D.shop,...s,[k]:url};toast('Image updated');rerender()}catch(er){toast(er.message||'Upload failed')}}});
-document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='setf'){e.preventDefault();const F=new FormData(f),s=D.shop,pcI=f.postcode;
+document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'){e.preventDefault();const F=new FormData(f),su=f.dataset.mode==='signup',b=f.querySelector('button');b.disabled=true;b.textContent='Please wait…';D.ui.busy=true;D.ui.amsg='';
+   try{const email=F.get('email').trim(),pw=F.get('pw');const r=su?await API.signUp(email,pw,(F.get('name')||'').trim()):await API.signIn(email,pw);
+    if(su&&!r.session){D.ui.busy=false;D.ui.aok=true;D.ui.amsg='Check your email and tap the link to confirm. It brings you back here to register your shop.';location.hash='login';render();return}
+    await load();D.ui.busy=false;toast(su?'Seller account created':'Logged in');landSeller()}
+   catch(er){D.ui.busy=false;D.ui.aok=false;D.ui.amsg=er.message||'Something went wrong';render()}return}
+  if(f.id==='setf'){e.preventDefault();const F=new FormData(f),s=D.shop,pcI=f.postcode;
    const r={id:s.id,name:F.get('name').trim(),phone:F.get('phone').trim(),address:F.get('address').trim(),postcode:F.get('postcode').trim().toUpperCase(),opening_hours:F.get('opening_hours').trim(),bluepark_customer_email:F.get('bluepark_customer_email').trim().toLowerCase(),
     delivery_options:{...(s.delivery_options||{}),collect:!!F.get('collect'),delivery:!!F.get('delivery'),delivery_radius_miles:+F.get('delivery_radius_miles')||0,delivery_fee:+F.get('delivery_fee')||0}};
    if(pcI.dataset.lat){r.lat=+pcI.dataset.lat;r.lng=+pcI.dataset.lng}

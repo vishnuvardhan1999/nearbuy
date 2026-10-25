@@ -3,6 +3,7 @@
 // ?mock=1 runs everything against in-memory data (for local screenshots); nothing is sent to Supabase.
 (function(){
 const Q=new URLSearchParams(location.search),MOCK=Q.get('mock')==='1';
+const fromAuth=/access_token=|type=signup/.test(location.hash);   // captured before supabase-js strips the hash
 const A={user:null,profile:null,shop:null,listings:[],catalog:null,tab:'login',msg:''};
 const toast=m=>{let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}t.textContent=m;t.className='on';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',2600)};
 const pct=(r,t)=>t>0?Math.round((r-t)/r*100):0;   // margin % of retail price
@@ -54,7 +55,7 @@ async function seedMock(){
       opening_hours:'Mon–Sat 7am–7pm, Sun 9am–2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
       delivery_options:{collect:true,delivery:true,delivery_radius_miles:3,delivery_fee:2.5},logo_url:null,cover_url:null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
-      M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],active:i!==2,source:i<5?'wholesale':'manual'}));
+      M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],compare_at_price:i%3===1?+(p.trade_price*2.1).toFixed(2):null,active:i!==2,source:i<5?'wholesale':'manual'}));
     M.shops.push({id:'s2',owner_id:'u2',name:'Village Post Office Store',address:'1 Church Lane, Oadby',postcode:'LE2 5AA',status:'pending',bluepark_customer_email:'vpo@example.com',created_at:'2026-10-23',delivery_options:{collect:true}});
   }
 }
@@ -70,10 +71,8 @@ V.account=function(){
      ${su?field('f_name','Your name','autocomplete="name" required'):''}
      ${field('f_email','Email','type="email" autocomplete="email" required')}
      ${field('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required')}
-     ${su?`<div class="fl"><span>I want to…</span><div class="roles">
-       <label class="role"><input type="radio" name="role" value="shopper" checked><b>Shop locally</b><small>Order from shops near me</small></label>
-       <label class="role"><input type="radio" name="role" value="owner"><b>Sell on Nearbuy</b><small>I run a local shop</small></label></div></div>`:''}
-     <button class="btn full">${su?'Create account':'Log in'}</button></form></section>`}
+     <button class="btn full">${su?'Create account':'Log in'}</button></form>
+    <p class="xlink">Are you a shop? <a href="${window.SELLER_URL?SELLER_URL(su?'signup':'login'):'seller.html#'+(su?'signup':'login')}">Seller ${su?'sign up':'login'}</a></p></section>`}
   const owner=A.profile?.role==='owner'||A.shop;
   return `<section class="sec narrow"><div class="sh"><h2>Account</h2></div>${msg()}
    <div class="panel"><div class="acct"><span class="avatar">${esc((A.profile?.full_name||A.user.email)[0].toUpperCase())}</span><div><b>${esc(A.profile?.full_name||'')}</b><small>${esc(A.user.email)}</small></div><span class="pill">${owner?'Shop owner':'Shopper'}</span></div></div>
@@ -84,7 +83,7 @@ V.account=function(){
    <button class="btn ghost full" data-act="logout">Log out</button></section>`};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s);
 V.register=function(){
-  if(!A.user){A.tab='signup';A.msg='Create an account (choose “Sell on Nearbuy”) to register your shop.';return V.account()}
+  if(!A.user){setTimeout(()=>location.replace(window.SELLER_URL?SELLER_URL('signup'):'seller.html#signup'));return '<div class="empty">Opening seller sign up…</div>'}
   const s=A.shop||{},d=s.delivery_options||{collect:true};
   return `<section class="sec narrow"><div class="sh"><h2>${s.id?'Edit shop details':'Register your shop'}</h2></div>
   <p class="sub">${s.id?'Changes to your trade email send the shop back for review.':'Tell shoppers about your shop. We review every new shop before it goes live, usually within a day.'}</p>
@@ -93,7 +92,7 @@ V.register=function(){
     ${field('s_name','Shop name','required maxlength="80" placeholder="e.g. Corner News & Stationers"',s.name)}
     ${field('s_addr','Street address','required autocomplete="street-address" placeholder="12 High Street, Town"',s.address)}
     <div class="two">${field('s_pc','Postcode','required autocomplete="postal-code" placeholder="LE1 5YA" style="text-transform:uppercase"',s.postcode)}${field('s_phone','Phone','type="tel" autocomplete="tel" placeholder="0116 123 4567"',s.phone)}</div>
-    <label class="fl"><span>Opening hours</span><textarea id="s_hours" rows="2" placeholder="Mon–Sat 8am–6pm, Sun closed">${esc(s.opening_hours||'')}</textarea></label></div>
+    <div class="fl"><span>Opening hours</span>${HoursPicker.html('s_hours',s.opening_hours)}</div></div>
    <div class="panel"><h3 class="ft">How customers get their order</h3>
     <label class="tog"><input type="checkbox" id="s_col" ${d.collect!==false?'checked':''}><span><b>Click &amp; collect</b><small>Customers pick up in store</small></span></label>
     <label class="tog"><input type="checkbox" id="s_del" ${d.delivery?'checked':''}><span><b>Local delivery</b><small>You deliver nearby</small></span></label>
@@ -156,9 +155,10 @@ async function busy(btn,fn){const t=btn?.innerHTML;if(btn){btn.disabled=true;btn
 document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
   const v=id=>(f.querySelector('#'+id)?.value||'').trim();
   if(f.dataset.form==='login')return busy(btn,async()=>{await DB.signIn(v('f_email'),v('f_pw'));await refresh();route('account');toast('Logged in')});
-  if(f.dataset.form==='signup')return busy(btn,async()=>{const role=f.querySelector('[name=role]:checked').value;const r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'));
+  if(f.dataset.form==='signup')return busy(btn,async()=>{const role='shopper';const r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'));
+    // If Supabase 'Confirm email' is off, signUp returns a session: log straight in. Otherwise fall back to the email step.
     if(!MOCK&&!r.session){A.tab='login';A.msg='Check your email to confirm your account, then log in.';return route('account')}
-    await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};route(role==='owner'?'register':'account')});
+    await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};route('account');toast('Welcome to Nearbuy')});
   if(f.dataset.form==='shop')return busy($('#s_submit'),async()=>{
     const pc=await lookupPostcode(v('s_pc')).catch(()=>{throw new Error('We could not find that UK postcode.')});
     const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:pc.lat,lng:pc.lng,phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),
@@ -192,7 +192,8 @@ document.addEventListener('input',e=>{const t=e.target;
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.f)return;const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);
   const val=t.type==='checkbox'?t.checked:t.dataset.f==='compare_at_price'&&(t.value===''||+t.value<=0)?null:t.dataset.f==='stock'?Math.max(0,parseInt(t.value)||0):Math.max(0,+(+t.value).toFixed(2));
   try{await DB.updListing(l.id,{[t.dataset.f]:val});l[t.dataset.f]=val;if(t.type==='checkbox')row.classList.toggle('off',!val);toast('Saved')}catch(err){toast(err.message)}});
-window.P2={A,DB,M,MOCK,Q,refresh,toast,go,async init(){if(MOCK)await seedMock();await refresh();if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
+window.P2={A,DB,M,MOCK,Q,refresh,toast,go,async init(){if(MOCK)await seedMock();await refresh();
+  if(fromAuth&&A.user&&(A.shop||A.profile?.role==='owner'||A.profile?.role==='seller'||A.user.user_metadata?.role==='owner')){location.replace('seller.html'+(MOCK?location.search:''));return}if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
   const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';window.P2_START=v==='signup'?'account':v}},
   register(){go('register')}};
 })();

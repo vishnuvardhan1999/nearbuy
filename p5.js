@@ -132,7 +132,7 @@ function chrome(){const top=$('.top');if(!top||$('.ticker'))return;
   top.insertAdjacentHTML('beforeend',`<nav class="mega desk" aria-label="Categories"><div class="wrap mgi">${mm}<span class="mgs"></span><a href="#" class="mgd" data-plink="#search">${svg('fire')}Deals</a></div></nav>`)}
 
 async function refreshPromos(){try{P.list=await PD.list()}catch(e){P.list=[]}}
-window.P5={async init(){
+window.P5={promos:()=>P.list,go:l=>go(l),async init(){
   if(MOCK&&Q.get('rich')&&M.shops[0]){const c=CAT().filter(p=>p.images?.length);const sh=M.shops.filter(s=>s.status==='approved');let n=0;
     for(let i=0;i<c.length&&n<160;i+=Math.max(1,Math.floor(c.length/160))){const p=c[i],tp=+p.trade_price||1;sh.forEach((s,k)=>{if(k&&i%3)return;const rp=+(tp*(1.5+k*0.12)).toFixed(2);
       M.listings.push({id:'r'+i+'_'+k,shop_id:s.id,sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:tp,retail_price:rp,compare_at_price:i%13===0?+(rp*1.28).toFixed(2):null,stock:(i*7+k)%9?12:0,active:true,updated_at:'2026-10-'+(10+i%14)})});n++}

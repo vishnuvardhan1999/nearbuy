@@ -11,7 +11,6 @@ window.route=route=function(t,...a){
   const A=window.P2?.A;
   if(t==='account'&&A?.user&&sessionStorage.getItem('nb_next')==='seller'){if(A.shop){sessionStorage.removeItem('nb_next');return go('overview')}if(A.profile?.role==='owner'||Q.get('seller')==='1')t='register'}
   const r=_route(t,...a);
-  if(t==='account'&&sessionStorage.getItem('nb_next')==='seller'){const o=document.querySelector('input[name=role][value=owner]');if(o)o.checked=true}
   return r};
 const _acc=V.account;
 V.account=function(...a){let h=_acc.apply(this,a);

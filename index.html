@@ -14,7 +14,10 @@
 <link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css"></head><body>
+<link rel="stylesheet" href="style.css">
+<script>/* seller auth lives in seller.html: ?seller=1 links go to the seller portal (shop registration still uses view=register here) */
+(function(){var Q=new URLSearchParams(location.search);if(Q.get('seller')!=='1'||Q.get('view')==='register')return;var v=Q.get('view'),k=['mock','as','shop','status'].filter(function(x){return Q.has(x)}).map(function(x){return x+'='+encodeURIComponent(Q.get(x))}).join('&');
+location.replace('seller.html'+(k?'?'+k:'')+(v==='account'||v==='login'?'#login':'#signup'))})();</script></head><body>
 <header class="top"><div class="wrap top-in">
  <a class="brand" href="#" data-t="home" aria-label="Nearbuy home"><span class="mark">N</span><span class="word">near<b>buy</b></span></a>
  <button class="loc" id="loc"><svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
@@ -27,4 +30,4 @@
 <main id="view" class="wrap"><div class="sk5 skh"></div><div class="skr"><i class="sk5"></i><i class="sk5"></i><i class="sk5"></i><i class="sk5"></i></div><div class="sk5 skt"></div><div class="skr"><i class="sk5 c"></i><i class="sk5 c"></i><i class="sk5 c"></i></div></main>
 <nav class="tabs" id="tabs"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script><script src="app.js"></script><script src="p2.js"></script><script src="p3.js"></script><script src="p4.js"></script><script src="p5.js"></script><script src="p6.js"></script></body></html>
+<script src="config.js"></script><script src="hours.js"></script><script src="app.js"></script><script src="p2.js"></script><script src="p3.js"></script><script src="p4.js"></script><script src="p5.js"></script><script src="p6.js"></script><script src="p7.js"></script><script src="p8.js"></script></body></html>

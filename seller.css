@@ -179,3 +179,10 @@ body.dash{background:#f4f5f2}
 tr.isnew td:first-child{box-shadow:inset 4px 0 0 var(--c)}
 tr.flash td{animation:flash 1.2s 3}
 .fs .cb,.cards>.fs .cb{display:grid;gap:14px}.upl>div{flex:1;display:grid;gap:2px}.savebar{align-items:center}.savebar .mut{margin-right:auto}
+
+/* p9: seller auth pages (#login, #signup) */
+.sauth .card{text-align:left;background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.25)}.sauth .brand{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:800}
+.sauth .brand .fs{font-size:12px;font-weight:700;color:var(--t);background:var(--tl);padding:3px 8px;border-radius:999px}
+.af{display:grid;gap:12px}.af label{display:grid;gap:6px;font-size:13px;font-weight:600}.af input{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;background:#fff}.af input:focus{outline:2px solid var(--t);border-color:transparent}
+.af .btn{margin-top:4px;width:100%}.sauth .alt{margin-top:16px;font-size:14px;color:var(--mut);text-align:center}.sauth .xl{margin-top:10px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--mut);text-align:center}
+.sauth a:not(.btn):not(.brand){color:var(--t);font-weight:700}.amsg{background:#fef3f2;color:#b42318;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}.amsg.ok{background:var(--tl);color:var(--t2)}

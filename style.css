@@ -432,3 +432,5 @@ html,body{overflow-x:clip}
 @media(max-width:767px){header .wrap.top-in{grid-template-columns:auto 1fr auto auto!important;grid-template-areas:"b l x h" "s s s s"!important;column-gap:6px}header .wrap.top-in .loc{min-width:0}}
 @media(max-width:767px){header .wrap.top-in{grid-template-columns:auto minmax(0,1fr) auto auto!important}header .wrap.top-in .loc{overflow:hidden;justify-self:start;max-width:100%}header .wrap.top-in .loc small,header .wrap.top-in .loc span:first-child{white-space:nowrap}}
 @media(max-width:400px){header .wrap.top-in .brand span,header .wrap.top-in .brand b{font-size:0}header .wrap.top-in .brand{gap:0}}
+
+.xlink{text-align:center;font-size:13px;color:var(--mut);margin:14px 0 0}.xlink a{color:var(--t,#0f766e);font-weight:700}
