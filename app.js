@@ -61,11 +61,11 @@ function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<i
 function shopsSection(){
   let list=S.shops.map(s=>({...s,dist:s.demo?s.demoMi:(S.me&&s.lat!=null&&s.lng!=null?miles(S.me,s):null)}));
   if(S.me)list=list.filter(s=>s.dist!=null&&s.dist<=S.radius).sort((a,b)=>a.dist-b.dist);
-  const n=list.length,head=n?`${n} shop${n>1?'s':''} near you`:'Shops near you';
-  const filt=`<div class="dist">${[1,3,5,10].map(r=>`<button data-r="${r}" class="${r===S.radius?'on':''}">${r} mi</button>`).join('')}<button class="geo" id="geo">${svg('target')}Use my location</button></div>`;
+  const n=list.length,head=S.me?(n?`${n} shop${n>1?'s':''} near you`:'Shops near you'):(n?`All shops (${n})`:'Shops');
+  const filt=S.me?`<div class="dist">${[1,3,5,10].map(r=>`<button data-r="${r}" class="${r===S.radius?'on':''}">${r} mi</button>`).join('')}<button class="geo" id="geo">${svg('target')}Use my location</button></div>`:`<div class="noshops" style="padding:14px"><p style="margin:0 0 10px">Showing all shops. Set your location to see distances and shops near you.</p><button class="btn" id="setpc2">Set your location</button> <button class="btn ghost" id="geo">Use my current location</button></div>`;
   const body=n?`<div class="row">${list.map(scard).join('')}</div>`:`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No ShopNip shops near you yet</h4>
-   <p>${S.me?`Nothing within ${S.radius} miles of ${esc(S.pc)}. Try a wider distance.`:'Set your postcode to find registered shops nearby.'}</p><button class="btn" id="register">Register your shop</button></div>`;
-  return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2>${S.me?'':'<a href="#" id="setpc2">Set postcode</a>'}</div>${filt}${body}</section>`}
+   <p>${S.me?`Nothing within ${S.radius} miles of ${esc(S.pc)}. Try a wider distance.`:'Set your location to find registered shops nearby.'}</p>${S.me?'':'<button class="btn" id="setpc2">Set your location</button>'}</div>`;
+  return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2>${S.me?'':'<a href="#" id="setpc2">Set your location</a>'}</div>${filt}${body}</section>`}
 function home(){
   const h1=pick(kw('pen','notebook','glue'),3,4),h2=pick(kw('pencil','ruler','notebook'),3,9),h3=pick(kw('balloon','gift bag'),3,2);
   const art=a=>`<div class="art">${a.map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
@@ -115,7 +115,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-
  if(el.dataset.sku){const p=S.products.find(x=>x.sku===el.dataset.sku),b=S.basket.find(x=>x.sku===p.sku);b?b.qty++:S.basket.push({sku:p.sku,name:p.name,price:p.price,shop_id:p.shop_id||null,qty:1});saveB();el.classList.add('done');el.innerHTML=svg('check');return}
  if(el.dataset.rm){S.basket.splice(+el.dataset.rm,1);saveB();return route('basket')}
  if(el.id==='loc'||el.id==='setpc2')return askPostcode();
- if(el.id==='geo'){if(!navigator.geolocation)return askPostcode();navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng))},()=>askPostcode());return}
+ if(el.id==='geo'){if(!navigator.geolocation)return askPostcode();/* explicit user tap only */navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng))},()=>askPostcode());return}
  if(el.id==='checkout')return alert('Checkout is coming in Phase 2.');
  if(el.id.startsWith('register'))return window.P2?P2.register():(location.href='seller.html');});
 $('#sf').addEventListener('submit',e=>{e.preventDefault();$('#q').blur();route('search')});

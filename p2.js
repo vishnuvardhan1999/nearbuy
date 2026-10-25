@@ -74,14 +74,36 @@ V.account=function(){
      ${field('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required')}
      <button class="btn full">${su?'Create account':'Log in'}</button></form>
     <p class="xlink">Are you a shop? <a href="${window.SELLER_URL?SELLER_URL(su?'signup':'login'):'seller.html#'+(su?'signup':'login')}">Seller ${su?'sign up':'login'}</a></p></section>`}
-  const owner=A.profile?.role==='owner'||A.shop;
-  return `<section class="sec narrow"><div class="sh"><h2>Account</h2></div>${msg()}
-   <div class="panel"><div class="acct"><span class="avatar">${esc((A.profile?.full_name||A.user.email)[0].toUpperCase())}</span><div><b>${esc(A.profile?.full_name||'')}</b><small>${esc(A.user.email)}</small></div><span class="pill">${owner?'Shop owner':'Shopper'}</span></div></div>
-   ${owner?(A.shop?`<button class="tile" data-act="go" data-v="myshop">${svg('store')}<span><b>My shop</b><small>${esc(A.shop.name)} · ${statusLabel(A.shop.status)}</small></span></button>`
-     :`<button class="tile hot" data-act="go" data-v="register">${svg('store')}<span><b>Register your shop</b><small>Takes about 3 minutes</small></span></button>`)
-     :`<button class="tile" data-act="go" data-v="register">${svg('store')}<span><b>Run a shop? Sell on ShopNip</b><small>Register your shop</small></span></button>`}
-   <div class="panel"><div class="line"><span>Postcode</span><a href="#" id="setpc2">${esc(S.pc||'Set')}</a></div></div>
-   <button class="btn ghost full" data-act="logout">Log out</button></section>`};
+  const owner=A.profile?.role==='owner'||!!A.shop,nm=A.profile?.full_name||'',ck=window.CK?CK.get():{};
+  const OR=window.P3?.orders?.()||{list:[],loaded:true};if(!OR.loaded&&OR.load)setTimeout(OR.load);
+  const ol=OR.list||[],last=ol[0],SL={placed:'Placed',accepted:'Accepted',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:'Completed',rejected:'Declined',cancelled:'Cancelled'};
+  const ordSub=!OR.loaded?'Loading…':ol.length?`${ol.length} order${ol.length>1?'s':''} · Latest ${esc(last.order_number||'')}: ${esc(SL[last.status]||last.status||'')}`:'No orders yet';
+  const dash=window.SELLER_URL?SELLER_URL('overview'):'seller.html#overview',land=window.SELLER_URL?SELLER_URL(''):'seller.html';
+  const det=[ck.name,ck.phone,ck.addr].filter(Boolean).join(' · ')||'Add your name, phone and address for faster checkout';
+  return `<section class="sec narrow pa"><style>
+.pa .pc2{display:flex;gap:16px;align-items:center;padding:20px;border-radius:18px;background:linear-gradient(135deg,#0f3d3a,#1f6f66);color:#fff;margin-bottom:14px}
+.pa .pc2 .av{width:58px;height:58px;border-radius:50%;background:#fff;color:#0f3d3a;display:grid;place-items:center;font-size:24px;font-weight:800;flex:none}
+.pa .pc2 b{display:block;font-size:19px}.pa .pc2 small{opacity:.85;font-size:14px;word-break:break-all}
+.pa .atg{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}@media(max-width:640px){.pa .atg{grid-template-columns:1fr}}
+.pa .at{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;padding:16px;border:1px solid #e6e9ee;border-radius:14px;background:#fff;font:inherit;color:#0f172a;cursor:pointer;text-decoration:none}
+.pa .at:hover{border-color:#1f6f66;box-shadow:0 6px 18px rgba(15,23,42,.08)}.pa .at svg{width:26px;height:26px;flex:none;stroke:#1f6f66;fill:none;stroke-width:1.8}
+.pa .at b{display:block;font-size:15px}.pa .at small{display:block;color:#64748b;font-size:13px;margin-top:3px;line-height:1.35}
+.pa .shopc{margin-top:14px;padding:16px;border-radius:14px;background:#fff6f2;border:1px solid #ffd9cc;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.pa .shopc b{display:block}.pa .shopc small{color:#64748b}.pa .cdf{margin-top:12px}.pa .foot{text-align:center;margin-top:18px;font-size:13px;color:#64748b}.pa .foot a{color:#64748b}
+</style><div class="sh"><h2>Your account</h2></div>${msg()}
+   <div class="pc2"><span class="av">${esc((nm||A.user.email)[0].toUpperCase())}</span><div><b>${esc(nm||A.user.email.split('@')[0])}</b><small>${esc(A.user.email)}</small></div></div>
+   <div class="atg">
+    <button class="at" data-t="orders">${svg('orders')}<span><b>Your orders</b><small>${ordSub}</small></span></button>
+    <button class="at" data-act="details">${svg('account')}<span><b>Saved details</b><small>${esc(det)}</small></span></button>
+    <button class="at" id="setpc2">${svg('store')}<span><b>Delivery postcode</b><small>${esc(S.pc||'Set your postcode to see shops near you')}</small></span></button>
+    <a class="at" href="#contact" data-t="contact">${svg('account')}<span><b>Help &amp; contact</b><small>FAQs, or email the ShopNip team</small></span></a>
+   </div>
+   ${A.editDet?`<form class="panel form cdf" data-form="contact"><h3 class="ft">Saved details</h3>
+    ${field('cd_name','Name','autocomplete="name"',ck.name||nm)}${field('cd_phone','Phone','type="tel" autocomplete="tel"',ck.phone)}${field('cd_addr','Delivery address','autocomplete="street-address"',ck.addr)}
+    <div class="two"><button class="btn">Save details</button><button type="button" class="btn ghost" data-act="details">Cancel</button></div></form>`:''}
+   ${owner?`<div class="shopc"><div><b>Your shop</b><small>${A.shop?esc(A.shop.name)+' · '+statusLabel(A.shop.status):'Manage your shop on ShopNip'}</small></div><a class="btn" href="${dash}">Go to my shop dashboard</a></div>`:''}
+   <button class="btn ghost full" data-act="logout" style="margin-top:16px">Log out</button>
+   ${owner?'':`<p class="foot">Own a shop? <a href="${land}">Sell on ShopNip</a></p>`}</section>`};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s);
 V.register=function(){
   if(!A.user){setTimeout(()=>location.replace(window.SELLER_URL?SELLER_URL('signup'):'seller.html#signup'));return '<div class="empty">Opening seller sign up…</div>'}
@@ -155,6 +177,7 @@ async function go(v){A.msg='';if(v==='addprod')await catalog();
 async function busy(btn,fn){const t=btn?.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='Please wait…'}try{await fn()}catch(e){A.msg=e.message||String(e);render();toast(A.msg)}finally{if(btn&&document.body.contains(btn)){btn.disabled=false;btn.innerHTML=t}}}
 document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
   const v=id=>(f.querySelector('#'+id)?.value||'').trim();
+  if(f.dataset.form==='contact'){window.CK&&CK.set({name:v('cd_name'),phone:v('cd_phone'),addr:v('cd_addr')});A.editDet=false;toast('Details saved');return route('account')}
   if(f.dataset.form==='login')return busy(btn,async()=>{await DB.signIn(v('f_email'),v('f_pw'));await refresh();A.authPage=false;route('account');toast('Logged in')});
   if(f.dataset.form==='signup')return busy(btn,async()=>{const role='shopper';let r;try{r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'))}catch(err){if(/already (registered|exists)|already has an account/i.test(err.message)){A.tab='login';A.msg=DUP;route('account');setTimeout(()=>{const i=document.querySelector('#f_email');if(i)i.value=v('f_email')||''});return}throw err}
     // If Supabase 'Confirm email' is off, signUp returns a session: log straight in. Otherwise fall back to the email step.
@@ -171,9 +194,10 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
     if(isNew){const n=await DB.backfill(A.shop.id);A.listings=await DB.listings();toast(n?`Shop submitted. ${n} products added from your wholesale orders.`:'Shop submitted for approval')}else toast('Saved');
     route('myshop')})});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-act]');if(!el)return;e.preventDefault();const a=el.dataset.act,val=el.dataset.v;
+  if(a==='details'){A.editDet=!A.editDet;return route('account')}
   if(a==='tab'){A.tab=val;A.msg='';return route('account')}
   if(a==='go')return go(val);
-  if(a==='logout'){await DB.signOut();A.user=null;A.shop=null;toast('Logged out');return route('account')}
+  if(a==='logout'){await DB.signOut();A.user=null;A.shop=null;A.profile=null;A.editDet=false;toast('Logged out');return route('account')}
   if(a==='viewshop'){location.hash='shop='+A.shop.id;return route('shop',A.shop.id)}
   if(a==='margin'){$('#marginbox').classList.toggle('hidden');return mprev()}
   if(a==='applymargin')return busy(el,async()=>{const r=marginRows();await DB.bulk(r.map(x=>x.l.id),r.map(x=>({retail_price:x.p})));r.forEach(x=>x.l.retail_price=x.p);toast(`Updated ${r.length} prices`);render()});
@@ -201,6 +225,29 @@ window.CK={k(){const u=A.user?.id;return u?'nb_contact:'+u:'nb_contact:guest'},
   clear(){delete localStorage[this.k()];delete localStorage.nb_contact;delete localStorage['nb_contact:guest']}};
 /* sign-out on seller.html (same Supabase session in localStorage) signs this tab out too */
 addEventListener('storage',e=>{if((e.key&&/^sb-.*auth-token$/.test(e.key)&&!e.newValue)||(e.key==='nb_mock_out'&&e.newValue)){A.user=null;A.shop=null;A.profile=null;if(typeof route==='function')route(cur?.[0]||'home')}});
+/* delivery location is per user (guest choice carries to the next sign-in). Never set without the user's action: no default, no IP lookup, no auto geolocation.
+   The old browser-wide nb_pc/nb_me keys leaked one person's postcode to the next account, so they are dropped, not migrated. */
+if(localStorage.nb_pc||localStorage.nb_me){delete localStorage.nb_pc;delete localStorage.nb_me;S.me=null;S.pc=''}
+window.LOC={last:undefined,k(){return 'nb_loc:'+(A.user?.id||'guest')},
+  get(){const k=this.k();if(A.user&&!localStorage[k]&&localStorage['nb_loc:guest']){localStorage[k]=localStorage['nb_loc:guest'];delete localStorage['nb_loc:guest']}try{return JSON.parse(localStorage[k]||'null')}catch(e){return null}},
+  set(me,pc){localStorage[this.k()]=JSON.stringify({me,pc})},clear(){delete localStorage[this.k()]},
+  hdr(){const e=document.getElementById('pc');if(e)e.textContent=S.pc||'Set your location'},
+  apply(){const u=A.user?.id||'guest';if(u===this.last)return this.hdr();const first=this.last===undefined;this.last=u;const l=this.get();
+    if(l){S.me=l.me;S.pc=l.pc}else if(!first){S.me=null;S.pc=''}this.hdr();if(window.P4)P4.regroup()}};
+window.setMe=setMe=function(me,pc){S.me=me;S.pc=pc;LOC.set(me,pc);LOC.hdr();closeLoc();if(window.P4)P4.regroup();render()};
+function closeLoc(){document.getElementById('locm')?.remove()}
+window.askPostcode=askPostcode=function(){closeLoc();const d=document.createElement('div');d.id='locm';d.innerHTML=`<style>
+#locm{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:rgba(10,20,20,.5);padding:16px}#locm .lcard{display:block;background:#fff;border-radius:18px;max-width:420px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.25);position:relative}
+#locm h3{margin:0 0 6px;font-size:20px}#locm p{margin:0 0 14px;color:#64748b;font-size:14px}#locm .lrow{display:flex;gap:8px}#locm input{flex:1;padding:12px 14px;border:1px solid #d5dbd9;border-radius:12px;font:inherit;text-transform:uppercase}
+#locm .lor{text-align:center;color:#94a3b8;font-size:13px;margin:14px 0}#locm .x{position:absolute;right:12px;top:10px;border:0;background:none;font-size:20px;cursor:pointer}#locm .err{color:#e11d48;font-size:13px;margin-top:8px}</style>
+<div class="lcard" role="dialog" aria-label="Set your location"><button class="x" data-lx aria-label="Close">✕</button><h3>Where should we look?</h3><p>Enter your postcode to see local shops, delivery and distances. We only use it on this account.</p>
+<form class="lrow" data-locf><input id="loc_pc" placeholder="e.g. LE1 5YA" autocomplete="postal-code" value="${esc(S.pc||'')}"><button class="btn">Set</button></form><div class="err" id="loc_err"></div>
+<div class="lor">or</div><button class="btn ghost full" data-lgeo>Use my current location</button></div>`;document.body.appendChild(d);setTimeout(()=>d.querySelector('#loc_pc')?.focus())};
+document.addEventListener('click',e=>{if(e.target.id==='locm'||e.target.closest('[data-lx]')){closeLoc();return}
+  if(e.target.closest('[data-lgeo]')){if(!navigator.geolocation){$('#loc_err').textContent='Location is not available in this browser. Please type your postcode.';return}
+    navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng))},()=>{$('#loc_err').textContent='We could not get your location. Please type your postcode.'})}},true);
+document.addEventListener('submit',async e=>{if(!e.target.closest('[data-locf]'))return;e.preventDefault();e.stopPropagation();const v=$('#loc_pc').value.trim();if(!v)return;
+  try{const r=await lookupPostcode(v);setMe({lat:r.lat,lng:r.lng},r.pc)}catch(err){$('#loc_err').textContent='Sorry, we could not find that postcode.'}},true);
 window.P2={A,DB,M,MOCK,Q,refresh,toast,go,async init(){if(MOCK)await seedMock();await refresh();
   /* dual role: customer login on index.html always stays on the customer site, even for shop owners */if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
   const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';if(['signup','login','signin'].includes(v))A.authPage=true;window.P2_START=['signup','login','signin'].includes(v)?'account':v}},

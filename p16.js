@@ -30,7 +30,7 @@ document.head.insertAdjacentHTML('beforeend',`<style id="p16css">${css}</style>`
 const ic='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
 const first=()=>{const n=(A.profile?.full_name||'').trim();return n?n.split(/\s+/)[0]:(A.user?.email||'').split('@')[0]};
 const hx=document.querySelector('header .hx');const w=document.createElement('span');w.className='acw';hx&&hx.appendChild(w);
-function paint(){if(!w)return;
+function paint(){window.LOC&&LOC.apply();if(!w)return;
   if(!A.user){w.innerHTML=`<button class="acb" data-acc="signin" aria-label="Sign in to your account">${ic}<span class="t"><small>Hello, sign in</small><b>Account &amp; orders</b></span></button>`;return}
   w.innerHTML=`<button class="acb" data-acc="menu" aria-haspopup="true" aria-expanded="false" aria-label="Your account">${ic}<span class="t"><small>Hi, ${esc(first())}</small><b>Account &amp; orders ▾</b></span></button>
   <div class="acm" role="menu"><div class="hd">Signed in as<b>${esc(A.user.email)}</b></div><button data-acc="orders" role="menuitem">Your orders</button><button data-acc="account" role="menuitem">Your account</button>${(A.shop||A.profile?.role==='owner')?`<a class="acd" role="menuitem" href="${window.SELLER_URL?SELLER_URL('overview'):'seller.html'}">Go to my shop dashboard</a>`:''}<button class="so" data-acc="out" role="menuitem">Sign out</button></div>`}
@@ -43,7 +43,7 @@ document.addEventListener('click',async e=>{if(e.target.closest('.acd'))return;c
   if(a==='orders')return route('orders');
   if(a==='account'){A.authPage=false;return route('account')}
   if(a==='cont'){A.authPage=false;P.toast('Signed in as '+A.user.email);return route('home')}
-  if(a==='switch'){await P.DB.signOut();window.CK&&CK.clear();if(window.S){S.basket=[];localStorage.nb_basket='[]';document.querySelectorAll('[data-bc]').forEach(e=>{e.textContent=0;e.classList.add('hidden')})}A.user=null;A.shop=null;A.profile=null;A.tab='signup';A.msg='';A.authPage=true;P.toast('Signed out');route('account');setTimeout(()=>document.querySelectorAll('.si input').forEach(i=>i.value=''),0);return}
+  if(a==='switch'){await P.DB.signOut();window.CK&&CK.clear();window.LOC&&LOC.clear();if(window.S){S.basket=[];localStorage.nb_basket='[]';document.querySelectorAll('[data-bc]').forEach(e=>{e.textContent=0;e.classList.add('hidden')})}A.user=null;A.shop=null;A.profile=null;A.tab='signup';A.msg='';A.authPage=true;P.toast('Signed out');route('account');setTimeout(()=>document.querySelectorAll('.si input').forEach(i=>i.value=''),0);return}
   if(a==='out'){await P.DB.signOut();A.authPage=false;A.user=null;A.shop=null;A.profile=null;P.toast('Signed out');return route('home')}},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 /* customer sign-in page */

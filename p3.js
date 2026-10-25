@@ -147,7 +147,7 @@ const _my=V.myshop;V.myshop=function(){const h=_my();if(!A.shop)return h;const n
   return h.replace('<div class="stats">',`<button class="tile ${n?'hot':''}" data-o="inbox">${svg('orders')}<span><b>Orders inbox${n?` · ${n} new`:''}</b><small>${op} open order${op===1?'':'s'}</small></span></button><div class="stats">`)};
 
 // ---------- loaders, realtime ----------
-async function loadMine(){try{O.mine=await D.mine()}catch(e){toast(e.message)}O.loaded=true;if(cur[0]==='orders')render()}
+async function loadMine(){try{O.mine=await D.mine()}catch(e){toast(e.message)}O.loaded=true;if(cur[0]==='orders'||cur[0]==='account')render()}
 async function loadInbox(){try{O.inbox=await D.inbox()}catch(e){toast(e.message)}O.iloaded=true;badge();if(['inbox','myshop'].includes(cur[0]))render()}
 function badge(){const n=O.inbox.filter(o=>o.status==='placed').length;const t=document.querySelector('.tabs [data-t=account]');if(!t)return;let b=t.querySelector('.ob');if(!b){b=document.createElement('b');b.className='badge ob';t.appendChild(b)}b.textContent=n;b.classList.toggle('hidden',!n)}
 function ding(){try{const c=new (window.AudioContext||window.webkitAudioContext)();[880,1320].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.2,c.currentTime+i*.18);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+i*.18+.3);o.start(c.currentTime+i*.18);o.stop(c.currentTime+i*.18+.32)})}catch{}}
@@ -186,7 +186,7 @@ async function placeOrder(a){if(a.fulfilment==='delivery'){const g=await lookupP
   window.CK&&CK.set({name:a.name,phone:a.phone,addr:a.address});
   const r=await D.place(a);O.lastShop=B()[0]?.shop_name;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
 
-window.P3={add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),after:null,async init(){
+window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
       M.orders.push({id:'o'+n,order_number:'NB-'+(1000+n),shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,
