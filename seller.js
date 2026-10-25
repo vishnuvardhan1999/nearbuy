@@ -42,10 +42,10 @@ const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not 
 // ---------- data layer: Supabase (same calls/RLS as p2/p3/p5) or in-memory mock ----------
 const M={shops:[],L:[],O:[],user:null};
 const API=MOCK?{
-  async session(){if(M.user)return{user:M.user};const a=Q.get('as');if(a==='none')return null;return{user:{id:'u1',email:'owner@sumanbros.example'}}},
-  async signUp(email,pw,name){M.user={id:'u1',email,user_metadata:{role:'owner',full_name:name}};if(Q.get('shop')!=='none')M.shops=[];return{session:{user:M.user}}},
-  async signIn(email){M.user={id:'u1',email};return{session:{user:M.user}}},
-  async signOut(){},async myShop(){return Q.get('shop')==='none'?null:M.shops.find(s=>s.owner_id==='u1')||null},
+  async session(){if(M.user)return{user:M.user};if(localStorage.nb_mock_out)return null;const a=Q.get('as');if(a==='none')return null;return{user:{id:'u1',email:'owner@sumanbros.example'}}},
+  async signUp(email,pw,name){delete localStorage.nb_mock_out;M.user={id:'u1',email,user_metadata:{role:'owner',full_name:name}};if(Q.get('shop')!=='none')M.shops=[];return{session:{user:M.user}}},
+  async signIn(email){delete localStorage.nb_mock_out;M.user={id:'u1',email};return{session:{user:M.user}}},
+  async signOut(){M.user=null;localStorage.nb_mock_out='1'},async myShop(){return Q.get('shop')==='none'?null:M.shops.find(s=>s.owner_id==='u1')||null},
   async listings(){return M.L.filter(l=>l.shop_id===D.shop.id)},async orders(){return M.O.filter(o=>o.shop_id===D.shop.id)},
   async updListing(id,ch){Object.assign(M.L.find(l=>l.id===id)||{},ch)},async addListing(l){l.id='l'+Math.random().toString(36).slice(2,8);l.updated_at=new Date().toISOString();M.L.unshift(l);return l},
   async saveShop(s){const x=M.shops.find(z=>z.id===s.id);Object.assign(x,s);if(s.bluepark_customer_email&&s._tradeChanged)x.status='pending';return x},async upload(f){return URL.createObjectURL(f)},
@@ -300,7 +300,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
   if(d.a==='menu'){e.preventDefault();$('#side')?.classList.toggle('on');document.body.classList.toggle('sbo');return}
   if(t.closest('.side a'))document.body.classList.remove('sbo');
   if(d.a==='close'){D.ui.drawer=null;D.ui.cat=false;rerender();return}
-  if(d.a==='logout'){e.preventDefault();await API.signOut();if(MOCK)location.href='seller.html';else{D.user=null;location.hash='';render()}return}
+  if(d.a==='logout'){e.preventDefault();await API.signOut();if(MOCK)location.href='seller.html'+location.search;else{D.user=null;location.hash='';render()}return}
   if(d.a==='notif'){Notification.requestPermission().then(rerender);return}
   if(d.a==='sim'){const L=D.L.filter(l=>l.active),n=1000+D.O.length+1,it=[L[n%L.length],L[(n*3)%L.length]],sub=it[0].retail_price*2+it[1].retail_price,ts=new Date().toISOString();
     const o={id:'o'+n,order_number:'NB-'+n,shop_id:D.shop.id,customer_name:'New Customer',customer_phone:'07700 900999',fulfilment:'collect',status:'placed',subtotal:sub,delivery_fee:0,total:sub,payment_method:'pay_on_collection',created_at:ts,
@@ -335,3 +335,5 @@ window.NBSeller={D,API,render};
 if(!MOCK)catalog().then(()=>{if(!page())rerender()});else catalog();
 boot();
 })();
+/* sign-out on index.html (shared Supabase session) signs this tab out too */
+addEventListener('storage',e=>{if((e.key&&/^sb-.*auth-token$/.test(e.key)&&!e.newValue)||(e.key==='nb_mock_out'&&e.newValue))location.reload()});

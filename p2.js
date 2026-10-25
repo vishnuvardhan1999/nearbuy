@@ -3,6 +3,7 @@
 // ?mock=1 runs everything against in-memory data (for local screenshots); nothing is sent to Supabase.
 (function(){
 const Q=new URLSearchParams(location.search),MOCK=Q.get('mock')==='1';
+const DUP='This email already has an account: just sign in, and you can shop with it.';
 const fromAuth=/access_token=|type=signup/.test(location.hash);   // captured before supabase-js strips the hash
 const A={user:null,profile:null,shop:null,listings:[],catalog:null,tab:'login',msg:''};
 const toast=m=>{let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}t.textContent=m;t.className='on';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',2600)};
@@ -12,10 +13,10 @@ async function catalog(){if(!A.catalog)A.catalog=await (await fetch('products.js
 // ---------- data layer (Supabase or mock) ----------
 const M={users:{},shops:[],listings:[]};
 const DB=MOCK?{
-  async session(){if(M.user)return{user:M.user};const a=Q.get('as');return a&&a!=='none'?{user:{id:'u1',email:'owner@example.com'}}:null},
-  async signUp(e,p,role,name){A.user=M.user={id:'u1',email:e};M.name=name;return{}}, async signIn(e){A.user=M.user={id:'u1',email:e};return{}}, async signOut(){M.user=null},
-  async profile(){if(M.user)return{role:'shopper',full_name:M.name||''};return{role:Q.get('as')==='shopper'?'shopper':'owner',full_name:'Priya Shah'}},
-  async myShop(){return M.shops.find(s=>s.owner_id==='u1')||null},
+  async session(){if(M.user)return{user:M.user};if(localStorage.nb_mock_out)return null;const a=Q.get('as');return a&&a!=='none'?{user:{id:'u1',email:'owner@example.com'}}:null},
+  async signUp(e,p,role,name){delete localStorage.nb_mock_out;if(Q.get('dup')===e)throw new Error('User already registered');A.user=M.user={id:'u9',email:e};M.name=name;return{}}, async signIn(e){delete localStorage.nb_mock_out;A.user=M.user={id:'u1',email:e};return{}}, async signOut(){M.user=null;localStorage.nb_mock_out='1'},
+  async profile(){if(M.user)return{role:M.user.id==='u1'&&!M.name?'owner':'shopper',full_name:M.name||''};return{role:Q.get('as')==='shopper'?'shopper':'owner',full_name:'Priya Shah'}},
+  async myShop(){return M.shops.find(s=>s.owner_id===A.user?.id)||null},
   async listings(){return M.listings}, async saveShop(s){s.id=s.id||'s1';s.owner_id='u1';s.status=s.status||'pending';const i=M.shops.findIndex(x=>x.id===s.id);i<0?M.shops.push(s):M.shops[i]={...M.shops[i],...s};return s},
   async upload(f){return URL.createObjectURL(f)},
   async addListing(l){l.id='l'+Math.random().toString(36).slice(2,7);M.listings.unshift(l);return l},
@@ -25,7 +26,7 @@ const DB=MOCK?{
   async backfill(){return 0}
 }:{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
-  async signUp(email,password,role,full_name){const {data,error}=await sb.auth.signUp({email,password,options:{data:{role,full_name},emailRedirectTo:location.origin+'/#account'}});if(error)throw error;return data},
+  async signUp(email,password,role,full_name){const {data,error}=await sb.auth.signUp({email,password,options:{data:{role,full_name},emailRedirectTo:location.origin+'/#account'}});if(error){if(/already (registered|exists)/i.test(error.message))throw new Error(DUP);throw error}return data},
   async signIn(email,password){const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;return data},
   async signOut(){await sb.auth.signOut()},
   async profile(){const {data}=await sb.from('profiles').select('role,full_name').eq('id',A.user.id).maybeSingle();return data||{role:A.user.user_metadata?.role||'shopper'}},
@@ -154,11 +155,11 @@ async function go(v){A.msg='';if(v==='addprod')await catalog();
 async function busy(btn,fn){const t=btn?.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='Please wait…'}try{await fn()}catch(e){A.msg=e.message||String(e);render();toast(A.msg)}finally{if(btn&&document.body.contains(btn)){btn.disabled=false;btn.innerHTML=t}}}
 document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
   const v=id=>(f.querySelector('#'+id)?.value||'').trim();
-  if(f.dataset.form==='login')return busy(btn,async()=>{await DB.signIn(v('f_email'),v('f_pw'));await refresh();route('account');toast('Logged in')});
-  if(f.dataset.form==='signup')return busy(btn,async()=>{const role='shopper';const r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'));
+  if(f.dataset.form==='login')return busy(btn,async()=>{await DB.signIn(v('f_email'),v('f_pw'));await refresh();A.authPage=false;route('account');toast('Logged in')});
+  if(f.dataset.form==='signup')return busy(btn,async()=>{const role='shopper';let r;try{r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'))}catch(err){if(/already (registered|exists)|already has an account/i.test(err.message)){A.tab='login';A.msg=DUP;route('account');setTimeout(()=>{const i=document.querySelector('#f_email');if(i)i.value=v('f_email')||''});return}throw err}
     // If Supabase 'Confirm email' is off, signUp returns a session: log straight in. Otherwise fall back to the email step.
     if(!MOCK&&!r.session){A.tab='login';A.msg='Check your email to confirm your account, then log in.';return route('account')}
-    await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};route('account');toast('Welcome to ShopNip')});
+    await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};A.authPage=false;route('account');toast('Welcome to ShopNip')});
   if(f.dataset.form==='shop')return busy($('#s_submit'),async()=>{
     const pc=await lookupPostcode(v('s_pc')).catch(()=>{throw new Error('We could not find that UK postcode.')});
     const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:pc.lat,lng:pc.lng,phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),
@@ -192,8 +193,16 @@ document.addEventListener('input',e=>{const t=e.target;
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.f)return;const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);
   const val=t.type==='checkbox'?t.checked:t.dataset.f==='compare_at_price'&&(t.value===''||+t.value<=0)?null:t.dataset.f==='stock'?Math.max(0,parseInt(t.value)||0):Math.max(0,+(+t.value).toFixed(2));
   try{await DB.updListing(l.id,{[t.dataset.f]:val});l[t.dataset.f]=val;if(t.type==='checkbox')row.classList.toggle('off',!val);toast('Saved')}catch(err){toast(err.message)}});
+/* saved checkout contact details are per user id (never global, so they can't leak between accounts in one browser) */
+window.CK={k(){const u=A.user?.id;return u?'nb_contact:'+u:'nb_contact:guest'},
+  get(){const k=this.k();if(A.user&&!localStorage[k]){const old=localStorage.nb_contact||localStorage['nb_contact:guest'];if(old)localStorage[k]=old;delete localStorage.nb_contact;delete localStorage['nb_contact:guest']}
+    try{return JSON.parse(localStorage[k]||'{}')}catch(e){return{}}},
+  set(o){delete localStorage.nb_contact;localStorage[this.k()]=JSON.stringify(o)},
+  clear(){delete localStorage[this.k()];delete localStorage.nb_contact;delete localStorage['nb_contact:guest']}};
+/* sign-out on seller.html (same Supabase session in localStorage) signs this tab out too */
+addEventListener('storage',e=>{if((e.key&&/^sb-.*auth-token$/.test(e.key)&&!e.newValue)||(e.key==='nb_mock_out'&&e.newValue)){A.user=null;A.shop=null;A.profile=null;if(typeof route==='function')route(cur?.[0]||'home')}});
 window.P2={A,DB,M,MOCK,Q,refresh,toast,go,async init(){if(MOCK)await seedMock();await refresh();
   /* dual role: customer login on index.html always stays on the customer site, even for shop owners */if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
-  const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';window.P2_START=['signup','login','signin'].includes(v)?'account':v}},
+  const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';if(['signup','login','signin'].includes(v))A.authPage=true;window.P2_START=['signup','login','signin'].includes(v)?'account':v}},
   register(){go('register')}};
 })();

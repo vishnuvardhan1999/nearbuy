@@ -86,7 +86,7 @@ async function prepCheckout(){CO.shop=await D.shop(bShop());const d=CO.shop?.del
 V.checkout=function(){
   if(!B().length)return V.basket();if(!CO.shop)return '<div class="empty">Loading…</div>';
   if(!A.user)return `<section class="sec narrow"><div class="sh"><h2>Checkout</h2></div><div class="noshops"><div class="ic">${svg('account')}</div><h4>Log in to place your order</h4><p>We need an account so you can track your order and the shop can contact you.</p><button class="btn" data-o="login">Log in or sign up</button></div></section>`;
-  const s=CO.shop,d=s.delivery_options||{},fee=CO.f==='delivery'?+(d.delivery_fee||0):0,u=JSON.parse(localStorage.nb_contact||'{}');
+  const s=CO.shop,d=s.delivery_options||{},fee=CO.f==='delivery'?+(d.delivery_fee||0):0,u=window.CK?CK.get():{};
   return `<section class="sec narrow"><div class="sh"><h2>Checkout</h2><a href="#" data-t="basket">Edit basket</a></div>
   <form class="form" data-form="order">${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}
   <div class="panel"><h3 class="ft">How do you want it?</h3>
@@ -183,7 +183,7 @@ document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')
   catch(err){CO.err=err.message||String(err);render()}},true);
 // shared order-creation path (checkout form + p13 chat): geocode delivery postcode, place via RPC/mock, clear basket
 async function placeOrder(a){if(a.fulfilment==='delivery'){const g=await lookupPostcode(a.postcode).catch(()=>{throw new Error('We could not find that postcode.')});a.lat=g.lat;a.lng=g.lng;a.postcode=g.pc}
-  localStorage.nb_contact=JSON.stringify({name:a.name,phone:a.phone,addr:a.address});
+  window.CK&&CK.set({name:a.name,phone:a.phone,addr:a.address});
   const r=await D.place(a);O.lastShop=B()[0]?.shop_name;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
 
 window.P3={add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),after:null,async init(){

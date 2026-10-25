@@ -20,7 +20,7 @@ const bsum=()=>items().map(b=>`${b.qty} × ${esc(b.name)} <b>${gbp(b.price*b.qty
 const shops=()=>S.shops.filter(s=>!s.demo);
 const toP=l=>({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image],price:+l.retail_price,shop_id:C.shop.id,stock:l.stock});
 
-function start(){log.innerHTML='';C.step='shop';C.f=null;C.d={...JSON.parse(localStorage.nb_contact||'{}')};
+function start(){log.innerHTML='';C.step='shop';C.f=null;C.d={...(window.CK?CK.get():{})};
   bot(`Hi${A.profile?.full_name?' '+esc(A.profile.full_name.split(' ')[0]):''}! I can take your order and send it straight to the shop. You pay when you collect or on delivery.`);
   const here=cur[0]==='shop'&&A.view?A.view:null,bs=P3.basketShop();
   if(here)return pickShop(here.id);
@@ -56,7 +56,7 @@ function confirmStep(){C.step='confirm';const d=C.shop.delivery_options||{},fee=
   bot(`<div class="cb-sum"><b>${esc(C.shop.name)}</b><br>${bsum()}<hr>${fee?`Delivery <b>${gbp(fee)}</b><br>`:''}Total <b>${gbp(s+fee)}</b> · pay ${C.f==='delivery'?'on delivery':'on collection'}<hr>
    ${C.f==='delivery'?'Deliver to '+esc(C.d.addr+', '+C.d.pc):'Click &amp; collect · '+esc(C.shop.address||'')}<br>${esc(C.d.name)} · ${esc(C.d.phone)}${C.d.note?'<br>“'+esc(C.d.note)+'”':''}</div>Shall I place this order?`);
   quick([['Place order · '+gbp(s+fee),'place','pri'],['Edit items','edit'],['Start over','restart']])}
-async function place(){if(!A.user){localStorage.nb_contact=JSON.stringify({name:C.d.name,phone:C.d.phone,addr:C.d.addr||''});
+async function place(){if(!A.user){window.CK&&CK.set({name:C.d.name,phone:C.d.phone,addr:C.d.addr||''});
     bot('Please log in so you can track your order. Your basket is saved and checkout will be ready for you.');qr.innerHTML='<button type="button" class="pri" data-o="login">Log in to finish</button>';return}
   if(C.busy)return;C.busy=true;quick([]);bot('<span class="cb-dots"><i></i><i></i><i></i></span> Placing your order…');
   try{const r=await P3.place({shop:C.shop.id,items:items().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:C.f,name:C.d.name,phone:C.d.phone,address:C.f==='delivery'?C.d.addr:'',postcode:C.f==='delivery'?(C.d.pc||'').toUpperCase():'',note:C.d.note||''});

@@ -38,21 +38,27 @@ const close=()=>{const m=w.querySelector('.acm');if(m){m.classList.remove('open'
 document.addEventListener('click',async e=>{if(e.target.closest('.acd'))return;const el=e.target.closest('[data-acc]');if(!el){close();return}e.preventDefault();e.stopPropagation();const a=el.dataset.acc;
   if(a==='menu'){const m=w.querySelector('.acm'),o=!m.classList.contains('open');m.classList.toggle('open',o);el.setAttribute('aria-expanded',o);return}
   close();
-  if(a==='signin'||a==='new'){A.tab=a==='new'?'signup':'login';A.msg='';sessionStorage.removeItem('nb_next');return route('account')}
-  if(a==='login'){A.tab='login';A.msg='';return route('account')}
+  if(a==='signin'||a==='new'){A.tab=a==='new'?'signup':'login';A.msg='';A.authPage=true;sessionStorage.removeItem('nb_next');return route('account')}
+  if(a==='login'){A.tab='login';A.msg='';A.authPage=true;return route('account')}
   if(a==='orders')return route('orders');
-  if(a==='account')return route('account');
-  if(a==='out'){await P.DB.signOut();A.user=null;A.shop=null;A.profile=null;P.toast('Signed out');return route('home')}},true);
+  if(a==='account'){A.authPage=false;return route('account')}
+  if(a==='cont'){A.authPage=false;P.toast('Signed in as '+A.user.email);return route('home')}
+  if(a==='switch'){await P.DB.signOut();window.CK&&CK.clear();if(window.S){S.basket=[];localStorage.nb_basket='[]';document.querySelectorAll('[data-bc]').forEach(e=>{e.textContent=0;e.classList.add('hidden')})}A.user=null;A.shop=null;A.profile=null;A.tab='signup';A.msg='';A.authPage=true;P.toast('Signed out');route('account');setTimeout(()=>document.querySelectorAll('.si input').forEach(i=>i.value=''),0);return}
+  if(a==='out'){await P.DB.signOut();A.authPage=false;A.user=null;A.shop=null;A.profile=null;P.toast('Signed out');return route('home')}},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 /* customer sign-in page */
 const fld=(id,l,at)=>`<label class="fl"><span>${l}</span><input id="${id}" ${at}></label>`;
 const _acc=V.account;
-V.account=function(...a){if(A.user||!(LIVE||P.MOCK))return _acc.apply(this,a);const su=A.tab==='signup';
+V.account=function(...a){if(A.user&&A.authPage&&(LIVE||P.MOCK))return `<section class="si"><div class="card"><div class="mk">S</div><h2>You're signed in as ${esc(A.user.email)}</h2>
+  <p class="lead">${A.tab==='signup'?'To create a separate customer account, sign out first.':'You are already signed in.'} The same account works for shopping and for your shop, if you have one.</p>
+  <button class="btn full" data-acc="cont">Continue as ${esc(first())}</button>
+  <div class="or">Not you?</div><button class="alt" data-acc="switch">Sign out and use a different account</button></div></section>`;
+  if(A.user||!(LIVE||P.MOCK))return _acc.apply(this,a);const su=A.tab==='signup';
   const sel=window.SELLER_URL?SELLER_URL('login'):'seller.html#login';
   return `<section class="si"><div class="card"><div class="mk">S</div><h2>${su?'Create your account':'Sign in'}</h2>
   <p class="lead">${su?'Shop local, track orders and check out faster.':'Welcome back. Sign in to check out and track your orders.'}</p>
   <form class="form" data-form="${su?'signup':'login'}">${A.msg?`<div class="alert">${esc(A.msg)}</div>`:''}
-  ${su?fld('f_name','Your name','autocomplete="name" required'):''}${fld('f_email','Email','type="email" autocomplete="email" required')}
+  ${su?fld('f_name','Your name','autocomplete="off" value="" required'):''}${fld('f_email','Email','type="email" autocomplete="'+(su?'off':'email')+'" value="" required')}
   ${fld('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required'+(su?' placeholder="At least 8 characters"':''))}
   <button class="btn full">${su?'Create your ShopNip account':'Sign in'}</button></form>
   <div class="or">${su?'Already have an account?':'New to ShopNip?'}</div>
