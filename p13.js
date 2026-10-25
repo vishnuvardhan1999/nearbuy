@@ -27,7 +27,7 @@ function start(){log.innerHTML='';C.step='shop';C.f=null;C.d={...JSON.parse(loca
   if(bs)return bot(`You already have items from <b>${esc(S.basket[0].shop_name)}</b> in your basket.`),quick([['Continue with '+esc(S.basket[0].shop_name),'s:'+bs,'pri'],['Choose another shop','other']]);
   askShop()}
 function askShop(){C.step='shop';const L=shops();
-  if(!L.length)return bot('No shops are taking orders near you yet. Try again soon.'),quick([]);
+  if(!L.length)return bot('No shops are taking orders near you right now.'),quick([]);
   bot('Which shop would you like to order from?');quick(L.slice(0,8).map(s=>[esc(s.name),'s:'+s.id]),'Type a shop name…')}
 async function pickShop(id){C.busy=true;try{C.shop=await P3.shop(id);C.L=(await P2.DB.shopListings(id)).filter(l=>l.active!==false&&(l.shop_id==null||l.shop_id===id));}catch(e){C.busy=false;return bot('Sorry, I could not load that shop. '+esc(e.message||''))}C.busy=false;
   if(!C.shop)return bot('Sorry, I could not find that shop.'),askShop();

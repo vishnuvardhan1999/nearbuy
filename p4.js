@@ -1,4 +1,4 @@
-// ShopNip (a NuvonHub product) · Phase 4: search + filters, SKU grouping across shops, "coming soon" catalogue, info pages.
+// ShopNip (a NuvonHub product) · Phase 4: search + filters, SKU grouping across shops, "not stocked nearby yet" catalogue, info pages.
 (()=>{const {M,MOCK,Q,toast}=P2;
 const MAIL=()=>CFG.CONTACT_EMAIL||'hello@nuvonhub.com';
 const F={cat:'',min:'',max:'',dist:0,stock:false,ful:'',sort:'nearest'};
@@ -30,7 +30,7 @@ const asOffer=(p,o)=>({...p,listing_id:o.listing_id,shop_id:o.shop_id,price:o.pr
 
 // ---------- product card ----------
 function card(p){const o=p.offers||[],soon=p.demo&&!p.listing_id,s=!soon&&shopOf(p.shop_id),d=p.dist??dOf(s),on=NT().includes(p.sku);
-  const meta=soon?'<div class="pmeta soonm">Coming soon to shops near you</div>':o.length>1?`<div class="pmeta"><b>${o.length} shops nearby</b>${d!=null?' · nearest '+fmi(d):''}</div>`:s?`<div class="pmeta">${svg('store')}${esc(s.name)}${d!=null?' · '+fmi(d):''}</div>`:'';
+  const meta=soon?'<div class="pmeta soonm">Not stocked near you yet</div>':o.length>1?`<div class="pmeta"><b>${o.length} shops nearby</b>${d!=null?' · nearest '+fmi(d):''}</div>`:s?`<div class="pmeta">${svg('store')}${esc(s.name)}${d!=null?' · '+fmi(d):''}</div>`:'';
   const price=soon?'':o.length>1?`<span class="pr"><small>From</small> ${gbp(p.price)}</span>`:`<span class="pr">${gbp(p.price)}</span>`;
   const btn=soon?`<button class="ntf ${on?'on':''}" data-ntf="${esc(p.sku)}">${on?svg('check')+'Notified':'Notify me'}</button>`:`<button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button>`;
   return `<div class="pc ${soon?'soon':''}" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
@@ -48,7 +48,7 @@ async function gsheet(p,pick){await P3.sheet(asOffer(p,pick||p.offers[0]));const
    <i></i><span class="pon"><b>${esc(o.shop.name)}</b><small>${[fmi(o.dist),o.shop.delivery_options?.delivery?'Delivery':'',o.shop.delivery_options?.collect!==false?'Collect':''].filter(Boolean).join(' · ')}${o.stock?'':' · Out of stock'}</small></span><span class="poprc">${gbp(o.price)}${o.price===p.price&&p.offers.length>1?'<em>Lowest</em>':''}</span></button>`).join('')}</div>`;
   el.querySelector('.sh-b').insertAdjacentHTML('beforeend',h)}
 async function ssheet(p){await P3.sheet(p);const el=$('#sheet'),on=NT().includes(p.sku);
-  el.querySelector('.sh-pr').innerHTML='<span class="sample soon">Coming soon to shops near you</span>';
+  el.querySelector('.sh-pr').innerHTML='<span class="sample soon">Not stocked near you yet</span>';
   el.querySelector('.sh-f').innerHTML=`<p class="sh-soon">No ShopNip shop near you sells this yet.</p><button class="btn ntf2" data-ntf="${esc(p.sku)}">${on?'On your notify list':'Notify me when it’s nearby'}</button>`}
 // window capture runs before p3's document capture handler
 addEventListener('click',e=>{
@@ -94,9 +94,9 @@ V.search=function(){const q=$('#q').value.trim(),t=q.toLowerCase().split(/\s+/).
    <div class="frow price"><span>Price</span><label class="pf2">£<input data-fs="min" inputmode="decimal" placeholder="Min" value="${esc(F.min)}"></label><i>–</i><label class="pf2">£<input data-fs="max" inputmode="decimal" placeholder="Max" value="${esc(F.max)}"></label>${nf?`<a href="#" data-fclr="all">Clear ${nf} filter${nf>1?'s':''}</a>`:''}</div>
    ${F.dist&&!S.me?'<p class="note" style="margin:6px 0 0">Set your postcode to filter by distance. <a href="#" id="setpc2">Set postcode</a></p>':''}</div>`;
   const body=res.length?`<div class="grid">${res.slice(0,60).map(card).join('')}</div>`:live.length?`<div class="empty">${svg('search')}<br>No shop near you matches${nf?' these filters':''} yet</div>`:'';
-  return `<section class="sec ssearch"><div class="sh"><h2>${q?`Results for “${esc(q)}”`:'Search'}</h2><span class="note" style="margin:0">${res.length} at shops${soon.length?` · ${soon.length} coming soon`:''}</span></div>
+  return `<section class="sec ssearch"><div class="sh"><h2>${q?`Results for “${esc(q)}”`:'Search'}</h2><span class="note" style="margin:0">${res.length} at shops${soon.length?` · ${soon.length} not stocked nearby`:''}</span></div>
    ${q?'':chips}${fil}${body}
-   ${soon.length?`<div class="sh soonh"><h2>Available at shops soon</h2></div><p class="note" style="margin:-6px 0 12px">Not sold by a ShopNip shop near you yet. Tap Notify me and we'll flag it when one does.</p><div class="grid">${soon.map(card).join('')}</div>`:''}
+   ${soon.length?`<div class="sh soonh"><h2>Not stocked nearby yet</h2></div><p class="note" style="margin:-6px 0 12px">Not sold by a ShopNip shop near you yet. Tap Notify me and we'll flag it when one does.</p><div class="grid">${soon.map(card).join('')}</div>`:''}
    ${!q&&!F.cat&&!res.length&&!live.length?`<div class="empty">${svg('search')}<br>Type to search the catalogue</div>`:''}</section>`};
 
 // ---------- info pages ----------

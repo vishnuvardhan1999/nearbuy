@@ -39,8 +39,8 @@ addEventListener('click',e=>{const t=e.target.closest('[data-plink]');if(!t)retu
 const pct=(p,c)=>Math.round((1-p/c)*100);
 const _card=P4.card;P4.card=p=>{let h=_card(p);if(p.cmp&&p.cmp>p.price){h=h.replace('<div class="pim">',`<div class="pim"><span class="disc">-${pct(p.price,p.cmp)}%</span>`).replace(/(<span class="pr">.*?)<\/span>/,`$1 <s>${gbp(p.cmp)}</s></span>`)}return h};
 function dcard(p,demo){const d=pct(p.price,p.cmp),s=!demo&&S.shops.find(x=>x.id===p.shop_id);
-  return `<div class="pc deal" data-psku="${esc(p.sku)}" data-lid="${esc(demo?'':p.listing_id||'')}"><div class="pim"><span class="disc">-${d}%</span>${demo?'<span class="pvw">Preview</span>':''}<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
-  <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pmeta">${demo?'<span class="soonm">Preview deal · coming soon</span>':s?esc(s.name):''}</div>
+  return `<div class="pc deal" data-psku="${esc(p.sku)}" data-lid="${esc(demo?'':p.listing_id||'')}"><div class="pim"><span class="disc">-${d}%</span>${demo?'':''}<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
+  <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pmeta">${demo?'':s?esc(s.name):''}</div>
   <div class="dpr"><b>${gbp(p.price)}</b><s>${gbp(p.cmp)}</s></div><div class="dbar"><i style="width:${30+(p.sku.length*13)%60}%"></i></div>
   <div class="pf">${demo?`<button class="ntf" data-ntf="${esc(p.sku)}">Notify me</button>`:`<span class="save">Save ${gbp(p.cmp-p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add">${svg('plus')}</button>`}</div></div></div>`}
 const sponsoredCard=(p,promo)=>P4.card(p).replace('<div class="pb">','<div class="pb"><span class="spons">Sponsored</span>').replace('class="pc','class="pc sp');
@@ -54,9 +54,8 @@ function hero(){const B=banners();return `<section class="h5" id="h5" aria-roled
   <div class="h5d">${B.map((_,i)=>`<button data-h5="${i}" class="${i?'':'on'}" aria-label="Slide ${i+1}"><i></i></button>`).join('')}</div></section>`}
 const trust=()=>`<div class="trust">${[['lock','Secure ordering','Sign-in & verified shops'],['store','Local shops','Independents near you'],['clock','Quick collection','Often ready same day'],['chat','Friendly support','Real people, UK based']].map(([i,t,s])=>`<div>${svg(i)}<span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>`;
 function deals(){let L=S.products.filter(p=>p.cmp>p.price&&!p.demo),demo=false;
-  if(!L.length&&preview()){demo=true;const d=[15,20,25,30,20,35,15,25,20,30];L=pick(p=>p.price>1.5,10,7).map((p,i)=>({...p,cmp:+(p.price/(1-d[i%10]/100)).toFixed(2)}))}
   if(!L.length)return '';L=L.sort((a,b)=>pct(b.price,b.cmp)-pct(a.price,a.cmp)).slice(0,12);
-  return `<section class="sec5 deals">${head(`${svg('fire')}Deals of the day`,`<span class="cd" id="cd" aria-label="Time left today"><small>Ends in</small><b data-h>00</b>:<b data-m>00</b>:<b data-s>00</b></span>`,demo?'<span class="sample soon">Preview prices</span>':'')}
+  return `<section class="sec5 deals">${head(`${svg('fire')}Deals of the day`,`<span class="cd" id="cd" aria-label="Time left today"><small>Ends in</small><b data-h>00</b>:<b data-m>00</b>:<b data-s>00</b></span>`)}
    <div class="row prods">${L.map(p=>dcard(p,demo)).join('')}</div></section>`}
 function tiles(){const u5=CAT().filter(p=>p.images?.length&&p.trade_price*1.6<5),bn=cpick(['pack of','multipack','assorted'],2,2),pr=cpick(['balloon','party'],2,5),xm=cpick(['gift wrap','ribbon'],2,1);
   const T=[...of('deal').map(d=>({title:d.title,sub:d.subtitle,link:d.link,img:d.image?[d.image]:[],c:'t-teal',tag:'Deal'})),
@@ -81,10 +80,10 @@ const why=()=>`<section class="sec5 why">${head('Why ShopNip')}<div class="whyg"
 const news=()=>`<section class="news"><div class="nwt"><span class="h5k">${svg('mail')}Newsletter</span><h2>Get deals near you</h2><p>The best offers from shops on your street, once a week. No spam, unsubscribe any time.</p></div>
   <form class="nwf" id="nwf"><div class="nwi"><input type="email" id="nw_e" required placeholder="you@example.com" aria-label="Email address" autocomplete="email"><input id="nw_p" placeholder="Postcode" aria-label="Postcode (optional)" value="${esc(S.pc||'')}" maxlength="8"></div>
   <button class="btn" type="submit">Get deals ${svg('arrow')}</button><small>By subscribing you agree to receive emails from ShopNip. See our <a href="#privacy">Privacy Policy</a>.</small><div class="nwok" id="nwok"></div></form></section>`;
-function rowSec(t,f,s,i,extra=''){const items=pick(f,12,s);if(!items.length)return '';return `<section class="sec5">${head(t,preview()?'<span class="sample soon">Coming soon</span>':'',`<a href="#" data-sec="${i}" class="more">See all ${svg('arrow')}</a>`)}<div class="row prods">${extra}${items.map(pcard).join('')}</div></section>`}
+function rowSec(t,f,s,i,extra=''){const items=pick(f,12,s);if(!items.length)return '';return `<section class="sec5">${head(t,'',`<a href="#" data-sec="${i}" class="more">See all ${svg('arrow')}</a>`)}<div class="row prods">${extra}${items.map(pcard).join('')}</div></section>`}
 function home5(){const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0]||CAT().find(t);return `<button class="cat" data-cat="${i}"><span class="ci">${p?`<img src="${esc(p.images[0])}" alt="">`:''}</span>${l}</button>`}).join('');
   return `${hero()}${trust()}
-  ${preview()?`<div class="soonbar">${svg('pin')}<div><b>Coming soon to shops near you</b><p>A preview of what local shops can stock on ShopNip. Tap <i>Notify me</i> and we'll flag items when a shop near you lists them.</p></div></div>`:''}
+  
   <section class="sec5">${head('Shop by category')}<div class="cats">${cats}</div></section>
   ${shopsSection().replace('class="sec"','class="sec sec5"')}
   ${deals()}${tiles()}
@@ -96,7 +95,7 @@ function home5(){const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0]||CAT
   ${why()}${news()}
   <section class="sell"><div><h3>Shop owner? Sell on ShopNip</h3><p>Get a free online shop for your store. Your products are listed for you with photos and descriptions. Just set your prices.</p></div>
    <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}Free during the pilot</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
-  ${preview()?'<p class="note">Preview catalogue: prices and deals are illustrative until shops set their own.</p>':''}${foot()}`}
+  ${foot()}`}
 V.home=home5;
 
 // ---------- motion: carousel, countdown, transitions ----------

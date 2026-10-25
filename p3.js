@@ -60,7 +60,7 @@ async function sheet(p){if(!p)return;let full=p;
    <button class="sh-x" data-x="close" aria-label="Close">✕</button>
    <div class="sh-imgs">${imgs.map(i=>`<img src="${esc(i)}" alt="">`).join('')||'<img src="icon-192.png" alt="">'}</div>${imgs.length>1?`<div class="sh-n">${imgs.length} photos · swipe</div>`:''}
    <div class="sh-b"><h3>${esc(p.name)}</h3>${shop?`<div class="sh-shop">${svg('store')}Sold by <b>${esc(shop.name)}</b></div>`:''}
-    <div class="sh-pr">${gbp(p.price)}${p.demo?' <span class="sample">Preview price</span>':''}${p.stock!=null?`<span class="sh-st ${p.stock?'':'out'}">${p.stock?(p.stock<=3?'Only '+p.stock+' left':'In stock'):'Out of stock'}</span>`:''}</div>
+    <div class="sh-pr">${gbp(p.price)}${p.stock!=null?`<span class="sh-st ${p.stock?'':'out'}">${p.stock?(p.stock<=3?'Only '+p.stock+' left':'In stock'):'Out of stock'}</span>`:''}</div>
     <p class="sh-d">${esc((full.description||'').slice(0,700))}${(full.description||'').length>700?'…':''}</p></div>
    <div class="sh-f"><div class="qty"><button data-x="dec" aria-label="Less">−</button><span id="sq">1</span><button data-x="inc" aria-label="More">+</button></div>
     <button class="btn" data-x="add" ${p.stock===0?'disabled':''}>Add to basket · <span id="stot">${gbp(p.price)}</span></button></div></div>`;

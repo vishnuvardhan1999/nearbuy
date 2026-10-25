@@ -70,7 +70,7 @@ function home(){
   const h1=pick(kw('pen','notebook','glue'),3,4),h2=pick(kw('pencil','ruler','notebook'),3,9),h3=pick(kw('balloon','gift bag'),3,2);
   const art=a=>`<div class="art">${a.map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
   const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0];return `<button class="cat" data-cat="${i}"><span class="ci">${p?`<img src="${esc(p.images[0])}" alt="">`:''}</span>${l}</button>`}).join('');
-  const secs=SECTIONS.map(([t,f,s],i)=>`<section class="sec"><div class="sh"><h2>${t}${S.products[0]?.demo?'<span class="sample soon">Coming soon</span>':''}</h2><a href="#" data-sec="${i}">See all</a></div><div class="row prods">${pick(f,12,s).map(pcard).join('')}</div></section>`).join('');
+  const secs=SECTIONS.map(([t,f,s],i)=>`<section class="sec"><div class="sh"><h2>${t}</h2><a href="#" data-sec="${i}">See all</a></div><div class="row prods">${pick(f,12,s).map(pcard).join('')}</div></section>`).join('');
   return `<section class="hero"><div class="slides" id="slides">
    <div class="slide s1"><div class="tag">Shop local</div><h3>Your local shops, delivered in hours</h3><p>Click & collect or same-day delivery from independents near you.</p><button class="cta" data-t="search">Start shopping</button>${art(h1)}</div>
    <div class="slide s2"><div class="tag">New term</div><h3>Back to school essentials</h3><p>Pens, pads and pencil cases.</p><button class="cta" data-sec="1">Shop now</button>${art(h2)}</div>
@@ -78,12 +78,12 @@ function home(){
   </div><div class="dots" id="dots"><i class="on"></i><i></i><i></i></div></section>
   <div class="chips"><button class="chip" data-t="search">${svg('bag')}Click &amp; collect</button><button class="chip" data-t="search">${svg('bolt')}Same-day delivery</button><button class="chip" data-sec="0">${svg('tag')}Offers</button><button class="chip" id="register2">${svg('store')}Sell on ShopNip</button></div>
   ${shopsSection()}
-  ${S.products[0]?.demo?`<div class="soonbar">${svg('pin')}<div><b>Coming soon to shops near you</b><p>A preview of what local shops can stock on ShopNip. Tap <i>Notify me</i> and we'll flag items when a shop near you lists them.</p></div></div>`:''}
+  
   <section class="sec"><div class="sh"><h2>Shop by category</h2></div><div class="cats">${cats}</div></section>
   ${secs}
   <section class="sell"><div><h3>Shop owner? Sell on ShopNip</h3><p>Get a free online shop for your store. Your products are listed for you with photos and descriptions. Just set your prices.</p></div>
    <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}No setup fee</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
-  ${S.products[0]?.demo?'<p class="note">Preview catalogue: prices are illustrative until shops set their own.</p>':''}
+  
   ${foot()}`}
 function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark" style="background:var(--navy)"></span><span class="word" style="color:var(--navy)">shop<b>nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
    <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
@@ -117,7 +117,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-
  if(el.id==='loc'||el.id==='setpc2')return askPostcode();
  if(el.id==='geo'){if(!navigator.geolocation)return askPostcode();navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng))},()=>askPostcode());return}
  if(el.id==='checkout')return alert('Checkout is coming in Phase 2.');
- if(el.id.startsWith('register'))return window.P2?P2.register():alert('Shop registration coming soon.');});
+ if(el.id.startsWith('register'))return window.P2?P2.register():(location.href='seller.html');});
 $('#sf').addEventListener('submit',e=>{e.preventDefault();$('#q').blur();route('search')});
 $('#q').addEventListener('input',()=>{if($('#q').value.length>1)route('search')});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));

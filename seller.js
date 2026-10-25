@@ -99,7 +99,7 @@ async function load(){const s=await API.session();D.user=s?.user||null;D.shop=nu
 async function boot(){try{if(MOCK)await seed();await load()}catch(e){console.warn(e);toast(e.message||'Could not load your shop')}
   if(sb)sb.auth.onAuthStateChange(async ev=>{if(ev==='SIGNED_OUT'||ev==='SIGNED_IN'){await load().catch(()=>{});render()}});
   addEventListener('hashchange',()=>{D.ui.drawer=null;if(!AUTH()&&!fromAuth())D.ui.amsg='';render();scrollTo(0,0)});render()}
-const DASH=['overview','orders','products','deals','settings','payouts'];
+const DASH=['overview','orders','products','deals','settings'];
 function page(){const h=location.hash.slice(1);if(h==='dash')return 'overview';return DASH.includes(h)?h:''}
 const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?h:''};
 const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
@@ -162,7 +162,7 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
     <div class="plan"><span class="tagp">Planned</span><h3 style="margin-top:10px">Starter</h3><div class="pr">~£9.99 <small>/ month</small></div><small>Plus around 5–10% commission per order (indicative)</small>
      <ul><li>${svg('check')}Everything in Pilot</li><li>${svg('check')}Deals and “was” prices</li><li>${svg('check')}Sales insights</li></ul></div>
     <div class="plan"><span class="tagp">Planned</span><h3 style="margin-top:10px">Growth</h3><div class="pr">~£19.99 <small>/ month</small></div><small>Plus around 5–10% commission per order (indicative)</small>
-     <ul><li>${svg('check')}Everything in Starter</li><li>${svg('check')}Featured shop and sponsored placements</li><li>${svg('check')}Online payments and payouts</li></ul></div></div>
+     <ul><li>${svg('check')}Everything in Starter</li><li>${svg('check')}Featured shop and sponsored placements</li></ul></div></div>
    <p class="fnote">Planned prices are indicative only and may change before launch. Pilot shops will get at least 30 days’ notice before any fees apply, and paid plans will be optional.</p></div></section>
   <section class="lsec" id="faq"><div class="wrap"><span class="kick">FAQs</span><h2>Questions from shop owners</h2><p class="sub">Can’t find your answer? Email <a href="mailto:${esc(MAIL)}">${esc(MAIL)}</a>.</p>
    <div class="faq">${FAQ.map(([q,a],i)=>`<details ${i?'':'open'}><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></div></section>
@@ -171,21 +171,21 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
   <footer class="lfoot"><div class="wrap"><div><a href="index.html#about">About</a><a href="index.html#faq">Customer FAQ</a><a href="index.html#terms">Terms</a><a href="index.html#privacy">Privacy</a><a href="mailto:${esc(MAIL)}">Contact</a></div><span>© ${new Date().getFullYear()} ShopNip · ShopNip, a NuvonHub product</span></div></footer>
   <div class="stick">${has?`<a class="btn coral" href="#dash">Seller dashboard</a>`:signed?`<a class="btn coral" href="${RG}">Register your shop</a>`:`<a class="btn ghost" href="${LI}">Log in</a><a class="btn coral" href="${SU}">Start selling</a>`}</div>`}
 // =================== DASHBOARD ===================
-const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings',payouts:'Payouts'};
-const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','tag'],['settings','cog'],['payouts','card']];
+const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};
+const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','tag'],['settings','cog']];
 const newCount=()=>D.O.filter(o=>o.status==='placed').length;
 function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>shop<b>nip</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller dashboard</h2><p>Log in with your shop owner account to manage orders, products and your shop.</p>
    <div class="btns"><a class="btn lg" href="#login">Log in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on ShopNip</a></div></div></div>`;
   return `<div class="gate"><div class="card">${brand}<h2>Register your shop</h2><p>You’re logged in as ${esc(D.user.email)}, but there’s no shop on this account yet. It takes about three minutes.</p>
-   <div class="btns"><a class="btn coral lg" href="${idx('view=register&seller=1')}">Register your shop</a><a class="btn ghost" href="#" data-a="logout">Log out</a></div></div></div>`}
+   <div class="btns"><a class="btn coral lg" href="${idx('view=register&seller=1')}">Register your shop</a><a class="btn ghost" href="${home()}">Shop as a customer</a><a class="btn ghost" href="#" data-a="logout">Log out</a></div></div></div>`}
 function dash(p){
   if(!D.user||!D.shop)return gate();
-  const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}${k==='payouts'?'<span class="soon">Soon</span>':''}</a>`;
+  const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`;
   const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">S</span><span>shop<b>nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
    <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
-   <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="${home()}">${svg('bag')}Back to shopping</a><a href="#" data-a="logout">${svg('out')}Log out</a><small>ShopNip, a NuvonHub product</small></div></aside>`;
+   <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="${home()}">${svg('bag')}Shop as a customer</a><a href="#" data-a="logout">${svg('out')}Log out</a><small>ShopNip, a NuvonHub product</small></div></aside>`;
   const tb=`<header class="tb"><div class="in"><button class="ib menu-b" data-a="menu" aria-label="Menu">${svg('menu')}</button><h1>${TITLE[p]}</h1>
    ${s?`<a class="ib" href="#orders" aria-label="${n} new orders">${svg('bell')}${n?'<span class="dot"></span>':''}</a>`:''}<span class="av">${esc((D.user.email||'?')[0].toUpperCase())}</span><div class="who"><b>${esc(s?.name||'')}</b><small>${esc(D.user.email)}</small></div></div></header>`;
   const bn=s?`<nav class="bnav" aria-label="Dashboard sections">${[['overview','grid','Overview'],['orders','orders','Orders'],['products','box','Products'],['settings','cog','Settings']].map(([k,i,l])=>`<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`).join('')}<a href="#" data-a="menu" class="${['deals','payouts'].includes(p)?'on':''}">${svg('dots')}More</a></nav>`:'';
@@ -280,9 +280,6 @@ PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
      <div class="upl"><span class="lgp">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>Logo</b><small class="mut">Square, at least 256px</small></div><label class="btn ghost sm">Upload<input type="file" accept="image/*" data-up="logo" hidden></label></div>
      <div class="upl"><span class="cvp">${s.cover_url?`<img src="${esc(s.cover_url)}" alt="">`:''}</span><div><b>Cover image</b><small class="mut">Wide, shown on your shop page</small></div><label class="btn ghost sm">Upload<input type="file" accept="image/*" data-up="cover" hidden></label></div></div></div></div>
    <div class="savebar wide"><span class="mut">Status: <b>${statusLabel(s.status)}</b></span><button class="btn" type="submit">Save changes</button></div></form>`};
-PAGES.payouts=()=>`<div class="ph"><div><h2>Payouts</h2><p>Online payments and payouts.</p></div></div><div class="card soonc"><div class="cb"><span class="ic">${svg('card')}</span><span class="tagp">Coming soon</span><h3>Online payments are on the way</h3>
-  <p class="mut">During the pilot customers pay you directly on collection or delivery, so there’s nothing to pay out. When online payments launch you’ll see balances, payout dates and statements here.</p>
-  <ul class="flist"><li>${svg('check')}Card payments at checkout</li><li>${svg('check')}Weekly payouts to your bank</li><li>${svg('check')}Downloadable statements</li></ul></div></div>`;
 // =================== events / realtime ===================
 function rerender(){const y=scrollY,a=document.activeElement,id=a?.id,pos=a?.selectionStart;render();if(id){const n=document.getElementById(id);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch{}}}scrollTo(0,y)}
 function ding(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.setValueAtTime(.2,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.6);o.start();o.stop(c.currentTime+.6)}catch{}}

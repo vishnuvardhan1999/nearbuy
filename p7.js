@@ -21,22 +21,21 @@ function mix(groups,fb,n=4,off=0){const used={t:new Set(),i:new Set()},out=[];
 const kw=(...w)=>p=>{const n=p.name.toLowerCase();return w.some(k=>n.includes(k))};
 const img=p=>`<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.style.visibility='hidden'">`;
 // ---------- promo strip ----------
-function dealsPool(){let L=uniq(S.products.filter(p=>p.cmp>p.price&&!p.demo&&p.images?.length),4).map(p=>({p,d:Math.round((1-p.price/p.cmp)*100),real:true}));
-  if(L.length<4){const d=[30,25,20,35];const u={t:new Set(L.map(x=>tkey(x.p))),i:new Set(L.map(x=>x.p.images[0]))};L=L.concat(uniq([['balloon'],['gift bag'],['glitter'],['notebook'],['pen']].flatMap(g=>CAT().filter(hk(...g)).slice(9)),4-L.length,u).map((p,i)=>({p,d:d[i%4],real:false})))}return L}
+function dealsPool(){let L=uniq(S.products.filter(p=>p.cmp>p.price&&!p.demo&&p.images?.length),4).map(p=>({p,d:Math.round((1-p.price/p.cmp)*100),real:true}));return L}
 function cards(){const promos=(window.P5?.promos?.()||[]).filter(x=>x.type==='banner'&&['hero','strip'].includes(x.placement||'hero'));
-  const dl=dealsPool(),preview=dl.some(x=>!x.real);
+  const dl=dealsPool();
   const pop=uniq(S.products.filter(p=>p.offers?.length&&p.images?.length),4);const popL=pop.length>=4?pop:mix([['tape'],['envelope'],['highlighter'],['scissors']],kw('tape','envelope','highlighter','scissors'),4,3);
   const u2=CAT().filter(p=>price(p)<=2);
   const house=[
    {c:'pc-teal',k:'Welcome offer',t:'Free delivery on your first order',s:'From shops on your street',cta:'Start shopping',link:'#search',hero:find(kw('gift bag','balloon','notebook'),3,2)},
-   {c:'pc-red',k:'Deals',t:'Deals ending soon',cta:'See all deals',link:'#search',grid:dl.slice(0,4),badge:true,note:preview?'Preview prices':''},
+   {c:'pc-red',k:'Deals',t:'Today’s deals',cta:'See all deals',link:'#search',grid:dl.slice(0,4),badge:true},
    {c:'pc-coral',k:'Seasonal',t:'Party season',s:'Balloons, banners & bags',cta:'Shop party',link:'q:party',life:find(kw('balloon'),1,4)[0]},
    {c:'pc-gold',k:'Budget',t:'Everything under £2',s:'Pocket-money picks',cta:'Shop under £2',link:'max:2',hero:find(p=>price(p)<=2&&u2.includes(p),3,20)},
    {c:'pc-navy',k:'Near you',t:'Popular deals near you',cta:'Explore',link:'#search',grid:popL.slice(0,4)},
    {c:'pc-lime',k:'Back to school',t:'Back to school, sorted',s:'Pens, pads & pencil cases',cta:'Shop school',link:'sec:1',hero:find(kw('pencil case','ruler','sharpener'),3,1)}];
   const fromPromo=promos.map((b,i)=>{const th={coral:'pc-coral',gold:'pc-gold',night:'pc-navy',lime:'pc-lime',teal:'pc-teal'}[b.theme]||'pc-teal';
     return {c:th,k:b.shop_id?'Promoted':'ShopNip',t:b.title,s:b.subtitle,cta:b.cta||'Shop now',link:b.link||'#search',bg:b.image,hero:b.image?null:(b.sku?[S.products.find(p=>p.sku===b.sku)].filter(Boolean):find(kw(...(b.kw||['pen'])),3,i))}});
-  return [house[0],...fromPromo,...house.slice(1)].slice(0,9)}
+  return [house[0],...fromPromo,...house.slice(1).filter(c=>!c.badge||c.grid.length)].slice(0,9)}
 function card(c){const body=c.grid?`<div class="pg2">${c.grid.map(x=>{const p=x.p||x;return `<span>${img(p)}${c.badge?`<em>-${x.d}%</em>`:''}</span>`}).join('')}</div>`
    :c.life?`<div class="plife">${img(c.life)}</div>`:c.bg?`<div class="pbg" style="background-image:url('${esc(c.bg)}')"></div>`:`<div class="phero">${(c.hero||[]).map((p,i)=>`<span class="h${i}">${img(p)}</span>`).join('')}</div>`;
   return `<a href="#" class="pcard ${c.c}" data-plink="${esc(c.link)}"><span class="pk">${esc(c.k)}</span><b class="pt">${esc(c.t)}</b>${c.s?`<small class="ps">${esc(c.s)}</small>`:''}${body}<span class="pcta">${esc(c.cta)} ${svg('arrow')}</span>${c.note?`<i class="pnote">${esc(c.note)}</i>`:''}</a>`}
