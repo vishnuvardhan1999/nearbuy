@@ -2,18 +2,30 @@
    Below: white tile cards with a 2x2 grid of real catalogue products. Existing sections (shops near you, deals…) follow. */
 (()=>{
 const CAT=()=>P4.cat().filter(p=>p.images?.length);
-const nm=p=>esc(p.name.split(/[,–(]| - /)[0].trim().slice(0,26));
+const nm=p=>{const h=p.name.split(/\s?[-–]\s?|[,(]/);let t=(/^(toys?|disposable|party)$/i.test(h[0].trim())&&h[1]?h[1]:h[0]).trim();if(t.length>22)t=t.slice(0,22).replace(/\s+\S*$/,'');t=t.replace(/\b([A-Z])([A-Z]+)\b/g,(m,a,b)=>a+b.toLowerCase());return esc(t)};
 const price=p=>+(p.price||((+p.trade_price||1)*1.6)).toFixed(2);
-function find(test,n,off=0){const out=[],seen=new Set();const c=CAT().filter(test);for(let i=off;i<c.length&&out.length<n;i++){const k=c[i].name.slice(0,12).toLowerCase();if(seen.has(k))continue;seen.add(k);out.push(c[i])}
-  for(let i=0;out.length<n&&i<c.length;i++)if(!out.includes(c[i]))out.push(c[i]);return out}
+const head=p=>p.name.split(/\s[-–]\s?|\s?[-–]\s|[,(]/)[0].trim().toLowerCase();
+// product "type": name head (e.g. "balloon", "gift bag"); generic heads like "Toys"/"Disposable" use the next segment
+const TYPES=['glue stick','double sided tape','bubble wrap','gift wrap','gift bag','gift tag','greeting card','pencil case','exercise book','bin bag','cling film','paper plate','tea light','balloon','banner','bunting','candle','napkin','cup','plate','foil','bow','ribbon','envelope','label','box','tape','glue','highlighter','sharpener','ruler','scissor','notebook','marker','pencil','pen','glove','cloth','water gun','water pistol','blaster','aqua shot','bubble','toy set','football','clay','paint','crayon','glitter','sketch'];
+const ALIAS={'water pistol':'water gun','blaster':'water gun','aqua shot':'water gun'};
+const sub=p=>{let h=head(p);if(/^(toys?|disposable|party)$/.test(h))h=(p.name.split(/\s?[-–]\s?/)[1]||h).trim().toLowerCase();return h};
+// product "type": first known keyword in the (sub)head, else the head itself
+const tkey=p=>{const h=sub(p);const k=TYPES.find(k=>h.includes(k));return k?(ALIAS[k]||k):h.replace(/s$/,'')};
+function uniq(list,n,used={t:new Set(),i:new Set()}){const out=[];for(const p of list){if(out.length>=n)break;const t=tkey(p),im=p.images[0];if(used.t.has(t)||used.i.has(im))continue;used.t.add(t);used.i.add(im);out.push(p)}return out}
+function find(test,n,off=0){const c=CAT().filter(test);return uniq(c.slice(off).concat(c.slice(0,off)),n)}
+// one product per keyword group (matched on the name head), then fallback to distinct types from the tile's pool
+const hk=(...w)=>p=>{const h=head(p);return w.some(k=>new RegExp('\\b'+k+'s?\\b').test(h))};
+function mix(groups,fb,n=4,off=0){const used={t:new Set(),i:new Set()},out=[];
+  for(const g of groups){if(out.length>=n)break;const c=CAT().filter(hk(...g));out.push(...uniq(c.slice(off%Math.max(c.length,1)).concat(c),1,used))}
+  if(out.length<n&&fb)out.push(...uniq(CAT().filter(fb),n-out.length,used));return out}
 const kw=(...w)=>p=>{const n=p.name.toLowerCase();return w.some(k=>n.includes(k))};
 const img=p=>`<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.style.visibility='hidden'">`;
 // ---------- promo strip ----------
-function dealsPool(){let L=S.products.filter(p=>p.cmp>p.price&&!p.demo&&p.images?.length).map(p=>({p,d:Math.round((1-p.price/p.cmp)*100),real:true}));
-  if(L.length<4){const d=[30,25,20,35];L=L.concat(find(kw('balloon','gift bag','glitter','notebook','pen '),4-L.length,9).map((p,i)=>({p,d:d[i%4],real:false})))}return L}
+function dealsPool(){let L=uniq(S.products.filter(p=>p.cmp>p.price&&!p.demo&&p.images?.length),4).map(p=>({p,d:Math.round((1-p.price/p.cmp)*100),real:true}));
+  if(L.length<4){const d=[30,25,20,35];const u={t:new Set(L.map(x=>tkey(x.p))),i:new Set(L.map(x=>x.p.images[0]))};L=L.concat(uniq([['balloon'],['gift bag'],['glitter'],['notebook'],['pen']].flatMap(g=>CAT().filter(hk(...g)).slice(9)),4-L.length,u).map((p,i)=>({p,d:d[i%4],real:false})))}return L}
 function cards(){const promos=(window.P5?.promos?.()||[]).filter(x=>x.type==='banner'&&['hero','strip'].includes(x.placement||'hero'));
   const dl=dealsPool(),preview=dl.some(x=>!x.real);
-  const pop=S.products.filter(p=>p.offers?.length&&p.images?.length).slice(0,4);const popL=pop.length>=4?pop:find(kw('tape','envelope','highlighter','scissors'),4,3);
+  const pop=uniq(S.products.filter(p=>p.offers?.length&&p.images?.length),4);const popL=pop.length>=4?pop:mix([['tape'],['envelope'],['highlighter'],['scissors']],kw('tape','envelope','highlighter','scissors'),4,3);
   const u2=CAT().filter(p=>price(p)<=2);
   const house=[
    {c:'pc-teal',k:'Welcome offer',t:'Free delivery on your first order',s:'From shops on your street',cta:'Start shopping',link:'#search',hero:find(kw('gift bag','balloon','notebook'),3,2)},
@@ -31,11 +43,16 @@ function card(c){const body=c.grid?`<div class="pg2">${c.grid.map(x=>{const p=x.
 const strip=()=>`<section class="pstrip" aria-label="Offers"><div class="psr" id="psr">${cards().map(card).join('')}</div>
   <button type="button" class="psa prev" data-psgo="-1" aria-label="Scroll offers left"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="psa next" data-psgo="1" aria-label="Scroll offers right"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></section>`;
 // ---------- tile grid ----------
-const TILES=[['Back to school','sec:1',kw('pencil case','ruler','sharpener','exercise book','highlighter','eraser')],['Party essentials','q:party',kw('balloon','banner','party bag','confetti')],
- ['Gift wrap & cards','q:gift wrap',kw('gift wrap','gift bag','ribbon','greeting card','gift tag')],['Art & craft','sec:2',p=>p.category==='Art & Craft'],
- ['Packaging','q:mailing',p=>/packaging|mailing/i.test(p.category)||kw('bubble','mailing bag','parcel')(p)],['Household','q:household',p=>p.category==='House Hold'],
- ['Tapes & glue','q:tape',p=>p.category==='Tapes & Adhesives'],['Toys & games','q:toy',p=>/toys/i.test(p.category)]];
-const grid=()=>`<section class="tgrid">${TILES.map(([t,l,f],i)=>{const ps=find(f,4,i*3);if(ps.length<4)return '';
+const TILES=[
+ ['Back to school','sec:1',[['pencil case'],['ruler'],['sharpener'],['exercise book'],['highlighter']],kw('pencil case','ruler','sharpener','exercise book','highlighter','eraser')],
+ ['Party essentials','q:party',[['balloon'],['banner','bunting'],['candle'],['paper plate','cup','napkin']],p=>/party/i.test(p.category)],
+ ['Gift wrap & cards','q:gift wrap',[['gift wrap','brown paper'],['bow'],['gift bag'],['greeting card','card','gift tag','tag']],kw('gift','bow','card','tag','wrap')],
+ ['Art & craft','sec:2',[['paint set','paint'],['crayon','wax crayon'],['glitter pot','glitter shaker'],['sketch pad','sketch book'],['modelling clay']],p=>p.category==='Art & Craft'],
+ ['Packaging','q:mailing',[['label'],['envelope'],['box','parcel box','postal tube'],['bubble wrap'],['tape']],p=>/packaging|mailing|envelope/i.test(p.category)],
+ ['Household','q:household',[['napkin'],['cling film','foil'],['bin bag'],['cloth','glove','sponge','cloth peg']],p=>/house hold|bin bags|gloves/i.test(p.category)],
+ ['Tapes & glue','q:tape',[['tape'],['glue','super glue'],['glue stick'],['double sided tape']],p=>p.category==='Tapes & Adhesives'],
+ ['Toys & games','q:toy',[['toy set'],['water pistol','water gun'],['football'],['chess set','draughts set'],['play clay']],p=>/toys/i.test(p.category)]];
+const grid=()=>`<section class="tgrid">${TILES.map(([t,l,g,f],i)=>{const ps=mix(g,f,4,i);if(ps.length<4)return '';
   return `<div class="tcard"><a href="#" class="th" data-plink="${esc(l)}"><h3>${esc(t)}</h3>${svg('arrow')}</a><div class="t4">${ps.map(p=>`<a href="#" data-plink="q:${esc(p.name.split(/[,–(]| - /)[0].trim().slice(0,30))}"><span>${img(p)}</span><small>${nm(p)}</small></a>`).join('')}</div>
    <a href="#" class="tm" data-plink="${esc(l)}">See more</a></div>`}).join('')}</section>`;
 // ---------- install over p5's home ----------
@@ -68,5 +85,6 @@ const css=`.pstrip{position:relative;margin:14px 0 18px}.psr{display:flex;gap:14
 @media(max-width:1100px){.pcard{flex-basis:calc((100% - 42px)/4)}.tgrid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.pcard{flex-basis:46%;min-height:290px;padding:14px 12px 12px}.pt{font-size:17px}.psa{display:none}.tgrid{grid-template-columns:1fr 1fr;gap:10px}.tcard{padding:11px;border-radius:16px}.tcard h3{font-size:15px}.t4{gap:7px}.t4 small{font-size:11px}.tcard .th svg{width:26px;height:26px;padding:6px}.psr{gap:10px;margin:0 -16px;padding:2px 16px 6px;scroll-padding:16px}}`;
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+window.P7T={tkey};
 if(cur&&cur[0]==='home')render();
 })();
