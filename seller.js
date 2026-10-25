@@ -113,7 +113,7 @@ function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="s
     ${su?`<label><span>Your name</span><input name="name" autocomplete="name" required></label>`:''}
     <label><span>Email</span><input name="email" type="email" autocomplete="email" required></label>
     <label><span>Password</span><input name="pw" type="password" minlength="8" autocomplete="${su?'new':'current'}-password" required></label>
-    <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Log in'}</button></form>
+    <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Log in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a>, <a href="/seller-terms" target="_blank" rel="noopener">Seller Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>':''}</form>
    <div class="alt">${su?'Already selling on ShopNip? <a href="#login">Seller login</a>':'New to ShopNip? <a href="#signup">Create a seller account</a>'}</div>
    <div class="xl">Shopping? <a href="${idx('view=account')}">Customer login</a></div></div></div>`}
 function render(){if(fromAuth()&&D.user){history.replaceState(null,'',location.pathname+location.search);if(landSeller())return}
@@ -168,7 +168,7 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
    <div class="faq">${FAQ.map(([q,a],i)=>`<details ${i?'':'open'}><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></div></section>
   <section class="lsec" style="padding-top:0"><div class="wrap"><div class="lcta"><div><h2>Ready to bring your shop online?</h2><p>Join the free pilot today. It takes about ten minutes.</p></div>
    <div class="ctas">${has?`<a class="btn white lg" href="#dash">Open seller dashboard</a>`:signed?`<a class="btn white lg" href="${RG}">Register your shop</a>`:`<a class="btn coral lg" href="${SU}">Sign up free</a><a class="btn line lg" href="${LI}">Log in</a>`}</div></div></div></section>
-  <footer class="lfoot"><div class="wrap"><div><a href="index.html#about">About</a><a href="index.html#faq">Customer FAQ</a><a href="index.html#terms">Terms</a><a href="index.html#privacy">Privacy</a><a href="mailto:${esc(MAIL)}">Contact</a></div><span>© ${new Date().getFullYear()} ShopNip · ShopNip, a NuvonHub product</span></div></footer>
+  <footer class="lfoot"><div class="wrap"><div><a href="/about">About</a><a href="/faq">Customer FAQ</a><a href="/seller-terms">Seller Terms</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/cookies">Cookies</a><a href="/contact">Contact</a></div><span>© ${new Date().getFullYear()} ShopNip · ShopNip is a product of NuvonHub Private Limited (India)</span></div></footer>
   <div class="stick">${has?`<a class="btn coral" href="#dash">Seller dashboard</a>`:signed?`<a class="btn coral" href="${RG}">Register your shop</a>`:`<a class="btn ghost" href="${LI}">Log in</a><a class="btn coral" href="${SU}">Start selling</a>`}</div>`}
 // =================== DASHBOARD ===================
 const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};

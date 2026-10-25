@@ -207,3 +207,5 @@ tr.flash td{animation:flash 1.2s 3}
  .tbl.resp.ordtbl td:nth-child(3),.tbl.resp.ordtbl td:nth-child(4){font-size:13px}
  .tbl.resp.ordtbl .racts{display:flex;gap:8px}.tbl.resp.ordtbl .racts>*{flex:1;justify-content:center;min-height:44px}
 }
+
+.af .agree{font-size:12.5px;color:var(--mut);line-height:1.5;margin:10px 0 0;text-align:center}.af .agree a{color:inherit;text-decoration:underline}

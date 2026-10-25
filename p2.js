@@ -72,7 +72,7 @@ V.account=function(){
      ${su?field('f_name','Your name','autocomplete="name" required'):''}
      ${field('f_email','Email','type="email" autocomplete="email" required')}
      ${field('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required')}
-     <button class="btn full">${su?'Create account':'Log in'}</button></form>
+     <button class="btn full">${su?'Create account':'Log in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
     <p class="xlink">Are you a shop? <a href="${window.SELLER_URL?SELLER_URL(su?'signup':'login'):'seller.html#'+(su?'signup':'login')}">Seller ${su?'sign up':'login'}</a></p></section>`}
   const owner=A.profile?.role==='owner'||!!A.shop,nm=A.profile?.full_name||'',ck=window.CK?CK.get():{};
   const OR=window.P3?.orders?.()||{list:[],loaded:true};if(!OR.loaded&&OR.load)setTimeout(OR.load);

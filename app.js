@@ -88,8 +88,8 @@ function home(){
 function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark dk"></span><span class="word" style="color:var(--navy)">Shop<b>Nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
    <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
    <div><h5>Sellers</h5><a href="#sell">Sell on ShopNip</a><a href="#" id="register4">Register your shop</a><a href="#how">How it works</a></div>
-   <div><h5>ShopNip</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a><a href="#terms">Terms of Use</a><a href="#privacy">Privacy Policy</a></div></div>
-   <div class="fb"><span>© ${new Date().getFullYear()} ShopNip</span><span>ShopNip, a NuvonHub product</span></div></footer>`}
+   <div><h5>ShopNip</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a></div><div><h5>Legal</h5><a href="/terms">Terms of Use</a><a href="/privacy">Privacy Policy</a><a href="/seller-terms">Seller Terms</a><a href="/cookies">Cookie Notice</a></div></div>
+   <div class="fb"><span>© ${new Date().getFullYear()} ShopNip</span><span>ShopNip is a product of NuvonHub Private Limited (India)</span></div></footer>`}
 function list(title,items){return `<section class="sec"><div class="sh"><h2>${esc(title)}</h2><span class="note" style="margin:0">${items.length} items</span></div>${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:`<div class="empty">${svg('search')}<br>No matches yet</div>`}</section>`}
 const V={home,
  search(q=$('#q').value.trim()){const t=q.toLowerCase();return list(q?`Results for “${q}”`:'All products',S.products.filter(p=>has(p)&&(!t||(p.name+' '+p.category).toLowerCase().includes(t))).slice(0,60))},

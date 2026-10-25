@@ -60,7 +60,7 @@ V.account=function(...a){if(A.user&&A.authPage&&(LIVE||P.MOCK))return `<section 
   <form class="form" data-form="${su?'signup':'login'}">${A.msg?`<div class="alert">${esc(A.msg)}</div>`:''}
   ${su?fld('f_name','Your name','autocomplete="off" value="" required'):''}${fld('f_email','Email','type="email" autocomplete="'+(su?'off':'email')+'" value="" required')}
   ${fld('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required'+(su?' placeholder="At least 8 characters"':''))}
-  <button class="btn full">${su?'Create your ShopNip account':'Sign in'}</button></form>
+  <button class="btn full">${su?'Create your ShopNip account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
   <div class="or">${su?'Already have an account?':'New to ShopNip?'}</div>
   <button class="alt" data-acc="${su?'login':'new'}">${su?'Sign in instead':'Create your ShopNip account'}</button>
   <p class="fine">By continuing you agree to shop with local independents on ShopNip.</p></div>

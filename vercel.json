@@ -1,7 +1,20 @@
 {
+ "redirects": [
+  {
+   "source": "/:path(.*)",
+   "has": [
+    {
+     "type": "host",
+     "value": "nearbuy-uk.vercel.app"
+    }
+   ],
+   "destination": "https://www.shopnip.co.uk/:path",
+   "permanent": true
+  }
+ ],
  "rewrites": [
   {
-   "source": "/(products|search|basket|checkout|orders|account|register|myshop|inbox|addprod|about|how|sell|faq|contact|terms|privacy)",
+   "source": "/(products|search|basket|checkout|orders|account|register|myshop|inbox|addprod|about|how|sell|faq|contact|terms|privacy|seller-terms|cookies)",
    "destination": "/index.html"
   },
   {

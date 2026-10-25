@@ -4,5 +4,5 @@ window.APP_CONFIG = {
   SUPABASE_KEY: "sb_publishable_jQ-2c28tQuv_nCUyzq94eQ_HlGoPYaQ",
   // Public contact address shown on the Contact/FAQ/legal pages. Change here.
   CONTACT_EMAIL: "hello@nuvonhub.com",
-  SITE_URL: "https://nearbuy-uk.vercel.app",
+  SITE_URL: "https://www.shopnip.co.uk",
 };

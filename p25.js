@@ -5,8 +5,8 @@ const KEEP=['mock','demo','as','rich','multi','promos','status','dup','shop'];  
 const keepQS=extra=>{const Q=new URLSearchParams(location.search),o=new URLSearchParams();KEEP.forEach(k=>Q.has(k)&&o.set(k,Q.get(k)));
   if(extra)for(const[k,v]of Object.entries(extra))if(v!==''&&v!=null&&v!==false)o.set(k,v===true?'1':v);const s=o.toString();return s?'?'+s:''};
 const slug=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
-const SITE=(CFG.SITE_URL||'https://nearbuy-uk.vercel.app').replace(/\/$/,'');
-const INFO=['about','how','sell','faq','contact','terms','privacy'];
+const SITE=(CFG.SITE_URL||'https://www.shopnip.co.uk').replace(/\/$/,'');
+const INFO=['about','how','sell','faq','contact','terms','privacy','seller-terms','cookies'];
 const SIMPLE=['basket','checkout','orders','account','register','myshop','inbox','addprod'];
 const shopSlug=s=>{const b=slug(s.name);return S.shops.filter(x=>slug(x.name)===b).length>1?b+'-'+String(s.id).slice(0,8):b};
 const findShop=seg=>S.shops.find(s=>shopSlug(s)===seg||String(s.id)===seg)||S.shops.find(s=>String(s.id).startsWith(seg.split('-').pop()));
@@ -56,7 +56,7 @@ window.route=route=function(t,...a){
   const r=_route(t,...a);
   const url=pathFor(cur);
   if(url&&!restoring){const now=location.pathname+location.search;
-    if(location.hash&&/^#(shop=|about|how|sell|faq|contact|terms|privacy|account)/.test(location.hash))history.replaceState({r:cur},'',url);
+    if(location.hash&&/^#(shop=|about|how|sell|faq|contact|seller-terms|terms|privacy|cookies|account)/.test(location.hash))history.replaceState({r:cur},'',url);
     else if(url!==now)history.pushState({r:cur},'',url)}
   meta();return r};
 addEventListener('popstate',()=>{const want=parse()||['home'];const el=$('#sheet');
@@ -69,8 +69,8 @@ addEventListener('popstate',()=>{const want=parse()||['home'];const el=$('#sheet
 addEventListener('click',e=>{if(e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey)return;
   const g=e.target.closest('[data-go]');if(g){e.preventDefault();e.stopPropagation();go(g.dataset.go);return}
   const a=e.target.closest('a[href]');if(!a||a.target||a.hasAttribute('download'))return;const h=a.getAttribute('href');
-  if(/^#(about|how|sell|faq|contact|terms|privacy)$/.test(h)){e.preventDefault();route(h.slice(1));return}
-  if(/^\/(about|how|sell|faq|contact|terms|privacy|products|basket|orders|account)$/.test(h)&&!a.dataset.t){e.preventDefault();route(h.slice(1))}},true);
+  if(/^#(about|how|sell|faq|contact|terms|privacy|seller-terms|cookies)$/.test(h)){e.preventDefault();route(h.slice(1));return}
+  if(/^\/(about|how|sell|faq|contact|terms|privacy|seller-terms|cookies|products|basket|orders|account)$/.test(h)&&!a.dataset.t){e.preventDefault();route(h.slice(1))}},true);
 function go(path){history.pushState(null,'',path.includes('?')?path:path+keepQS());const w=parse()||['home'];if(w[0]==='products')pfFromURL();restoring=true;
   try{w[0]==='product'?openProduct(w[1]):route(...w)}finally{restoring=false}meta()}
 
@@ -82,7 +82,7 @@ function setMeta(title,desc,path){document.title=title;
 const DEF='Order from independent shops near you. Click & collect or local delivery, pay at the shop.';
 function meta(){const [t,a]=cur,p=location.pathname,T=x=>x+' · ShopNip';
   const sheet=$('#sheet');if(sheet?.classList.contains('on')&&sheet._p&&p.startsWith('/product/')){const q=sheet._p;return setMeta(T(q.name),`${q.name} for ${gbp(q.price)} from a local shop. Click & collect or local delivery on ShopNip.`,p)}
-  const names={about:'About',how:'How it works',sell:'Sell on ShopNip',faq:'FAQ',contact:'Contact',terms:'Terms of Use',privacy:'Privacy Policy',basket:'Your basket',checkout:'Checkout',orders:'Your orders',account:'Your account',register:'Register your shop',order:'Order details'};
+  const names={about:'About',how:'How it works',sell:'Sell on ShopNip',faq:'FAQ',contact:'Contact',terms:'Terms of Use',privacy:'Privacy Policy','seller-terms':'Seller Terms',cookies:'Cookie Notice',basket:'Your basket',checkout:'Checkout',orders:'Your orders',account:'Your account',register:'Register your shop',order:'Order details'};
   if(t==='home')return setMeta('ShopNip · Your local shops, online | Click & collect or delivery','ShopNip, a NuvonHub product: order stationery, party, gift and craft essentials from independent shops near you. Click & collect or local delivery, pay at the shop.','/');
   if(t==='products')return setMeta(T(PF.cat?PF.cat:'All products'),`Browse ${PF.cat||'every product'} from independent shops near you. Filter by shop, price, stock and click & collect or delivery.`,'/products');
   if(t==='search'){const q=$('#q')?.value.trim();return setMeta(T(q?`Search: ${q}`:'Search'),DEF,'/search')}

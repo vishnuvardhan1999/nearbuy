@@ -37,7 +37,7 @@ Changed: `app.js` (real approved shops + listing prices on the homepage), `index
    an approval guard trigger, display columns on `shop_listings` (FK to products dropped), `wholesale_orders` + auto-listing trigger,
    `backfill_shop_listings()`, the public `shop-media` storage bucket and its policies.
 2. The operator dashboard is a separate site (see `../admin/README.md`).
-3. **Supabase → Authentication → URL configuration**: Site URL = your Vercel URL (e.g. `https://nearbuy.vercel.app`); add it and `http://localhost:8765` to Redirect URLs.
+3. **Supabase → Authentication → URL configuration**: Site URL = your Vercel URL (e.g. `https://www.shopnip.co.uk`); add it and `http://localhost:8765` to Redirect URLs.
 4. **Authentication → Providers → Email**: enabled. "Confirm email" ON is recommended (the app tells users to check their inbox, then log in). Turn it OFF only for quick testing.
    The built-in mailer is rate-limited (a few emails/hour); set up custom SMTP before launch.
 5. Upload the changed files to GitHub; Vercel redeploys.
