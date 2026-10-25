@@ -9,8 +9,8 @@ const css=`.hx{display:inline-flex;align-items:center;gap:10px}
 .acm{position:absolute;right:0;top:calc(100% + 8px);min-width:210px;background:#fff;color:#0f172a;border-radius:14px;box-shadow:0 18px 50px rgba(15,23,42,.22);padding:8px;z-index:60;display:none}
 .acm.open{display:block}.acm:before{content:"";position:absolute;right:22px;top:-6px;width:12px;height:12px;background:#fff;transform:rotate(45deg)}
 .acm .hd{padding:8px 12px 10px;border-bottom:1px solid #eef0f3;margin-bottom:6px;font-size:13px;color:#64748b}.acm .hd b{display:block;color:#0f172a;font-size:14px}
-.acm button{display:block;width:100%;text-align:left;background:none;border:0;padding:10px 12px;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:#0f172a;cursor:pointer}
-.acm button:hover{background:#f4f6f8}.acm button.so{color:#e11d48}
+.acm button,.acm a.acd{text-decoration:none;box-sizing:border-box;display:block;width:100%;text-align:left;background:none;border:0;padding:10px 12px;border-radius:10px;font:inherit;font-size:14px;font-weight:600;color:#0f172a;cursor:pointer}
+.acm button:hover,.acm a.acd:hover{background:#f4f6f8}.acm button.so{color:#e11d48}
 @media(max-width:767px){.acb{width:36px;height:36px;padding:0;justify-content:center;border-radius:50%;background:rgba(255,255,255,.1)}.acb .t{display:none}.acb svg{width:20px;height:20px}.hx{gap:6px}.hx .navab{display:none}}
 .si{max-width:440px;margin:28px auto 48px}
 .si .card{background:#fff;border:1px solid #e8ebf0;border-radius:22px;box-shadow:0 24px 60px rgba(15,23,42,.10);padding:32px 28px}
@@ -33,9 +33,9 @@ const hx=document.querySelector('header .hx');const w=document.createElement('sp
 function paint(){if(!w)return;
   if(!A.user){w.innerHTML=`<button class="acb" data-acc="signin" aria-label="Sign in to your account">${ic}<span class="t"><small>Hello, sign in</small><b>Account &amp; orders</b></span></button>`;return}
   w.innerHTML=`<button class="acb" data-acc="menu" aria-haspopup="true" aria-expanded="false" aria-label="Your account">${ic}<span class="t"><small>Hi, ${esc(first())}</small><b>Account &amp; orders ▾</b></span></button>
-  <div class="acm" role="menu"><div class="hd">Signed in as<b>${esc(A.user.email)}</b></div><button data-acc="orders" role="menuitem">Your orders</button><button data-acc="account" role="menuitem">Your account</button><button class="so" data-acc="out" role="menuitem">Sign out</button></div>`}
+  <div class="acm" role="menu"><div class="hd">Signed in as<b>${esc(A.user.email)}</b></div><button data-acc="orders" role="menuitem">Your orders</button><button data-acc="account" role="menuitem">Your account</button>${(A.shop||A.profile?.role==='owner')?`<a class="acd" role="menuitem" href="${window.SELLER_URL?SELLER_URL('overview'):'seller.html'}">Go to my shop dashboard</a>`:''}<button class="so" data-acc="out" role="menuitem">Sign out</button></div>`}
 const close=()=>{const m=w.querySelector('.acm');if(m){m.classList.remove('open');w.querySelector('.acb').setAttribute('aria-expanded','false')}};
-document.addEventListener('click',async e=>{const el=e.target.closest('[data-acc]');if(!el){close();return}e.preventDefault();e.stopPropagation();const a=el.dataset.acc;
+document.addEventListener('click',async e=>{if(e.target.closest('.acd'))return;const el=e.target.closest('[data-acc]');if(!el){close();return}e.preventDefault();e.stopPropagation();const a=el.dataset.acc;
   if(a==='menu'){const m=w.querySelector('.acm'),o=!m.classList.contains('open');m.classList.toggle('open',o);el.setAttribute('aria-expanded',o);return}
   close();
   if(a==='signin'||a==='new'){A.tab=a==='new'?'signup':'login';A.msg='';sessionStorage.removeItem('nb_next');return route('account')}
