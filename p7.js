@@ -88,3 +88,40 @@ const st=document.createElement('style');st.textContent=css;document.head.append
 window.P7T={tkey};
 if(cur&&cur[0]==='home')render();
 })();
+/* p12: premium full-width homepage + full-screen About us section (#about). */
+(()=>{
+const RM=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const realShops=()=>S.shops.filter(s=>!s.demo&&(!s.status||s.status==='approved'));
+const realProducts=()=>S.products.filter(p=>!p.demo&&p.offers?.length);
+const value=()=>`<div class="vstrip" aria-label="Why shop with Nearbuy">${[['store','Local shops','Independents near you'],['bolt','Same-day delivery','From shops that deliver locally'],['bag','Pay at the shop','On collection or delivery'],['heart','Support local','Your money stays on your high street']].map(([i,t,s])=>`<div class="vs">${svg(i)}<span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>`;
+function about(){const ns=realShops().length,np=realProducts().length;
+  const stats=ns&&np?`<div class="abst"><div><b>${ns}</b><small>local shop${ns>1?'s':''} live</small></div><div><b>${np}</b><small>product${np>1?'s':''} to order</small></div></div>`:'';
+  const vals=[['store','Real independent shops','Every shop is a local independent, reviewed and approved by us. No warehouses.'],['bolt','Collect or local delivery','Pick up on your way home, or have it delivered by shops that deliver nearby.'],['lock','Pay at the shop','Pay the shop on collection or delivery. Online payments are coming later.'],['check','Always up to date','Shop listings fill automatically from each shop’s wholesale orders.']];
+  const steps=[['pin','Set your postcode','See the local shops near you.'],['search','Browse & compare','Search everything stocked on your high street.'],['bag','Order ahead','Choose click & collect or local delivery.'],['heart','Pay at the shop','Collect, pay and support local.']];
+  return `<section class="about12" id="about" aria-labelledby="ab-h"><div class="abin">
+   <div class="abtop rv"><span class="abk">About Nearbuy · a NuvonHub product</span><h2 id="ab-h">Your high street, <em>in your pocket.</em></h2>
+    <p>Nearbuy is a local marketplace for the independent shops around you. Order from the newsagent, card shop or craft store down the road, then collect it or have it delivered locally. We’re starting with a pilot in Watford, helping local shops get found, get orders and keep the high street thriving.</p>${stats}</div>
+   <div class="abv">${vals.map(([i,t,s],k)=>`<div class="rv" style="--d:${k*80}ms"><span>${svg(i)}</span><b>${t}</b><p>${s}</p></div>`).join('')}</div>
+   <div class="abhow rv"><h3>How it works</h3><ol>${steps.map(([i,t,s],k)=>`<li><span class="abn">${k+1}</span>${svg(i)}<b>${t}</b><small>${s}</small></li>`).join('')}</ol></div>
+   <div class="abcta rv"><button class="abb pri" data-plink="#search">Start shopping ${svg('arrow')}</button><a class="abb sec" href="seller.html">Become a seller ${svg('arrow')}</a></div>
+  </div><i class="abo a1"></i><i class="abo a2"></i></section>`}
+const _h=V.home;
+V.home=function(...a){let h=_h.apply(this,a);
+  h=h.replace(/<div class="trust">[\s\S]*?<\/span><\/div><\/div>/,value());
+  h=h.replace(/<section class="sec5 why">[\s\S]*?<\/section>/,about());
+  if(!h.includes('id="about"'))h=h.replace('<section class="news"',about()+'<section class="news"');
+  h=h.replace(/data-plink="#about"/g,'data-about');
+  return `<div class="h12">${h}</div>`};
+function toAbout(){const go=()=>{const el=$('#about');if(!el)return;const top=$('.top');scrollTo({top:el.getBoundingClientRect().top+scrollY-(top?top.offsetHeight:0),behavior:RM()?'auto':'smooth'})};
+  if(cur[0]!=='home'){if(location.hash)history.replaceState(null,'',location.pathname+location.search);route('home');requestAnimationFrame(()=>requestAnimationFrame(go))}else go()}
+addEventListener('click',e=>{const a=e.target.closest('[data-about]');if(!a)return;e.preventDefault();e.stopPropagation();toAbout()},true);
+window.P12={about:toAbout};
+// scroll reveal
+let io;function reveal(){const v=$('#view');if(!v||!v.querySelector('.h12'))return;
+  const els=v.querySelectorAll('.h12>section:not(.pstrip),.h12>.vstrip,.h12 .tcard,.h12 .rv');
+  if(RM()||!('IntersectionObserver' in window)){els.forEach(e=>e.classList.add('in'));return}
+  io?.disconnect();io=new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{rootMargin:'0px 0px -6% 0px',threshold:.06});
+  els.forEach(e=>{if(!e.classList.contains('in')){e.classList.add('rv');io.observe(e)}})}
+new MutationObserver(reveal).observe(document.getElementById('view'),{childList:true});reveal();
+if(cur&&cur[0]==='home')render();
+})();
