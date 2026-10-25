@@ -1,4 +1,4 @@
-// Nearbuy (a NuvonHub product) · Phase 13: guided order chat. Rule-based (no AI API, no payments).
+// ShopNip (a NuvonHub product) · Phase 13: guided order chat. Rule-based (no AI API, no payments).
 // Builds the normal basket via P3.add and places the order via P3.place (same path as checkout), so it lands in the seller's inbox.
 (function(){
 if(!window.P3||!window.P2)return;const A=P2.A,toast=P2.toast;
@@ -7,7 +7,7 @@ const PH=/^[0-9+\s()-]{10,16}$/;
 const ico='<svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>';
 const el=document.createElement('div');el.id='nbchat';
 el.innerHTML=`<button class="cb-fab" aria-label="Order by chat">${ico}<span>Order by chat</span></button>
-<div class="cb-win" role="dialog" aria-label="Nearbuy order assistant"><div class="cb-h"><span class="cb-av">N</span><div><b>Nearbuy assistant</b><small>Order in a few taps · pay at the shop</small></div><button class="cb-x" data-c="close" aria-label="Close">✕</button></div>
+<div class="cb-win" role="dialog" aria-label="ShopNip order assistant"><div class="cb-h"><span class="cb-av">S</span><div><b>ShopNip assistant</b><small>Order in a few taps · pay at the shop</small></div><button class="cb-x" data-c="close" aria-label="Close">✕</button></div>
 <div class="cb-log" aria-live="polite"></div><div class="cb-q"></div>
 <form class="cb-in"><input placeholder="Type a product or answer…" autocomplete="off" aria-label="Message"><button aria-label="Send"><svg viewBox="0 0 24 24"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button></form></div>`;
 document.body.appendChild(el);

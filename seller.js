@@ -1,4 +1,4 @@
-// Nearbuy (a NuvonHub product) · Phase 6: "Become a seller" landing + seller dashboard (seller.html).
+// ShopNip (a NuvonHub product) · Phase 6: "Become a seller" landing + seller dashboard (seller.html).
 // Uses the same Supabase tables, RPCs and RLS as p2/p3/p5 (shops, shop_listings, orders, order_items, order_events,
 // update_order_status). Seller login/sign-up live here (#login, #signup); shop registration stays in index.html (p2.js).
 // ?mock=1 runs everything on in-memory data (mock shop "Suman Bros");&as=none shows the signed-out gate.
@@ -54,7 +54,7 @@ const API=MOCK?{
 }:{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
   async signOut(){await sb.auth.signOut()},
-  // Seller accounts are always role 'owner' (same metadata p2.js used for “Sell on Nearbuy”). The confirmation link returns to seller.html.
+  // Seller accounts are always role 'owner' (same metadata p2.js used for “Sell on ShopNip”). The confirmation link returns to seller.html.
   async signUp(email,password,full_name){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'owner',full_name},emailRedirectTo:location.origin+'/seller.html'}});if(error)throw error;return data},
   async signIn(email,password){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;return data},
   async myShop(){const {data,error}=await sb.from('shops').select('*').eq('owner_id',D.user.id).maybeSingle();if(error)throw error;return data},
@@ -105,21 +105,21 @@ const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?
 const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
 // after login / email confirmation: dashboard if there is a shop, otherwise shop registration
 function landSeller(){if(D.shop){location.hash='overview';return true}if(D.user){location.href=idx('view=register&seller=1');return true}return false}
-function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">N</span><span>near<b>buy</b></span><small class="fs">for sellers</small></a>`;
+function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>shop<b>nip</b></span><small class="fs">for sellers</small></a>`;
   return `<div class="gate sauth"><div class="card">${brand}<h2>${su?'Create your seller account':'Seller login'}</h2>
-   <p>${su?'Put your shop on Nearbuy. Free during the pilot. Every shop is reviewed before it goes live.':'Log in to manage your shop, orders and products.'}</p>
+   <p>${su?'Put your shop on ShopNip. Free during the pilot. Every shop is reviewed before it goes live.':'Log in to manage your shop, orders and products.'}</p>
    ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
    <form id="authf" data-mode="${mode}" class="af">
     ${su?`<label><span>Your name</span><input name="name" autocomplete="name" required></label>`:''}
     <label><span>Email</span><input name="email" type="email" autocomplete="email" required></label>
     <label><span>Password</span><input name="pw" type="password" minlength="8" autocomplete="${su?'new':'current'}-password" required></label>
     <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Log in'}</button></form>
-   <div class="alt">${su?'Already selling on Nearbuy? <a href="#login">Seller login</a>':'New to Nearbuy? <a href="#signup">Create a seller account</a>'}</div>
+   <div class="alt">${su?'Already selling on ShopNip? <a href="#login">Seller login</a>':'New to ShopNip? <a href="#signup">Create a seller account</a>'}</div>
    <div class="xl">Shopping? <a href="${idx('view=account')}">Customer login</a></div></div></div>`}
 function render(){if(fromAuth()&&D.user){history.replaceState(null,'',location.pathname+location.search);if(landSeller())return}
-  const am=AUTH();if(am){if(D.user&&!D.ui.busy){if(landSeller())return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller login')+' · Nearbuy for sellers';$('#app').innerHTML=authView(am);return}
-  const p=page();if(!p){document.body.className='land';document.title='Sell on Nearbuy · Put your shop online';$('#app').innerHTML=landing();return}
-  document.body.className='dash';$('#app').innerHTML=dash(p);document.title=(TITLE[p]||'Dashboard')+' · Nearbuy Seller'}
+  const am=AUTH();if(am){if(D.user&&!D.ui.busy){if(landSeller())return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller login')+' · ShopNip for sellers';$('#app').innerHTML=authView(am);return}
+  const p=page();if(!p){document.body.className='land';document.title='Sell on ShopNip · Put your shop online';$('#app').innerHTML=landing();return}
+  document.body.className='dash';$('#app').innerHTML=dash(p);document.title=(TITLE[p]||'Dashboard')+' · ShopNip Seller'}
 // =================== LANDING ===================
 const BEN=[['sync','Listed from your wholesale orders','Products you buy wholesale appear in your shop automatically after they ship, with name, category and trade price filled in.'],
  ['camoff','No photo uploads','Every product comes with professional photos and descriptions from the catalogue. Nothing to shoot, nothing to type.'],
@@ -130,29 +130,29 @@ const BEN=[['sync','Listed from your wholesale orders','Products you buy wholesa
 const HOW=[['Create your account','Sign up in under a minute with your email on the seller sign-up page.'],['Register your shop','Add your address, opening hours, delivery options and the email you order wholesale with.'],
  ['We approve and list you','We check every shop, usually within a working day. Your wholesale products appear automatically.'],['Set prices, take orders','Fine-tune prices and stock in your seller dashboard, then start receiving local orders.']];
 const FAQ=[['How much does it cost?','Nothing during the pilot: no setup fee, no monthly fee and no commission. After the pilot we plan to introduce optional paid plans. We will give you plenty of notice and you can leave at any time.'],
- ['How do my products get on Nearbuy?','When you register, you tell us the email you use for your wholesale account. Products you order with that account are added to your shop automatically after they ship, with photos and descriptions. You can also add any catalogue product by hand.'],
+ ['How do my products get on ShopNip?','When you register, you tell us the email you use for your wholesale account. Products you order with that account are added to your shop automatically after they ship, with photos and descriptions. You can also add any catalogue product by hand.'],
  ['Do I need to take photos?','No. Every catalogue product already has professional photos and a description. You just set your retail price, an optional “was” price and your stock.'],
- ['How do customers pay?','For now customers pay you directly on collection or on delivery, by card or cash. Nearbuy does not take online payments yet, so there are no payment processing fees.'],
+ ['How do customers pay?','For now customers pay you directly on collection or on delivery, by card or cash. ShopNip does not take online payments yet, so there are no payment processing fees.'],
  ['Do I have to offer delivery?','No. Offer click & collect only, local delivery only, or both. If you deliver, you choose the radius in miles and the fee.'],
  ['How quickly should I respond to orders?','Your dashboard alerts you as soon as an order arrives. We recommend accepting or rejecting within 30 minutes during opening hours.'],
  ['Can I leave at any time?','Yes. There is no contract during the pilot. Switch products off, or ask us to close your shop, whenever you like.'],
- ['Who runs Nearbuy?','Nearbuy is a NuvonHub product, built to help independent shops sell online without the cost of their own website.']];
+ ['Who runs ShopNip?','ShopNip is a NuvonHub product, built to help independent shops sell online without the cost of their own website.']];
 function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>p.images?.length),sample=[cat[120],cat[640],cat[1180],cat[1730]].filter(Boolean);
   const SU='#signup',LI='#login',RG=idx('view=register&seller=1');
   const primary=has?`<a class="btn coral lg" href="#dash">Open seller dashboard ${svg('arrow')}</a>`:signed?`<a class="btn coral lg" href="${RG}">Register your shop ${svg('arrow')}</a>`:`<a class="btn coral lg" href="${SU}">Start selling free ${svg('arrow')}</a>`;
   const second=signed?`<a class="btn line lg" href="${home()}">Back to shopping</a>`:`<a class="btn line lg" href="${LI}">Log in</a>`;
-  return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="Nearbuy home"><span class="mark">N</span><span>near<b>buy</b></span><small>Sellers</small></a>
+  return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="ShopNip home"><span class="mark">S</span><span>shop<b>nip</b></span><small>Sellers</small></a>
    <nav aria-label="Seller page"><a href="#benefits" data-jump="benefits">Benefits</a><a href="#how" data-jump="how">How it works</a><a href="#fees" data-jump="fees">Fees</a><a href="#faq" data-jump="faq">FAQ</a></nav><span class="sp"></span>
-   <a class="shopl" href="${home()}">Shop on Nearbuy</a>${has?`<a class="btn white sm" href="#dash">Seller dashboard</a>`:signed?`<a class="btn white sm" href="${RG}">Register shop</a>`:`<a class="btn white sm" href="${LI}">Log in</a>`}</div></header>
+   <a class="shopl" href="${home()}">Shop on ShopNip</a>${has?`<a class="btn white sm" href="#dash">Seller dashboard</a>`:signed?`<a class="btn white sm" href="${RG}">Register shop</a>`:`<a class="btn white sm" href="${LI}">Log in</a>`}</div></header>
   <section class="lhero"><div class="wrap"><div><span class="eyebrow"><i></i>For local shop owners · Free pilot</span>
     <h1>Your shop, online in minutes. <em>Your products, already listed.</em></h1>
-    <p class="lead">Nearbuy puts independent shops in front of local customers. Products you buy wholesale are listed for you with photos, so you just set your prices and start taking click &amp; collect and delivery orders.</p>
+    <p class="lead">ShopNip puts independent shops in front of local customers. Products you buy wholesale are listed for you with photos, so you just set your prices and start taking click &amp; collect and delivery orders.</p>
     <div class="ctas">${primary}${second}</div>
     <div class="proof"><span>${svg('check')}No setup fee</span><span>${svg('check')}No photo uploads</span><span>${svg('check')}Paid in store</span></div></div>
    <div class="mock" aria-hidden="true"><div class="float">${svg('bell')}New order · NB-1012</div><div class="mh"><span class="dots"><i></i><i></i><i></i></span><b>Seller dashboard</b><small>Today</small></div>
     <div class="mk"><div><small>Orders today</small><b>8</b></div><div><small>This week</small><b>£412</b></div><div><small>Live products</small><b>236</b></div></div>
     ${(sample.length?sample:[{},{},{},{}]).map((p,i)=>`<div class="mrow"><img src="${esc(p.images?.[0]||'icon-192.png')}" alt=""><span>${esc(p.name||'Product')}</span>${i<2?'<span class="auto">Auto-listed</span>':''}<b>${gbp((+p.trade_price||1)*1.6)}</b></div>`).join('')}</div></div></section>
-  <section class="lsec alt" id="benefits"><div class="wrap"><span class="kick">Why sell on Nearbuy</span><h2>Everything a local shop needs to sell online</h2><p class="sub">No website to build, no catalogue to type up, no photos to take. Nearbuy does the heavy lifting so you can serve customers.</p>
+  <section class="lsec alt" id="benefits"><div class="wrap"><span class="kick">Why sell on ShopNip</span><h2>Everything a local shop needs to sell online</h2><p class="sub">No website to build, no catalogue to type up, no photos to take. ShopNip does the heavy lifting so you can serve customers.</p>
    <div class="ben">${BEN.map(([i,t,p])=>`<div><span class="ic">${svg(i)}</span><h3>${t}</h3><p>${p}</p></div>`).join('')}</div></div></section>
   <section class="lsec" id="how"><div class="wrap"><span class="kick">How it works</span><h2>Live in four simple steps</h2><p class="sub">Most shops are set up in about ten minutes, then approved within a working day.</p>
    <div class="steps">${HOW.map(([t,p])=>`<div><h3>${t}</h3><p>${p}</p></div>`).join('')}</div></div></section>
@@ -168,28 +168,28 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
    <div class="faq">${FAQ.map(([q,a],i)=>`<details ${i?'':'open'}><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></div></section>
   <section class="lsec" style="padding-top:0"><div class="wrap"><div class="lcta"><div><h2>Ready to bring your shop online?</h2><p>Join the free pilot today. It takes about ten minutes.</p></div>
    <div class="ctas">${has?`<a class="btn white lg" href="#dash">Open seller dashboard</a>`:signed?`<a class="btn white lg" href="${RG}">Register your shop</a>`:`<a class="btn coral lg" href="${SU}">Sign up free</a><a class="btn line lg" href="${LI}">Log in</a>`}</div></div></div></section>
-  <footer class="lfoot"><div class="wrap"><div><a href="index.html#about">About</a><a href="index.html#faq">Customer FAQ</a><a href="index.html#terms">Terms</a><a href="index.html#privacy">Privacy</a><a href="mailto:${esc(MAIL)}">Contact</a></div><span>© ${new Date().getFullYear()} Nearbuy · Nearbuy, a NuvonHub product</span></div></footer>
+  <footer class="lfoot"><div class="wrap"><div><a href="index.html#about">About</a><a href="index.html#faq">Customer FAQ</a><a href="index.html#terms">Terms</a><a href="index.html#privacy">Privacy</a><a href="mailto:${esc(MAIL)}">Contact</a></div><span>© ${new Date().getFullYear()} ShopNip · ShopNip, a NuvonHub product</span></div></footer>
   <div class="stick">${has?`<a class="btn coral" href="#dash">Seller dashboard</a>`:signed?`<a class="btn coral" href="${RG}">Register your shop</a>`:`<a class="btn ghost" href="${LI}">Log in</a><a class="btn coral" href="${SU}">Start selling</a>`}</div>`}
 // =================== DASHBOARD ===================
 const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings',payouts:'Payouts'};
 const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','tag'],['settings','cog'],['payouts','card']];
 const newCount=()=>D.O.filter(o=>o.status==='placed').length;
-function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">N</span><span>near<b>buy</b></span></a>`;
+function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>shop<b>nip</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller dashboard</h2><p>Log in with your shop owner account to manage orders, products and your shop.</p>
-   <div class="btns"><a class="btn lg" href="#login">Log in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on Nearbuy</a></div></div></div>`;
+   <div class="btns"><a class="btn lg" href="#login">Log in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on ShopNip</a></div></div></div>`;
   return `<div class="gate"><div class="card">${brand}<h2>Register your shop</h2><p>You’re logged in as ${esc(D.user.email)}, but there’s no shop on this account yet. It takes about three minutes.</p>
    <div class="btns"><a class="btn coral lg" href="${idx('view=register&seller=1')}">Register your shop</a><a class="btn ghost" href="#" data-a="logout">Log out</a></div></div></div>`}
 function dash(p){
   if(!D.user||!D.shop)return gate();
   const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}${k==='payouts'?'<span class="soon">Soon</span>':''}</a>`;
-  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">N</span><span>near<b>buy</b></span><small>Seller</small></a></div>
+  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">S</span><span>shop<b>nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
    <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
-   <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="${home()}">${svg('bag')}Back to shopping</a><a href="#" data-a="logout">${svg('out')}Log out</a><small>Nearbuy, a NuvonHub product</small></div></aside>`;
+   <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="${home()}">${svg('bag')}Back to shopping</a><a href="#" data-a="logout">${svg('out')}Log out</a><small>ShopNip, a NuvonHub product</small></div></aside>`;
   const tb=`<header class="tb"><div class="in"><button class="ib menu-b" data-a="menu" aria-label="Menu">${svg('menu')}</button><h1>${TITLE[p]}</h1>
    ${s?`<a class="ib" href="#orders" aria-label="${n} new orders">${svg('bell')}${n?'<span class="dot"></span>':''}</a>`:''}<span class="av">${esc((D.user.email||'?')[0].toUpperCase())}</span><div class="who"><b>${esc(s?.name||'')}</b><small>${esc(D.user.email)}</small></div></div></header>`;
   const bn=s?`<nav class="bnav" aria-label="Dashboard sections">${[['overview','grid','Overview'],['orders','orders','Orders'],['products','box','Products'],['settings','cog','Settings']].map(([k,i,l])=>`<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`).join('')}<a href="#" data-a="menu" class="${['deals','payouts'].includes(p)?'on':''}">${svg('dots')}More</a></nav>`:'';
-  return `<div class="dl">${side}<div class="main">${tb}<div class="pg">${statusBanner(p)}${(PAGES[p]||PAGES.overview)()}</div><footer class="dfoot">Nearbuy, a NuvonHub product</footer></div>${bn}${drawer()}${catModal()}</div>`}
+  return `<div class="dl">${side}<div class="main">${tb}<div class="pg">${statusBanner(p)}${(PAGES[p]||PAGES.overview)()}</div><footer class="dfoot">ShopNip, a NuvonHub product</footer></div>${bn}${drawer()}${catModal()}</div>`}
 function statusBanner(p){const s=D.shop;if(!s)return '';
   if(s.status==='pending')return `<div class="bnr">${svg('clock')}<div><b>Your shop is awaiting approval</b>We review new shops within a working day. You can set prices and stock now; customers will see your shop once it’s approved.</div></div>`;
   if(s.status==='rejected'||s.status==='suspended')return `<div class="bnr bad">${svg('alert')}<div><b>Your shop is ${statusLabel(s.status).toLowerCase()}</b>Customers can’t see your shop. Contact <a href="mailto:${esc(MAIL)}">${esc(MAIL)}</a>.</div></div>`;return ''}
@@ -262,7 +262,7 @@ PAGES.deals=()=>{const on=D.L.filter(l=>+l.compare_at_price>+l.retail_price),can
   return `<div class="ph"><div><h2>Deals</h2><p>Show a “was” price and customers see a saving badge on your product. Deals appear in “Deals near you”.</p></div></div>
   <div class="card"><div class="chd"><h3>Live deals · ${on.length}</h3></div>${on.length?`<div class="dealg">${on.map(l=>`<div class="dealc"><img src="${esc(l.image||'icon-192.png')}" alt=""><div><b>${esc(l.name)}</b><div><s class="mut">${gbp(l.compare_at_price)}</s> <b class="cor">${gbp(l.retail_price)}</b> <span class="save">Save ${pct(+l.compare_at_price,+l.retail_price)}%</span></div></div><button class="btn ghost sm" data-end="${esc(l.id)}">End deal</button></div>`).join('')}</div>`:`<div class="empty">${svg('tag')}<b>No deals running</b>Start one below, or set a “was” price on the Products page.</div>`}</div>
   <div class="card"><div class="chd"><h3>Start a deal</h3><span class="mut" style="font-size:13px">10% off, showing your current price as the “was” price</span></div><div class="dealg">${cand.map(l=>`<div class="dealc"><img src="${esc(l.image||'icon-192.png')}" alt=""><div><b>${esc(l.name)}</b><div class="mut">${gbp(l.retail_price)} → <b class="cor">${gbp(Math.round(l.retail_price*90)/100)}</b></div></div><button class="btn sm" data-deal="${esc(l.id)}">Start</button></div>`).join('')||'<p class="mut cb">No live products to discount.</p>'}</div></div>
-  <div class="card prm"><div class="cb"><span class="ic">${svg('mega')}</span><div><b>Want a featured spot or homepage banner?</b><p class="mut">Sponsored placements are managed by the Nearbuy team during the pilot.</p></div><a class="btn ghost sm" href="mailto:${esc(MAIL)}?subject=${encodeURIComponent('Featured spot for '+(D.shop?.name||'my shop'))}">Ask the team</a></div></div>`};
+  <div class="card prm"><div class="cb"><span class="ic">${svg('mega')}</span><div><b>Want a featured spot or homepage banner?</b><p class="mut">Sponsored placements are managed by the ShopNip team during the pilot.</p></div><a class="btn ghost sm" href="mailto:${esc(MAIL)}?subject=${encodeURIComponent('Featured spot for '+(D.shop?.name||'my shop'))}">Ask the team</a></div></div>`};
 PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
   return `<div class="ph"><div><h2>Shop settings</h2><p>How customers find and contact your shop.</p></div></div>
   <form id="setf" class="fgrid"><div class="card fs"><div class="chd"><h3>Shop details</h3></div><div class="cb">
@@ -287,7 +287,7 @@ PAGES.payouts=()=>`<div class="ph"><div><h2>Payouts</h2><p>Online payments and p
 function rerender(){const y=scrollY,a=document.activeElement,id=a?.id,pos=a?.selectionStart;render();if(id){const n=document.getElementById(id);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch{}}}scrollTo(0,y)}
 function ding(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.setValueAtTime(.2,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.6);o.start();o.stop(c.currentTime+.6)}catch{}}
 function alertNew(o){ding();D.ui.newIds.add(o.id);toast('New order '+(o.order_number||'')+' · '+gbp(o.total));
-  try{if(Notification.permission==='granted'&&document.hidden)new Notification('New Nearbuy order',{body:(o.order_number||'')+' · '+gbp(o.total),icon:'icon-192.png'})}catch{}}
+  try{if(Notification.permission==='granted'&&document.hidden)new Notification('New ShopNip order',{body:(o.order_number||'')+' · '+gbp(o.total),icon:'icon-192.png'})}catch{}}
 async function onLive(ev){const isNew=ev.eventType==='INSERT';try{D.O=await API.orders()}catch{}if(isNew)alertNew(ev.new);rerender()}
 async function setStatus(id,st){let note=null;if(st==='rejected'){note=prompt('Reason for rejecting (shown to the customer)','Sorry, we can’t fulfil this order right now');if(note===null)return}
   else if(st==='cancelled'&&!confirm('Cancel this order? Stock will be returned.'))return;

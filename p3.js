@@ -1,4 +1,4 @@
-// Nearbuy (a NuvonHub product) · Phase 3: basket (one shop), checkout (pay on collection/delivery), orders, owner inbox, realtime, product sheet.
+// ShopNip (a NuvonHub product) · Phase 3: basket (one shop), checkout (pay on collection/delivery), orders, owner inbox, realtime, product sheet.
 (function(){
 const {A,DB,M,MOCK,Q,toast}=P2;
 const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','out_for_delivery','completed']};
@@ -35,7 +35,7 @@ const D=MOCK?{
 
 // ---------- basket ----------
 function addToBasket(p,qty=1){
-  if(!p.listing_id||!p.shop_id){toast('Preview item: not sold by a Nearbuy shop yet');return false}
+  if(!p.listing_id||!p.shop_id){toast('Preview item: not sold by a ShopNip shop yet');return false}
   const shopName=S.shops.find(s=>s.id===p.shop_id)?.name||A.view?.name||O.shops[p.shop_id]?.name||'this shop';
   if(bShop()&&bShop()!==p.shop_id){const cur=B()[0].shop_name;
     if(!confirm(`Your basket has items from ${cur}. A basket can only hold one shop's items.\n\nClear it and add from ${shopName}?`))return false;S.basket=[]}
@@ -153,7 +153,7 @@ function badge(){const n=O.inbox.filter(o=>o.status==='placed').length;const t=d
 function ding(){try{const c=new (window.AudioContext||window.webkitAudioContext)();[880,1320].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(.2,c.currentTime+i*.18);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+i*.18+.3);o.start(c.currentTime+i*.18);o.stop(c.currentTime+i*.18+.32)})}catch{}}
 function alertNew(o){ding();let b=$('#nbanner');if(!b){b=document.createElement('button');b.id='nbanner';document.body.appendChild(b)}
   b.innerHTML=`${svg('orders')}<span><b>New order ${esc(o.order_number||'')}</b><small>${esc(o.customer_name||'')} · ${gbp(o.total||0)} · tap to view</small></span>`;b.dataset.o='inbox';b.className='on';clearTimeout(b._t);b._t=setTimeout(()=>b.className='',8000);
-  if('Notification' in window&&Notification.permission==='granted'&&document.hidden)try{new Notification('New Nearbuy order '+(o.order_number||''),{body:`${o.customer_name||''} · ${gbp(o.total||0)}`,icon:'icon-192.png'})}catch{}}
+  if('Notification' in window&&Notification.permission==='granted'&&document.hidden)try{new Notification('New ShopNip order '+(o.order_number||''),{body:`${o.customer_name||''} · ${gbp(o.total||0)}`,icon:'icon-192.png'})}catch{}}
 async function onOwnerChange(p){const isNew=p.eventType==='INSERT';await loadInbox();if(isNew){O.newIds.add(p.new.id);alertNew(O.inbox.find(o=>o.id===p.new.id)||p.new);setTimeout(()=>{O.newIds.delete(p.new.id)},6000)}}
 function startLive(){if(MOCK||!sb)return;if(A.shop)D.live('shop_id=eq.'+A.shop.id,onOwnerChange);else if(A.user)D.live('customer_id=eq.'+A.user.id,async()=>{await loadMine();if(O.cur){O.cur=await D.get(O.cur.id);if(cur[0]==='order')render()}})}
 
@@ -169,7 +169,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
   if(a==='fil'){O.fil=el.dataset.v;return render()}
   if(a==='st'){const st=el.dataset.v;let note=null;if(st==='rejected'||st==='cancelled'){note=prompt(st==='rejected'?'Reason for rejecting (shown to the customer)':'Reason for cancelling','');if(note===null)return}
     el.disabled=true;try{await D.status(el.dataset.id,st,note);O.inbox=await D.inbox();badge();toast(LBL[st]);render()}catch(err){toast(err.message);el.disabled=false}return}
-  if(a==='notif'){const r=await Notification.requestPermission();toast(r==='granted'?'Alerts on while Nearbuy is open':'Alerts blocked in browser settings');return render()}
+  if(a==='notif'){const r=await Notification.requestPermission();toast(r==='granted'?'Alerts on while ShopNip is open':'Alerts blocked in browser settings');return render()}
   if(a==='sim'){const l=M.listings.filter(x=>x.active&&x.stock>1).slice(0,2);const id='o'+(M.orders.length+1);
     M.orders.unshift({id,order_number:'NB-'+(1001+M.orders.length),shop_id:A.shop.id,customer_id:'u9',customer_name:'Tom Reed',customer_phone:'07700 900456',fulfilment:'delivery',delivery_address:'4 Mill Lane',delivery_postcode:'LE1 6AB',status:'placed',subtotal:l.reduce((t,x)=>t+x.retail_price,0),delivery_fee:2.5,total:l.reduce((t,x)=>t+x.retail_price,0)+2.5,payment_method:'pay_on_delivery',created_at:new Date().toISOString(),order_items:l.map(x=>({listing_id:x.id,name:x.name,image:x.image,unit_price:x.retail_price,qty:1})),order_events:[{status:'placed',at:new Date().toISOString()}]});
     return onOwnerChange({eventType:'INSERT',new:{id}})}

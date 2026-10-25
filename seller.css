@@ -1,4 +1,4 @@
-/* Nearbuy (a NuvonHub product) · Seller landing + seller dashboard */
+/* ShopNip (a NuvonHub product) · Seller landing + seller dashboard */
 :root{--t:#0f766e;--t2:#134e4a;--t3:#0b3b38;--tl:#e6f4f2;--c:#ff6b4a;--c2:#e8553a;--bg:#f7f6f2;--card:#fff;--txt:#14202e;--mut:#667085;--line:#e7e9ee;--r:16px;
 --sh:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);--sh2:0 12px 32px rgba(16,24,40,.10);--ease:cubic-bezier(.2,.8,.2,1)}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}

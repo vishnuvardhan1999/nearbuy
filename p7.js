@@ -35,7 +35,7 @@ function cards(){const promos=(window.P5?.promos?.()||[]).filter(x=>x.type==='ba
    {c:'pc-navy',k:'Near you',t:'Popular deals near you',cta:'Explore',link:'#search',grid:popL.slice(0,4)},
    {c:'pc-lime',k:'Back to school',t:'Back to school, sorted',s:'Pens, pads & pencil cases',cta:'Shop school',link:'sec:1',hero:find(kw('pencil case','ruler','sharpener'),3,1)}];
   const fromPromo=promos.map((b,i)=>{const th={coral:'pc-coral',gold:'pc-gold',night:'pc-navy',lime:'pc-lime',teal:'pc-teal'}[b.theme]||'pc-teal';
-    return {c:th,k:b.shop_id?'Promoted':'Nearbuy',t:b.title,s:b.subtitle,cta:b.cta||'Shop now',link:b.link||'#search',bg:b.image,hero:b.image?null:(b.sku?[S.products.find(p=>p.sku===b.sku)].filter(Boolean):find(kw(...(b.kw||['pen'])),3,i))}});
+    return {c:th,k:b.shop_id?'Promoted':'ShopNip',t:b.title,s:b.subtitle,cta:b.cta||'Shop now',link:b.link||'#search',bg:b.image,hero:b.image?null:(b.sku?[S.products.find(p=>p.sku===b.sku)].filter(Boolean):find(kw(...(b.kw||['pen'])),3,i))}});
   return [house[0],...fromPromo,...house.slice(1)].slice(0,9)}
 function card(c){const body=c.grid?`<div class="pg2">${c.grid.map(x=>{const p=x.p||x;return `<span>${img(p)}${c.badge?`<em>-${x.d}%</em>`:''}</span>`}).join('')}</div>`
    :c.life?`<div class="plife">${img(c.life)}</div>`:c.bg?`<div class="pbg" style="background-image:url('${esc(c.bg)}')"></div>`:`<div class="phero">${(c.hero||[]).map((p,i)=>`<span class="h${i}">${img(p)}</span>`).join('')}</div>`;
@@ -93,14 +93,14 @@ if(cur&&cur[0]==='home')render();
 const RM=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const realShops=()=>S.shops.filter(s=>!s.demo&&(!s.status||s.status==='approved'));
 const realProducts=()=>S.products.filter(p=>!p.demo&&p.offers?.length);
-const value=()=>`<div class="vstrip" aria-label="Why shop with Nearbuy">${[['store','Local shops','Independents near you'],['bolt','Same-day delivery','From shops that deliver locally'],['bag','Pay at the shop','On collection or delivery'],['heart','Support local','Your money stays on your high street']].map(([i,t,s])=>`<div class="vs">${svg(i)}<span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>`;
+const value=()=>`<div class="vstrip" aria-label="Why shop with ShopNip">${[['store','Local shops','Independents near you'],['bolt','Same-day delivery','From shops that deliver locally'],['bag','Pay at the shop','On collection or delivery'],['heart','Support local','Your money stays on your high street']].map(([i,t,s])=>`<div class="vs">${svg(i)}<span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>`;
 function about(){const ns=realShops().length,np=realProducts().length;
   const stats=ns&&np?`<div class="abst"><div><b>${ns}</b><small>local shop${ns>1?'s':''} live</small></div><div><b>${np}</b><small>product${np>1?'s':''} to order</small></div></div>`:'';
   const vals=[['store','Real independent shops','Every shop is a local independent, reviewed and approved by us. No warehouses.'],['bolt','Collect or local delivery','Pick up on your way home, or have it delivered by shops that deliver nearby.'],['lock','Pay at the shop','Pay the shop on collection or delivery. Online payments are coming later.'],['check','Always up to date','Shop listings fill automatically from each shop’s wholesale orders.']];
   const steps=[['pin','Set your postcode','See the local shops near you.'],['search','Browse & compare','Search everything stocked on your high street.'],['bag','Order ahead','Choose click & collect or local delivery.'],['heart','Pay at the shop','Collect, pay and support local.']];
   return `<section class="about12" id="about" aria-labelledby="ab-h"><div class="abin">
-   <div class="abtop rv"><span class="abk">About Nearbuy · a NuvonHub product</span><h2 id="ab-h">Your high street, <em>in your pocket.</em></h2>
-    <p>Nearbuy is a local marketplace for the independent shops around you. Order from the newsagent, card shop or craft store down the road, then collect it or have it delivered locally. We’re starting with a pilot in Watford, helping local shops get found, get orders and keep the high street thriving.</p>${stats}</div>
+   <div class="abtop rv"><span class="abk">About ShopNip · a NuvonHub product</span><h2 id="ab-h">Your high street, <em>in your pocket.</em></h2>
+    <p>ShopNip is a local marketplace for the independent shops around you. Order from the newsagent, card shop or craft store down the road, then collect it or have it delivered locally. We’re starting with a pilot in Watford, helping local shops get found, get orders and keep the high street thriving.</p>${stats}</div>
    <div class="abv">${vals.map(([i,t,s],k)=>`<div class="rv" style="--d:${k*80}ms"><span>${svg(i)}</span><b>${t}</b><p>${s}</p></div>`).join('')}</div>
    <div class="abhow rv"><h3>How it works</h3><ol>${steps.map(([i,t,s],k)=>`<li><span class="abn">${k+1}</span>${svg(i)}<b>${t}</b><small>${s}</small></li>`).join('')}</ol></div>
    <div class="abcta rv"><button class="abb pri" data-plink="#search">Start shopping ${svg('arrow')}</button><a class="abb sec" href="seller.html">Become a seller ${svg('arrow')}</a></div>

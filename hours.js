@@ -1,4 +1,4 @@
-/* Nearbuy weekly opening-hours picker (shared by index.html registration and seller.html settings).
+/* ShopNip weekly opening-hours picker (shared by index.html registration and seller.html settings).
    shops.opening_hours is a text column, so we store a readable summary ("Mon-Sat 9am-5:30pm, Sun closed") and parse it back. */
 (function(){
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];

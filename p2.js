@@ -1,4 +1,4 @@
-// Nearbuy (a NuvonHub product) · Phase 2: auth, shop registration, owner dashboard, public shop page.
+// ShopNip (a NuvonHub product) · Phase 2: auth, shop registration, owner dashboard, public shop page.
 // Loaded after app.js and reuses its globals (S, V, sb, $, esc, gbp, svg, route, render, miles, lookupPostcode).
 // ?mock=1 runs everything against in-memory data (for local screenshots); nothing is sent to Supabase.
 (function(){
@@ -78,7 +78,7 @@ V.account=function(){
    <div class="panel"><div class="acct"><span class="avatar">${esc((A.profile?.full_name||A.user.email)[0].toUpperCase())}</span><div><b>${esc(A.profile?.full_name||'')}</b><small>${esc(A.user.email)}</small></div><span class="pill">${owner?'Shop owner':'Shopper'}</span></div></div>
    ${owner?(A.shop?`<button class="tile" data-act="go" data-v="myshop">${svg('store')}<span><b>My shop</b><small>${esc(A.shop.name)} · ${statusLabel(A.shop.status)}</small></span></button>`
      :`<button class="tile hot" data-act="go" data-v="register">${svg('store')}<span><b>Register your shop</b><small>Takes about 3 minutes</small></span></button>`)
-     :`<button class="tile" data-act="go" data-v="register">${svg('store')}<span><b>Run a shop? Sell on Nearbuy</b><small>Register your shop</small></span></button>`}
+     :`<button class="tile" data-act="go" data-v="register">${svg('store')}<span><b>Run a shop? Sell on ShopNip</b><small>Register your shop</small></span></button>`}
    <div class="panel"><div class="line"><span>Postcode</span><a href="#" id="setpc2">${esc(S.pc||'Set')}</a></div></div>
    <button class="btn ghost full" data-act="logout">Log out</button></section>`};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s);
@@ -104,7 +104,7 @@ V.register=function(){
     <label class="up"><input type="file" id="s_logo" accept="image/*" hidden><span class="upi" id="pv_logo">${s.logo_url?`<img src="${esc(s.logo_url)}">`:svg('plus')}</span><b>Logo</b><small>Square, 400px+</small></label>
     <label class="up"><input type="file" id="s_cover" accept="image/*" hidden><span class="upi wide" id="pv_cover">${s.cover_url?`<img src="${esc(s.cover_url)}">`:svg('plus')}</span><b>Cover photo</b><small>Shop front, 1200×600</small></label></div></div>
    <button class="btn full big" id="s_submit">${s.id?'Save changes':'Submit for approval'}</button>
-   <p class="hint c">By registering you agree to the Nearbuy seller terms.</p></form></section>`};
+   <p class="hint c">By registering you agree to the ShopNip seller terms.</p></form></section>`};
 V.myshop=function(){
   if(!A.shop)return V.register();const s=A.shop,L=A.listings;
   const live=L.filter(l=>l.active).length,low=L.filter(l=>l.stock<=3).length;
@@ -158,7 +158,7 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
   if(f.dataset.form==='signup')return busy(btn,async()=>{const role='shopper';const r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'));
     // If Supabase 'Confirm email' is off, signUp returns a session: log straight in. Otherwise fall back to the email step.
     if(!MOCK&&!r.session){A.tab='login';A.msg='Check your email to confirm your account, then log in.';return route('account')}
-    await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};route('account');toast('Welcome to Nearbuy')});
+    await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};route('account');toast('Welcome to ShopNip')});
   if(f.dataset.form==='shop')return busy($('#s_submit'),async()=>{
     const pc=await lookupPostcode(v('s_pc')).catch(()=>{throw new Error('We could not find that UK postcode.')});
     const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:pc.lat,lng:pc.lng,phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),

@@ -1,4 +1,4 @@
-// Nearbuy (a NuvonHub product) – homepage v2. Supabase when config.js is filled in; catalogue falls back to products.json.
+// ShopNip (a NuvonHub product) – homepage v2. Supabase when config.js is filled in; catalogue falls back to products.json.
 // Shops are ONLY real registered shops (shops.active=true). Sample shops appear only with ?demo=1.
 const CFG=window.APP_CONFIG||{};
 const LIVE=!!(CFG.SUPABASE_URL&&/^https:\/\//.test(CFG.SUPABASE_URL)&&CFG.SUPABASE_KEY&&!/YOUR_/.test(CFG.SUPABASE_KEY));
@@ -63,7 +63,7 @@ function shopsSection(){
   if(S.me)list=list.filter(s=>s.dist!=null&&s.dist<=S.radius).sort((a,b)=>a.dist-b.dist);
   const n=list.length,head=n?`${n} shop${n>1?'s':''} near you`:'Shops near you';
   const filt=`<div class="dist">${[1,3,5,10].map(r=>`<button data-r="${r}" class="${r===S.radius?'on':''}">${r} mi</button>`).join('')}<button class="geo" id="geo">${svg('target')}Use my location</button></div>`;
-  const body=n?`<div class="row">${list.map(scard).join('')}</div>`:`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No Nearbuy shops near you yet</h4>
+  const body=n?`<div class="row">${list.map(scard).join('')}</div>`:`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No ShopNip shops near you yet</h4>
    <p>${S.me?`Nothing within ${S.radius} miles of ${esc(S.pc)}. Try a wider distance.`:'Set your postcode to find registered shops nearby.'}</p><button class="btn" id="register">Register your shop</button></div>`;
   return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2>${S.me?'':'<a href="#" id="setpc2">Set postcode</a>'}</div>${filt}${body}</section>`}
 function home(){
@@ -76,20 +76,20 @@ function home(){
    <div class="slide s2"><div class="tag">New term</div><h3>Back to school essentials</h3><p>Pens, pads and pencil cases.</p><button class="cta" data-sec="1">Shop now</button>${art(h2)}</div>
    <div class="slide s3"><div class="tag">Celebrate</div><h3>Party &amp; gifts</h3><p>Balloons, wrap and cards.</p><button class="cta" data-sec="3">Explore</button>${art(h3)}</div>
   </div><div class="dots" id="dots"><i class="on"></i><i></i><i></i></div></section>
-  <div class="chips"><button class="chip" data-t="search">${svg('bag')}Click &amp; collect</button><button class="chip" data-t="search">${svg('bolt')}Same-day delivery</button><button class="chip" data-sec="0">${svg('tag')}Offers</button><button class="chip" id="register2">${svg('store')}Sell on Nearbuy</button></div>
+  <div class="chips"><button class="chip" data-t="search">${svg('bag')}Click &amp; collect</button><button class="chip" data-t="search">${svg('bolt')}Same-day delivery</button><button class="chip" data-sec="0">${svg('tag')}Offers</button><button class="chip" id="register2">${svg('store')}Sell on ShopNip</button></div>
   ${shopsSection()}
-  ${S.products[0]?.demo?`<div class="soonbar">${svg('pin')}<div><b>Coming soon to shops near you</b><p>A preview of what local shops can stock on Nearbuy. Tap <i>Notify me</i> and we'll flag items when a shop near you lists them.</p></div></div>`:''}
+  ${S.products[0]?.demo?`<div class="soonbar">${svg('pin')}<div><b>Coming soon to shops near you</b><p>A preview of what local shops can stock on ShopNip. Tap <i>Notify me</i> and we'll flag items when a shop near you lists them.</p></div></div>`:''}
   <section class="sec"><div class="sh"><h2>Shop by category</h2></div><div class="cats">${cats}</div></section>
   ${secs}
-  <section class="sell"><div><h3>Shop owner? Sell on Nearbuy</h3><p>Get a free online shop for your store. Your products are listed for you with photos and descriptions. Just set your prices.</p></div>
+  <section class="sell"><div><h3>Shop owner? Sell on ShopNip</h3><p>Get a free online shop for your store. Your products are listed for you with photos and descriptions. Just set your prices.</p></div>
    <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}No setup fee</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
   ${S.products[0]?.demo?'<p class="note">Preview catalogue: prices are illustrative until shops set their own.</p>':''}
   ${foot()}`}
-function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark" style="background:var(--navy)"></span><span class="word" style="color:var(--navy)">near<b>buy</b></span></a><p>Independent shops, on your doorstep.</p></div>
+function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark" style="background:var(--navy)"></span><span class="word" style="color:var(--navy)">shop<b>nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
    <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
-   <div><h5>Sellers</h5><a href="#sell">Sell on Nearbuy</a><a href="#" id="register4">Register your shop</a><a href="#how">How it works</a></div>
-   <div><h5>Nearbuy</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a><a href="#terms">Terms of Use</a><a href="#privacy">Privacy Policy</a></div></div>
-   <div class="fb"><span>© ${new Date().getFullYear()} Nearbuy</span><span>Nearbuy, a NuvonHub product</span></div></footer>`}
+   <div><h5>Sellers</h5><a href="#sell">Sell on ShopNip</a><a href="#" id="register4">Register your shop</a><a href="#how">How it works</a></div>
+   <div><h5>ShopNip</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a><a href="#terms">Terms of Use</a><a href="#privacy">Privacy Policy</a></div></div>
+   <div class="fb"><span>© ${new Date().getFullYear()} ShopNip</span><span>ShopNip, a NuvonHub product</span></div></footer>`}
 function list(title,items){return `<section class="sec"><div class="sh"><h2>${esc(title)}</h2><span class="note" style="margin:0">${items.length} items</span></div>${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:`<div class="empty">${svg('search')}<br>No matches yet</div>`}</section>`}
 const V={home,
  search(q=$('#q').value.trim()){const t=q.toLowerCase();return list(q?`Results for “${q}”`:'All products',S.products.filter(p=>has(p)&&(!t||(p.name+' '+p.category).toLowerCase().includes(t))).slice(0,60))},
