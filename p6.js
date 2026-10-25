@@ -2,7 +2,7 @@
 (()=>{const Q=new URLSearchParams(location.search),KEEP=['mock','as','shop','status'].filter(k=>Q.has(k)).map(k=>k+'='+encodeURIComponent(Q.get(k))).join('&');
 const SURL=h=>'seller.html'+(KEEP?'?'+KEEP:'')+(h?'#'+h:'');window.SELLER_URL=SURL;
 document.querySelectorAll('[data-sell]').forEach(a=>a.href=SURL(''));
-if(Q.get('seller')==='1')sessionStorage.setItem('nb_next','seller');
+if(Q.get('seller')==='1')sessionStorage.setItem('nb_next','seller');else sessionStorage.removeItem('nb_next'); /* only a live ?seller=1 visit sends account to seller flows; customers keep index.html login */
 const MAP={myshop:'overview',inbox:'orders',addprod:'products',sell:''};
 const go=h=>{location.href=SURL(h)};
 const _route=route;

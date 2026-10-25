@@ -12,9 +12,9 @@ async function catalog(){if(!A.catalog)A.catalog=await (await fetch('products.js
 // ---------- data layer (Supabase or mock) ----------
 const M={users:{},shops:[],listings:[]};
 const DB=MOCK?{
-  async session(){return Q.get('as')?{user:{id:'u1',email:'owner@example.com'}}:null},
-  async signUp(e,p,role,name){A.user={id:'u1',email:e};return{}}, async signIn(e){A.user={id:'u1',email:e};return{}}, async signOut(){},
-  async profile(){return{role:Q.get('as')==='shopper'?'shopper':'owner',full_name:'Priya Shah'}},
+  async session(){if(M.user)return{user:M.user};const a=Q.get('as');return a&&a!=='none'?{user:{id:'u1',email:'owner@example.com'}}:null},
+  async signUp(e,p,role,name){A.user=M.user={id:'u1',email:e};M.name=name;return{}}, async signIn(e){A.user=M.user={id:'u1',email:e};return{}}, async signOut(){M.user=null},
+  async profile(){if(M.user)return{role:'shopper',full_name:M.name||''};return{role:Q.get('as')==='shopper'?'shopper':'owner',full_name:'Priya Shah'}},
   async myShop(){return M.shops.find(s=>s.owner_id==='u1')||null},
   async listings(){return M.listings}, async saveShop(s){s.id=s.id||'s1';s.owner_id='u1';s.status=s.status||'pending';const i=M.shops.findIndex(x=>x.id===s.id);i<0?M.shops.push(s):M.shops[i]={...M.shops[i],...s};return s},
   async upload(f){return URL.createObjectURL(f)},
@@ -50,7 +50,7 @@ async function refresh(){
 // ---------- mock seed ----------
 async function seedMock(){
   const c=await catalog();const pick=k=>c.filter(p=>p.images.length&&p.name.toLowerCase().includes(k));
-  if(Q.get('as')&&Q.get('shop')!=='none'){
+  if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
     M.shops.push({id:'s1',owner_id:'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
       opening_hours:'Mon–Sat 7am–7pm, Sun 9am–2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
       delivery_options:{collect:true,delivery:true,delivery_radius_miles:3,delivery_fee:2.5},logo_url:null,cover_url:null});
@@ -194,6 +194,6 @@ document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.f)re
   try{await DB.updListing(l.id,{[t.dataset.f]:val});l[t.dataset.f]=val;if(t.type==='checkbox')row.classList.toggle('off',!val);toast('Saved')}catch(err){toast(err.message)}});
 window.P2={A,DB,M,MOCK,Q,refresh,toast,go,async init(){if(MOCK)await seedMock();await refresh();
   if(fromAuth&&A.user&&(A.shop||A.profile?.role==='owner'||A.profile?.role==='seller'||A.user.user_metadata?.role==='owner')){location.replace('seller.html'+(MOCK?location.search:''));return}if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
-  const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';window.P2_START=v==='signup'?'account':v}},
+  const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';window.P2_START=['signup','login','signin'].includes(v)?'account':v}},
   register(){go('register')}};
 })();
