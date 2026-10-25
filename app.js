@@ -50,7 +50,7 @@ const CATS=[['Stationery',kw('pen ','pens','pencil','notebook')],['Party',kw('ba
 const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to school',kw('pencil','notebook','ruler','eraser','sharpener','highlighter','glue stick','pencil case','exercise book'),5],
  ['Art & craft picks',p=>p.category==='Art & Craft'||kw('paint','glitter','craft','colouring')(p),2],['Party time',kw('balloon','party','banner','candle','napkin','gift bag'),4]];
 // ---------- templates ----------
-const pcard=p=>window.P4?P4.card(p):`<div class="pc" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
+const pcard=p=>window.P4?P4.card(p):`<div class="pc" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fb></div>
 <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
 const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
 function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
@@ -85,7 +85,7 @@ function home(){
    <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}No setup fee</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
   
   ${foot()}`}
-function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark" style="background:var(--navy)"></span><span class="word" style="color:var(--navy)">shop<b>nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
+function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark dk"></span><span class="word" style="color:var(--navy)">Shop<b>Nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
    <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
    <div><h5>Sellers</h5><a href="#sell">Sell on ShopNip</a><a href="#" id="register4">Register your shop</a><a href="#how">How it works</a></div>
    <div><h5>ShopNip</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a><a href="#terms">Terms of Use</a><a href="#privacy">Privacy Policy</a></div></div>

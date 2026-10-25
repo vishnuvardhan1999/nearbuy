@@ -39,7 +39,7 @@ const DB=MOCK?{
   async updListing(id,ch){const {error}=await sb.from('shop_listings').update({...ch,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error},
   async delListing(id){const {error}=await sb.from('shop_listings').delete().eq('id',id);if(error)throw error},
   async bulk(ids,ch){for(let i=0;i<ids.length;i++)await this.updListing(ids[i],ch[i])},
-  async shop(id){const {data}=await sb.from('shops').select('*').eq('id',id).maybeSingle();return data},
+  async shop(id){const {data}=await sb.from('shops').select('id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,delivery_options,active,status,created_at').eq('id',id).maybeSingle();return data},
   async shopListings(id){const {data}=await sb.from('shop_listings').select('*').eq('shop_id',id).eq('active',true).order('name');return data||[]},
   async backfill(id){const {data}=await sb.rpc('backfill_shop_listings',{p_shop:id});return data||0}
 };
@@ -145,7 +145,7 @@ V.myshop=function(){
    `<div class="noshops"><div class="ic">${svg('orders')}</div><h4>No products yet</h4><p>Products you buy wholesale appear here automatically after they ship. You can also add them yourself.</p><button class="btn" data-act="go" data-v="addprod">Add products</button></div>`}
   </section>`};
 const lrow=l=>{const m=pct(l.retail_price,l.trade_price);return `<div class="li ${l.active?'':'off'}" data-id="${esc(l.id)}">
- <img src="${esc(l.image||'icon-192.png')}" alt="" onerror="this.src='icon-192.png'"><div class="lb"><div class="ln">${esc(l.name)}</div>
+ <img src="${esc(l.image||'icon-192.png')}" alt="" data-fb><div class="lb"><div class="ln">${esc(l.name)}</div>
  <div class="lm"><span>Trade ${l.trade_price!=null?gbp(l.trade_price):'–'}</span>${l.source==='wholesale'?'<span class="src">Auto</span>':''}</div>
  <div class="lc"><label class="pf2">£<input type="number" step="0.01" min="0" value="${(+l.retail_price).toFixed(2)}" data-f="retail_price" aria-label="Retail price"></label>
  <span class="mg ${m<20?'lo':m>=35?'hi':''}">${m}%</span>
@@ -157,7 +157,7 @@ V.addprod=function(){const q=(A.aq||'').toLowerCase(),have=new Set(A.listings.ma
   return `<section class="sec"><div class="sh"><h2>Add products</h2><a href="#" data-act="go" data-v="myshop">Done</a></div>
   <div class="search in"><svg viewBox="0 0 24 24">${'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'}</svg><input id="aq" placeholder="Search the catalogue by name or SKU" value="${esc(A.aq||'')}"></div>
   <p class="hint">${A.catalog.length.toLocaleString()} products in the catalogue. New listings start at trade × 1.5; change it any time.</p>
-  <div class="lst">${res.map(p=>`<div class="li"><img src="${esc(p.images[0]||'icon-192.png')}" alt="" onerror="this.src='icon-192.png'"><div class="lb"><div class="ln">${esc(p.name)}</div>
+  <div class="lst">${res.map(p=>`<div class="li"><img src="${esc(p.images[0]||'icon-192.png')}" alt="" data-fb><div class="lb"><div class="ln">${esc(p.name)}</div>
    <div class="lm"><span>SKU ${esc(p.sku)}</span><span>Trade ${gbp(p.trade_price)}</span></div></div>
    ${have.has(p.sku)?'<span class="added">Listed</span>':`<button class="add" data-act="addsku" data-v="${esc(p.sku)}" aria-label="Add">${svg('plus')}</button>`}</div>`).join('')}</div></section>`};
 V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div class="empty">Loading shop…</div>'}
@@ -165,7 +165,7 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
   return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" data-t="home" aria-label="Back">‹</button></div>
   <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
-   <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${d.delivery_radius_miles?'within '+d.delivery_radius_miles+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
+   <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
    <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${s.opening_hours?`<div class="line"><span>Hours</span><span>${esc(s.opening_hours)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
   <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});

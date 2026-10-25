@@ -1,4 +1,4 @@
-# Nearbuy – Phase 1
+# ShopNip – Phase 1
 \nA NuvonHub product.
 
 Local marketplace PWA. Suman Bros trade customers each get a shop. Products they bought are listed from wholesaler data, they set retail prices, and local shoppers order for click & collect or delivery.

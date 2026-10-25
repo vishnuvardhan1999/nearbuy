@@ -60,7 +60,7 @@ async function place(){if(!A.user){window.CK&&CK.set({name:C.d.name,phone:C.d.ph
     bot('Please log in so you can track your order. Your basket is saved and checkout will be ready for you.');qr.innerHTML='<button type="button" class="pri" data-o="login">Log in to finish</button>';return}
   if(C.busy)return;C.busy=true;quick([]);bot('<span class="cb-dots"><i></i><i></i><i></i></span> Placing your order…');
   try{const r=await P3.place({shop:C.shop.id,items:items().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:C.f,name:C.d.name,phone:C.d.phone,address:C.f==='delivery'?C.d.addr:'',postcode:C.f==='delivery'?(C.d.pc||'').toUpperCase():'',note:C.d.note||''});
-    log.lastChild.remove();C.step='done';bot(`<div class="cb-ok">✓ Order <b>${esc(r.order_number)}</b> placed</div>${esc(C.shop.name)} has been notified and will confirm shortly. Total ${gbp(r.total)}.`);
+    log.lastChild.remove();C.step='done';bot(`<div class="cb-ok">✓ Order <b>${esc(r.order_number)}</b> placed</div>${r.collection_pin?`<div class="cb-ok">Show or say this at the shop: <b>${esc(r.order_number)} · PIN ${esc(r.collection_pin)}</b><br><small>Bring this when you collect</small></div>`:''}${esc(C.shop.name)} has been notified and will confirm shortly. Total ${gbp(r.total)}.`);
     qr.innerHTML=`<button type="button" class="pri" data-c="track" data-id="${esc(r.id)}">Track order</button><button type="button" data-c="q" data-v="restart">New order</button>`}
   catch(e){log.lastChild.remove();bot('Sorry, that did not go through: '+esc(e.message||String(e)));quick([['Try again','place','pri'],['Edit items','edit']])}
   C.busy=false}

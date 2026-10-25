@@ -19,7 +19,7 @@ function mix(groups,fb,n=4,off=0){const used={t:new Set(),i:new Set()},out=[];
   for(const g of groups){if(out.length>=n)break;const c=CAT().filter(hk(...g));out.push(...uniq(c.slice(off%Math.max(c.length,1)).concat(c),1,used))}
   if(out.length<n&&fb)out.push(...uniq(CAT().filter(fb),n-out.length,used));return out}
 const kw=(...w)=>p=>{const n=p.name.toLowerCase();return w.some(k=>n.includes(k))};
-const img=p=>`<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.style.visibility='hidden'">`;
+const img=p=>`<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fbhide>`;
 // ---------- promo strip ----------
 function dealsPool(){let L=uniq(S.products.filter(p=>p.cmp>p.price&&!p.demo&&p.images?.length),4).map(p=>({p,d:Math.round((1-p.price/p.cmp)*100),real:true}));return L}
 function cards(){const promos=(window.P5?.promos?.()||[]).filter(x=>x.type==='banner'&&['hero','strip'].includes(x.placement||'hero'));

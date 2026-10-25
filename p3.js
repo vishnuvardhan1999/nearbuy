@@ -13,10 +13,10 @@ const D=MOCK?{
   async shop(id){return M.shops.find(s=>s.id===id)},
   async place(a){const lines=a.items.map(i=>{const l=M.listings.find(x=>x.id===i.listing_id);if(!l||!l.active)throw new Error('An item is no longer available');if(l.stock<i.qty)throw new Error(`Only ${l.stock} left of ${l.name}`);return {l,q:i.qty}});
     lines.forEach(x=>x.l.stock-=x.q);const s=M.shops.find(x=>x.id===a.shop),fee=a.fulfilment==='delivery'?+(s.delivery_options.delivery_fee||0):0,st=lines.reduce((t,x)=>t+x.l.retail_price*x.q,0);
-    const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(1001+M.orders.length),shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,note:a.note,
+    const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(1001+M.orders.length),collection_pin:a.fulfilment==='collect'?String(crypto.getRandomValues(new Uint16Array(1))[0]%10000).padStart(4,'0'):null,shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,note:a.note,
       payment_method:a.fulfilment==='delivery'?'pay_on_delivery':'pay_on_collection',status:'placed',subtotal:st,delivery_fee:fee,total:st+fee,created_at:new Date().toISOString(),
       order_items:lines.map(x=>({listing_id:x.l.id,sku:x.l.sku,name:x.l.name,image:x.l.image,unit_price:x.l.retail_price,qty:x.q})),order_events:[{status:'placed',at:new Date().toISOString()}],shops:{name:s.name,phone:s.phone,address:s.address}};
-    M.orders.unshift(o);return {id:o.id,order_number:o.order_number,total:o.total}},
+    M.orders.unshift(o);return {id:o.id,order_number:o.order_number,total:o.total,collection_pin:o.collection_pin}},
   async mine(){return M.orders.filter(o=>o.customer_id==='u1')},
   async inbox(){return M.orders.filter(o=>o.shop_id===A.shop?.id)},
   async get(id){return M.orders.find(o=>o.id===id)},
@@ -25,7 +25,8 @@ const D=MOCK?{
   live(){}
 }:{
   async shop(id){return DB.shop(id)},
-  async place(a){const {data,error}=await sb.rpc('place_order',{p_shop:a.shop,p_items:a.items,p_fulfilment:a.fulfilment,p_name:a.name,p_phone:a.phone,p_address:a.address||null,p_postcode:a.postcode||null,p_note:a.note||null,p_lat:a.lat??null,p_lng:a.lng??null});if(error)throw error;return data},
+  async place(a){const {data,error}=await sb.rpc('place_order',{p_shop:a.shop,p_items:a.items,p_fulfilment:a.fulfilment,p_name:a.name,p_phone:a.phone,p_address:a.address||null,p_postcode:a.postcode||null,p_note:a.note||null,p_lat:a.lat??null,p_lng:a.lng??null});if(error)throw error;
+    if(a.fulfilment==='collect'&&data?.id&&!data.collection_pin){try{const {data:p}=await sb.from('orders').select('collection_pin').eq('id',data.id).maybeSingle();if(p)data.collection_pin=p.collection_pin}catch(e){}}return data},
   async mine(){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*)').eq('customer_id',A.user.id).order('created_at',{ascending:false}).limit(50);if(error)throw error;return data},
   async inbox(){const {data,error}=await sb.from('orders').select('*,order_items(*)').eq('shop_id',A.shop.id).order('created_at',{ascending:false}).limit(100);if(error)throw error;return data},
   async get(id){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*),order_events(status,note,at)').eq('id',id).single();if(error)throw error;data.order_events?.sort((a,b)=>a.at<b.at?-1:1);return data},
@@ -81,7 +82,7 @@ V.basket=function(){
   <button class="btn full big" data-o="checkout">Go to checkout</button></div></section>`};
 const CO={f:'collect',shop:null,deliv:null,err:''};
 async function prepCheckout(){CO.shop=await D.shop(bShop());const d=CO.shop?.delivery_options||{};CO.deliv=null;
-  if(d.delivery){if(!S.me)CO.deliv={ok:false,why:'Set your postcode to check delivery'};else if(CO.shop.lat==null)CO.deliv={ok:true};else{const mi=miles(S.me,CO.shop);CO.deliv={ok:mi<=(+d.delivery_radius_miles||0),mi,why:`You're ${mi.toFixed(1)} mi away; ${esc(CO.shop.name)} delivers within ${d.delivery_radius_miles} mi`}}}
+  if(d.delivery){if(!S.me)CO.deliv={ok:false,why:'Set your postcode to check delivery'};else if(CO.shop.lat==null)CO.deliv={ok:true};else{const mi=miles(S.me,CO.shop);CO.deliv={ok:mi<=(+d.delivery_radius_miles||0),mi,why:`You're ${mi.toFixed(1)} mi away; ${esc(CO.shop.name)} delivers within ${+d.delivery_radius_miles||0} mi`}}}
   if(d.collect===false)CO.f=CO.deliv?.ok?'delivery':'collect';}
 V.checkout=function(){
   if(!B().length)return V.basket();if(!CO.shop)return '<div class="empty">Loading…</div>';
@@ -91,7 +92,7 @@ V.checkout=function(){
   <form class="form" data-form="order">${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}
   <div class="panel"><h3 class="ft">How do you want it?</h3>
    <label class="opt ${d.collect===false?'dis':''}"><input type="radio" name="ful" value="collect" ${CO.f==='collect'?'checked':''} ${d.collect===false?'disabled':''}>${svg('bag')}<span><b>Click &amp; collect</b><small>${d.collect===false?'Not offered':`Free · ${esc(s.address||s.postcode||'')}`}</small></span></label>
-   <label class="opt ${!d.delivery||!CO.deliv?.ok?'dis':''}"><input type="radio" name="ful" value="delivery" ${CO.f==='delivery'?'checked':''} ${!d.delivery||!CO.deliv?.ok?'disabled':''}>${svg('bolt')}<span><b>Local delivery${d.delivery?' · '+gbp(d.delivery_fee||0):''}</b><small>${!d.delivery?'This shop doesn’t deliver':CO.deliv?.ok?`Within ${d.delivery_radius_miles} mi${CO.deliv.mi!=null?' · you’re '+CO.deliv.mi.toFixed(1)+' mi away':''}`:CO.deliv?.why||''}</small></span></label>
+   <label class="opt ${!d.delivery||!CO.deliv?.ok?'dis':''}"><input type="radio" name="ful" value="delivery" ${CO.f==='delivery'?'checked':''} ${!d.delivery||!CO.deliv?.ok?'disabled':''}>${svg('bolt')}<span><b>Local delivery${d.delivery?' · '+gbp(d.delivery_fee||0):''}</b><small>${!d.delivery?'This shop doesn’t deliver':CO.deliv?.ok?`Within ${+d.delivery_radius_miles||0} mi${CO.deliv.mi!=null?' · you’re '+CO.deliv.mi.toFixed(1)+' mi away':''}`:CO.deliv?.why||''}</small></span></label>
    ${d.delivery&&!S.me?'<a href="#" id="setpc2" class="hint">Set your postcode</a>':''}</div>
   <div class="panel"><h3 class="ft">Your details</h3>
    ${fld('c_name','Name','required autocomplete="name"',u.name||A.profile?.full_name||'')}${fld('c_phone','Mobile number','required type="tel" autocomplete="tel"',u.phone||'')}
@@ -102,7 +103,11 @@ V.checkout=function(){
    <div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:''}<div class="line tot"><b>Total to pay ${CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(sub()+fee)}</b></div></div>
   <button class="btn full big" id="placebtn">Place order · ${gbp(sub()+fee)}</button><p class="hint c">The shop will confirm your order. You can cancel until it’s accepted.</p></form></section>`};
 const fld=(id,l,a,v)=>`<label class="fl"><span>${l}</span><input id="${id}" ${a} value="${esc(v)}"></label>`;
-V.placed=function(r){return `<section class="sec narrow"><div class="done-c"><div class="tick">${svg('check')}</div><h2>Order placed!</h2><p>Your order number is</p><div class="ono">${esc(r.order_number)}</div>
+/* click & collect code: order number + PIN the customer quotes at the shop */
+const ccode=(o,big)=>o&&o.fulfilment!=='delivery'&&o.collection_pin?`<div class="ccode${big?' big':''}"><small>Show or say this at the shop</small><b>${esc(o.order_number)} · PIN ${esc(o.collection_pin)}</b><span>Bring this when you collect</span></div>`:'';
+if(!document.getElementById('ccss')){const st=document.createElement('style');st.id='ccss';st.textContent=`.ccode{margin:12px 0;padding:12px 14px;border:2px dashed #1f6f66;border-radius:14px;background:#effaf7;text-align:center}.ccode small{display:block;color:#475569;font-size:12px}.ccode b{display:block;font-size:20px;letter-spacing:.04em;color:#0f3d3a;margin:2px 0}.ccode span{font-size:12px;color:#64748b}.ccode.big b{font-size:28px}.ocard .ccode{margin:8px 0 0;padding:8px}.ocard .ccode b{font-size:16px}`;document.head.appendChild(st)}
+window.P3CODE=ccode;
+V.placed=function(r){return `<section class="sec narrow"><div class="done-c"><div class="tick">${svg('check')}</div><h2>Order placed!</h2><p>Your order number is</p><div class="ono">${esc(r.order_number)}</div>${ccode({...r,fulfilment:O.lastF},true)}
   <p class="hint">${esc(O.lastShop||'The shop')} has been notified and will confirm shortly. Total ${gbp(r.total)}, to pay ${O.lastF==='delivery'?'on delivery':'on collection'}.</p>
   <button class="btn full big" data-o="open" data-id="${esc(r.id)}">Track order</button><button class="btn ghost full" data-t="home" style="margin-top:8px">Keep shopping</button></div></section>`};
 const chip=s=>`<span class="ost ${s}">${LBL[s]||s}</span>`;
@@ -111,7 +116,7 @@ V.orders=function(){
   if(!O.loaded){loadMine();return '<div class="empty">Loading orders…</div>'}
   if(!O.mine.length)return `<div class="empty">${svg('orders')}<br><b>No orders yet</b><br><br><button class="btn" data-t="home">Start shopping</button></div>`;
   return `<section class="sec narrow"><div class="sh"><h2>Your orders</h2></div><div class="lst">${O.mine.map(o=>`<button class="ocard" data-o="open" data-id="${esc(o.id)}">
-   <div class="oc-h"><b>${esc(o.shops?.name||'Shop')}</b>${chip(o.status)}</div><div class="oc-m">${esc(o.order_number)} · ${when(o.created_at)} · ${o.order_items?.reduce((a,i)=>a+i.qty,0)||0} items · <b>${gbp(o.total)}</b></div></button>`).join('')}</div></section>`};
+   <div class="oc-h"><b>${esc(o.shops?.name||'Shop')}</b>${chip(o.status)}</div><div class="oc-m">${esc(o.order_number)} · ${when(o.created_at)} · ${o.order_items?.reduce((a,i)=>a+i.qty,0)||0} items · <b>${gbp(o.total)}</b></div>${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o)}</button>`).join('')}</div></section>`};
 function timeline(o){const steps=STEPS[o.fulfilment]||STEPS.collect,ev={};(o.order_events||[]).forEach(e=>ev[e.status]=e);
   const end=['cancelled','rejected'].includes(o.status);const idx=steps.indexOf(o.status);
   let list=steps.map((s,i)=>({s,done:end?!!ev[s]:i<=idx,cur:!end&&i===idx,at:ev[s]?.at}));
@@ -127,7 +132,7 @@ function odetail(o,owner){const it=o.order_items||[];
    <div class="line tot"><b>Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</b><b>${gbp(o.total)}</b></div></div>`}
 V.order=function(id){const o=O.cur;if(!o||o.id!==id){D.get(id).then(x=>{O.cur=x;render()}).catch(e=>toast(e.message));return '<div class="empty">Loading…</div>'}
   return `<section class="sec narrow"><div class="sh"><h2>${esc(o.order_number)}</h2><a href="#" data-t="orders">All orders</a></div><div class="oc-m" style="margin-top:-8px">${esc(o.shops?.name||'')} · ${when(o.created_at)}</div>
-  ${odetail(o,false)}${o.status==='placed'?`<button class="btn ghost full" data-o="cancel" data-id="${esc(o.id)}">Cancel order</button>`:''}</section>`};
+  ${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o,true)}${odetail(o,false)}${o.status==='placed'?`<button class="btn ghost full" data-o="cancel" data-id="${esc(o.id)}">Cancel order</button>`:''}</section>`};
 // owner inbox
 const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready to collect']],delivery:[['out_for_delivery','Out for delivery']]},ready:[['completed','Collected · complete']],out_for_delivery:[['completed','Delivered · complete']]};
 const nexts=o=>{const n=NEXT[o.status];return !n?[]:Array.isArray(n)?n:n[o.fulfilment]};
@@ -186,10 +191,10 @@ async function placeOrder(a){if(a.fulfilment==='delivery'){const g=await lookupP
   window.CK&&CK.set({name:a.name,phone:a.phone,addr:a.address});
   const r=await D.place(a);O.lastShop=B()[0]?.shop_name;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
 
-window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),after:null,async init(){
+window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
-      M.orders.push({id:'o'+n,order_number:'NB-'+(1000+n),shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,
+      M.orders.push({id:'o'+n,order_number:'NB-'+(1000+n),collection_pin:f==='collect'?String(4800+n*7):null,shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,
        note:n===3?'Please gift wrap the balloon box':null,status:st,subtotal:st2,delivery_fee:fee,total:st2+fee,payment_method:f==='delivery'?'pay_on_delivery':'pay_on_collection',created_at:new Date(t0).toISOString(),shops:{name:s.name,phone:s.phone,address:s.address},
        order_items:items.map(([l,q])=>({listing_id:l.id,sku:l.sku,name:l.name,image:l.image,unit_price:l.retail_price,qty:q})),order_events:ev.map((e,i)=>({status:e,at:new Date(t0+i*9*60000).toISOString()}))})};
      mk(3,'placed','collect',[[L[3],1],[L[1],2]],4,'Sam Patel',['placed']);mk(2,'accepted','delivery',[[L[0],3]],38,'Priya Shah',['placed','accepted']);mk(1,'completed','collect',[[L[4],2]],1500,'Jo King',['placed','accepted','ready','completed'])}

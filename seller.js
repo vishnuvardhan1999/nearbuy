@@ -31,7 +31,7 @@ const ago=t=>{const m=Math.round((Date.now()-Date.parse(t))/60000);return m<1?'j
 const pct=(r,t)=>r>0&&t!=null?Math.round((r-t)/r*100):null;
 const LOW=3;
 // order status machine (same as p3.js)
-const LBL={placed:'New',accepted:'Accepted',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:'Completed',cancelled:'Cancelled',rejected:'Rejected'};
+const LBL={placed:'New',accepted:'Accepted',ready:'Waiting for collection',out_for_delivery:'Out for delivery',completed:'Completed',cancelled:'Cancelled',rejected:'Rejected'};
 const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','out_for_delivery','completed']};
 const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready']],delivery:[['out_for_delivery','Out for delivery']]},ready:[['completed','Collected']],out_for_delivery:[['completed','Delivered']]};
 const nexts=o=>{const n=NEXT[o.status];return !n?[]:Array.isArray(n)?n:(n[o.fulfilment]||[])};
@@ -83,7 +83,7 @@ async function seed(){const c=(await catalog()).filter(p=>p.images?.length),step
       stock:stock[n%stock.length],active:n%11!==5,source:n%4?'wholesale':'manual',updated_at:new Date(Date.now()-n*36e5*5).toISOString()})}
   const L=M.L,cust=['Sam Patel','Priya Shah','Jo King','Tom Reed','Aisha Khan','Ben Carter','Lucy Moore','Raj Mehta','Emma Wilson','Dan Hughes'];
   const mk=(n,st,f,items,mins,ci,note)=>{const sub=items.reduce((t,[l,q])=>t+L[l].retail_price*q,0),fee=f==='delivery'?3.99:0,t0=Date.now()-mins*60000,steps=STEPS[f],path=DEAD.includes(st)?['placed',st]:steps.slice(0,steps.indexOf(st)+1);
-    M.O.push({id:'o'+n,order_number:'NB-'+(1000+n),shop_id:'s1',customer_name:cust[ci],customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?(20+n)+' Bushey Mill Lane, Watford':null,delivery_postcode:f==='delivery'?'WD24 7QS':null,
+    M.O.push({id:'o'+n,order_number:'NB-'+(1000+n),collection_pin:f==='collect'?String(3100+n*37).slice(-4):null,shop_id:'s1',customer_name:cust[ci],customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?(20+n)+' Bushey Mill Lane, Watford':null,delivery_postcode:f==='delivery'?'WD24 7QS':null,
       note:note||null,status:st,subtotal:sub,delivery_fee:fee,total:sub+fee,payment_method:f==='delivery'?'pay_on_delivery':'pay_on_collection',created_at:new Date(t0).toISOString(),reject_reason:st==='rejected'?'Out of stock, sorry':null,
       order_items:items.map(([l,q])=>({listing_id:L[l].id,sku:L[l].sku,name:L[l].name,image:L[l].image,unit_price:L[l].retail_price,qty:q})),order_events:path.map((s,i)=>({status:s,at:new Date(t0+i*11*60000).toISOString()}))})};
   const hr=new Date().getHours()*60+new Date().getMinutes(),td=m=>Math.min(m,Math.max(1,hr-5));  // keep "today" orders on today
@@ -105,7 +105,7 @@ const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?
 const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
 // after login / email confirmation: dashboard if there is a shop, otherwise shop registration
 function landSeller(){if(D.shop){location.hash='overview';return true}if(D.user){location.href=idx('view=register&seller=1');return true}return false}
-function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>shop<b>nip</b></span><small class="fs">for sellers</small></a>`;
+function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>`;
   return `<div class="gate sauth"><div class="card">${brand}<h2>${su?'Create your seller account':'Seller login'}</h2>
    <p>${su?'Put your shop on ShopNip. Free during the pilot. Every shop is reviewed before it goes live.':'Log in to manage your shop, orders and products.'}</p>
    ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
@@ -141,7 +141,7 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
   const SU='#signup',LI='#login',RG=idx('view=register&seller=1');
   const primary=has?`<a class="btn coral lg" href="#dash">Open seller dashboard ${svg('arrow')}</a>`:signed?`<a class="btn coral lg" href="${RG}">Register your shop ${svg('arrow')}</a>`:`<a class="btn coral lg" href="${SU}">Start selling free ${svg('arrow')}</a>`;
   const second=signed?`<a class="btn line lg" href="${home()}">Back to shopping</a>`:`<a class="btn line lg" href="${LI}">Log in</a>`;
-  return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="ShopNip home"><span class="mark">S</span><span>shop<b>nip</b></span><small>Sellers</small></a>
+  return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="ShopNip home"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Sellers</small></a>
    <nav aria-label="Seller page"><a href="#benefits" data-jump="benefits">Benefits</a><a href="#how" data-jump="how">How it works</a><a href="#fees" data-jump="fees">Fees</a><a href="#faq" data-jump="faq">FAQ</a></nav><span class="sp"></span>
    <a class="shopl" href="${home()}">Shop on ShopNip</a>${has?`<a class="btn white sm" href="#dash">Seller dashboard</a>`:signed?`<a class="btn white sm" href="${RG}">Register shop</a>`:`<a class="btn white sm" href="${LI}">Log in</a>`}</div></header>
   <section class="lhero"><div class="wrap"><div><span class="eyebrow"><i></i>For local shop owners · Free pilot</span>
@@ -174,7 +174,7 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
 const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};
 const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','tag'],['settings','cog']];
 const newCount=()=>D.O.filter(o=>o.status==='placed').length;
-function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>shop<b>nip</b></span></a>`;
+function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller dashboard</h2><p>Log in with your shop owner account to manage orders, products and your shop.</p>
    <div class="btns"><a class="btn lg" href="#login">Log in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on ShopNip</a></div></div></div>`;
   return `<div class="gate"><div class="card">${brand}<h2>Register your shop</h2><p>You’re logged in as ${esc(D.user.email)}, but there’s no shop on this account yet. It takes about three minutes.</p>
@@ -182,7 +182,7 @@ function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep()
 function dash(p){
   if(!D.user||!D.shop)return gate();
   const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`;
-  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">S</span><span>shop<b>nip</b></span><small>Seller</small></a></div>
+  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
    <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
    <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="${home()}">${svg('bag')}Shop as a customer</a><a href="#" data-a="logout">${svg('out')}Log out</a><small>ShopNip, a NuvonHub product</small></div></aside>`;
@@ -220,14 +220,30 @@ const actBtns=(o,cls='sm')=>nexts(o).map(([s,l])=>`<button class="btn ${cls} ${s
 PAGES.orders=()=>{const u=D.ui,q=u.oq.toLowerCase(),L=D.O.filter(FIL[u.of][1]).filter(o=>!q||(o.order_number+' '+o.customer_name+' '+(o.customer_phone||'')).toLowerCase().includes(q));
   return `<div class="ph"><div><h2>Orders</h2><p>${D.O.length} orders · customers pay you on collection or delivery</p></div><div class="acts"><span class="live"><i></i>${MOCK?'Live updates (preview)':'Live: new orders appear automatically'}</span>
    ${'Notification' in window&&Notification.permission==='default'?`<button class="btn ghost sm" data-a="notif">${svg('bell')}Enable alerts</button>`:''}${MOCK?`<button class="btn ghost sm" data-a="sim">${svg('plus')}Simulate order</button>`:''}</div></div>
+  ${verifyBox()}
   <div class="tools"><div class="seg">${Object.entries(FIL).map(([k,[l,f]])=>`<button data-of="${k}" class="${u.of===k?'on':''}">${l}<em>${D.O.filter(f).length}</em></button>`).join('')}</div>
    <label class="srch">${svg('search')}<input id="oq" placeholder="Search order number, customer or phone" value="${esc(u.oq)}"></label></div>
-  <div class="card">${L.length?`<table class="tbl resp"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Fulfilment</th><th>Status</th><th class="num">Total</th><th>Actions</th></tr></thead><tbody>
+  <div class="card">${L.length?`<table class="tbl resp ordtbl"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Fulfilment</th><th>Status</th><th class="num">Total</th><th>Actions</th></tr></thead><tbody>
    ${L.map(o=>`<tr class="click ${o.status==='placed'?'isnew':''} ${D.ui.newIds.has(o.id)?'flash':''}" data-o="${esc(o.id)}"><td><b>${esc(o.order_number)}</b><div class="mut">${when(o.created_at)}</div></td>
     <td data-l="Customer"><b style="font-weight:600">${esc(o.customer_name)}</b><div class="mut">${esc(o.customer_phone||'')}</div></td>
     <td data-l="Items" class="mut">${nItems(o)} item${nItems(o)===1?'':'s'}</td><td data-l="Fulfilment" class="mut">${o.fulfilment==='delivery'?'Delivery':'Click & collect'}</td>
     <td data-l="Status">${chip(o.status)}</td><td class="num" data-l="Total"><b>${gbp(o.total)}</b></td><td class="full"><div class="racts">${actBtns(o)||'<span class="mut">–</span>'}</div></td></tr>`).join('')}</tbody></table>`
    :`<div class="empty">${svg('orders')}<b>No ${FIL[u.of][0].toLowerCase()} orders</b>${u.oq?'Try a different search.':'New orders appear here instantly.'}</div>`}</div>`};
+/* click & collect verification: customer quotes "NB-1004 · PIN 4821" */
+const normQ=s=>(s||'').toUpperCase().replace(/\s+/g,'');
+function vMatch(q){q=normQ(q);if(!q)return [];const num=q.replace(/^NB-?/,'').replace(/PIN.*$/,'');const pin=(q.match(/PIN(\d{4})/)||[])[1];
+  return D.O.filter(o=>o.fulfilment==='collect'&&!DEAD.includes(o.status)&&o.status!=='completed'&&(pin?o.collection_pin===pin&&(!/^\d+$/.test(num)||o.order_number==='NB-'+num):(o.collection_pin&&o.collection_pin===q)||o.order_number==='NB-'+num))}
+function verifyBox(){const u=D.ui,m=u.vq?vMatch(u.vq):null;
+  return `<div class="card vbox" style="margin-bottom:14px"><div class="cb"><h3 style="margin:0 0 4px">${svg('check')} Verify collection</h3><p class="mut" style="margin:0 0 10px">Ask the customer for their order number or 4-digit PIN.</p>
+   <form data-a="vform" style="display:flex;gap:8px;flex-wrap:wrap"><input id="vq" placeholder="e.g. NB-1004 or 4821" value="${esc(u.vq||'')}" autocomplete="off" inputmode="text" style="flex:1;min-width:180px;padding:10px 12px;border:1px solid #d5dbd9;border-radius:10px;font:inherit;font-size:16px;letter-spacing:.04em"><button class="btn">Find order</button>${u.vq?'<button type="button" class="btn ghost" data-a="vclear">Clear</button>':''}</form>
+   ${m?(m.length?m.map(o=>`<div class="vres" style="margin-top:12px;padding:12px;border:2px solid #1f6f66;border-radius:12px;background:#effaf7">
+     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="font-size:18px">${esc(o.order_number)} · PIN ${esc(o.collection_pin||'—')}</b>${chip(o.status)}</div>
+     <div class="mut">${esc(o.customer_name)} · ${esc(o.customer_phone||'')} · ${gbp(o.total)} to pay on collection</div>
+     <ul style="margin:8px 0;padding-left:18px">${o.order_items.map(i=>`<li>${i.qty} × ${esc(i.name)}</li>`).join('')}</ul>
+     ${o.status==='placed'?'<p class="mut">Accept this order first, then hand it over.</p>':`<button class="btn" data-collect="${esc(o.id)}">${svg('check')}Mark collected · complete</button>`}</div>`).join('')
+     :`<p style="margin:12px 0 0;color:#e11d48">No open click &amp; collect order matches “${esc(u.vq)}”. Check the number or PIN with the customer.</p>`):''}</div></div>`}
+async function collect(id){const o=D.O.find(x=>x.id===id);if(!o)return;try{if(o.status==='accepted')await API.status(id,'ready');await API.status(id,'completed','Collected (verified)');D.O=await API.orders();D.ui.vq='';toast(o.order_number+' collected · completed');rerender()}catch(e){toast(e.message||'Could not complete order')}}
+document.addEventListener('submit',e=>{if(e.target.dataset.a!=='vform')return;e.preventDefault();D.ui.vq=(document.getElementById('vq')?.value||'').trim();rerender()});
 function timeline(o){const steps=STEPS[o.fulfilment]||STEPS.collect,ev={};(o.order_events||[]).forEach(e=>ev[e.status]=e);const end=DEAD.includes(o.status),ix=steps.indexOf(o.status);
   let list=steps.map((s,i)=>({s,done:end?!!ev[s]:i<=ix,cur:!end&&i===ix,at:ev[s]?.at}));if(end){list=list.filter(x=>x.done);list.push({s:o.status,done:true,cur:true,bad:true,at:ev[o.status]?.at,note:ev[o.status]?.note||o.reject_reason})}
   return `<ol class="tl">${list.map(x=>`<li class="${x.done?'d':''} ${x.cur?'c':''} ${x.bad?'bad':''}"><i></i><b>${x.s==='placed'?'Placed':LBL[x.s]}</b>${x.at?`<small>${when(x.at)}</small>`:''}${x.note?`<small>“${esc(x.note)}”</small>`:''}</li>`).join('')}</ol>`}
@@ -235,8 +251,8 @@ function drawer(){const o=D.ui.drawer&&D.O.find(x=>x.id===D.ui.drawer);if(!o)ret
   return `<div class="drw on"><div class="bg" data-a="close"></div><div class="pn2" role="dialog" aria-label="Order ${esc(o.order_number)}"><div class="dh"><div style="flex:1"><h3>${esc(o.order_number)}</h3><small class="mut">${when(o.created_at)}</small></div>${chip(o.status)}<button class="ib" data-a="close" aria-label="Close">${svg('x')}</button></div>
    <div class="db"><div class="card"><div class="cb">${timeline(o)}</div></div>
     <div class="card"><div class="chd"><h3>Customer</h3><a href="tel:${esc(o.customer_phone)}">Call</a></div><div class="cb"><div class="kv"><span>Name</span><b>${esc(o.customer_name)}</b></div><div class="kv"><span>Phone</span><a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a></div>
-     <div class="kv"><span>${o.fulfilment==='delivery'?'Deliver to':'Fulfilment'}</span><span style="color:var(--txt);text-align:right">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+', '+(o.delivery_postcode||'')):'Click & collect in store'}</span></div>${o.note?`<div class="kv"><span>Note</span><span style="color:var(--txt);text-align:right">“${esc(o.note)}”</span></div>`:''}</div></div>
-    <div class="card"><div class="chd"><h3>Items · ${nItems(o)}</h3></div><div class="cb">${o.order_items.map(i=>`<div class="oi"><img class="pimg" src="${esc(i.image||'icon-192.png')}" alt="" onerror="this.src='icon-192.png'"><span>${i.qty} × ${esc(i.name)}</span><b>${gbp(i.unit_price*i.qty)}</b></div>`).join('')}
+     <div class="kv"><span>${o.fulfilment==='delivery'?'Deliver to':'Fulfilment'}</span><span style="color:var(--txt);text-align:right">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+', '+(o.delivery_postcode||'')):'Click & collect in store'}</span></div>${o.fulfilment==='collect'&&o.collection_pin?`<div class="kv"><span>Collection PIN</span><b style="font-size:16px;letter-spacing:.06em">${esc(o.collection_pin)}</b></div>`:''}${o.note?`<div class="kv"><span>Note</span><span style="color:var(--txt);text-align:right">“${esc(o.note)}”</span></div>`:''}</div></div>
+    <div class="card"><div class="chd"><h3>Items · ${nItems(o)}</h3></div><div class="cb">${o.order_items.map(i=>`<div class="oi"><img class="pimg" src="${esc(i.image||'icon-192.png')}" alt="" data-fb><span>${i.qty} × ${esc(i.name)}</span><b>${gbp(i.unit_price*i.qty)}</b></div>`).join('')}
      <div class="kv"><span>Subtotal</span><span>${gbp(o.subtotal??o.total)}</span></div>${+o.delivery_fee?`<div class="kv"><span>Delivery</span><span>${gbp(o.delivery_fee)}</span></div>`:''}<div class="kv tot"><span style="color:var(--txt)">Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</span><span>${gbp(o.total)}</span></div></div></div></div>
    ${a?`<div class="df">${a}</div>`:''}</div></div>`}
 const PF={all:['All',()=>true],live:['Live',l=>l.active],hidden:['Hidden',l=>!l.active],low:['Low stock',l=>l.stock>0&&l.stock<=LOW],out:['Out of stock',l=>l.stock<=0],auto:['Auto-listed',l=>l.source!=='manual']};
@@ -245,7 +261,7 @@ PAGES.products=()=>{const u=D.ui,q=u.pq.toLowerCase(),all=D.L.filter(PF[u.pf][1]
   <div class="tools"><div class="seg">${Object.entries(PF).map(([k,[l,f]])=>`<button data-pf="${k}" class="${u.pf===k?'on':''}">${l}<em>${D.L.filter(f).length}</em></button>`).join('')}</div>
    <label class="srch">${svg('search')}<input id="pq" placeholder="Search name or SKU" value="${esc(u.pq)}"></label></div>
   <div class="card">${L.length?`<table class="tbl resp prod"><thead><tr><th>Product</th><th class="num">Trade</th><th>Retail price</th><th>Was price</th><th>Stock</th><th>Margin</th><th>Live</th></tr></thead><tbody>
-   ${L.map(l=>{const m=+l.retail_price>0?pct(+l.retail_price,+l.trade_price)+'%':'–';return `<tr data-l-id="${esc(l.id)}"><td class="full"><div class="pc"><img class="pimg" src="${esc(l.image||'icon-192.png')}" alt="" loading="lazy" onerror="this.src='icon-192.png'"><div><b>${esc(l.name)}</b><small class="mut">${esc(l.sku)}${l.source!=='manual'?' · <span class="auto">Auto-listed</span>':''}${l.stock<=0?' · <span class="oos">Out of stock</span>':l.stock<=LOW?' · <span class="lowt">Low</span>':''}</small></div></div></td>
+   ${L.map(l=>{const m=+l.retail_price>0?pct(+l.retail_price,+l.trade_price)+'%':'–';return `<tr data-l-id="${esc(l.id)}"><td class="full"><div class="pc"><img class="pimg" src="${esc(l.image||'icon-192.png')}" alt="" loading="lazy" data-fb><div><b>${esc(l.name)}</b><small class="mut">${esc(l.sku)}${l.source!=='manual'?' · <span class="auto">Auto-listed</span>':''}${l.stock<=0?' · <span class="oos">Out of stock</span>':l.stock<=LOW?' · <span class="lowt">Low</span>':''}</small></div></div></td>
     <td class="num mut" data-l="Trade">${gbp(l.trade_price)}</td>
     <td data-l="Retail"><span class="mi"><i>£</i><input type="number" step="0.01" min="0" inputmode="decimal" data-f="retail_price" value="${(+l.retail_price||0).toFixed(2)}" aria-label="Retail price"></span></td>
     <td data-l="Was"><span class="mi"><i>£</i><input type="number" step="0.01" min="0" inputmode="decimal" data-f="compare_at_price" value="${l.compare_at_price?(+l.compare_at_price).toFixed(2):''}" placeholder="–" aria-label="Was price"></span></td>
@@ -275,7 +291,7 @@ PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
    <div class="cards"><div class="card fs"><div class="chd"><h3>Collection &amp; delivery</h3></div><div class="cb">
      <label class="tg"><span><b>Click &amp; collect</b><small>Customers collect and pay in store</small></span><span class="sw"><input type="checkbox" name="collect" ${d.collect!==false?'checked':''}><i></i></span></label>
      <label class="tg"><span><b>Local delivery</b><small>You deliver; customers pay on delivery</small></span><span class="sw"><input type="checkbox" name="delivery" ${d.delivery?'checked':''}><i></i></span></label>
-     <div class="row2"><label class="fld"><span>Radius (miles)</span><input name="delivery_radius_miles" type="number" min="0" step="0.5" value="${d.delivery_radius_miles??5}"></label><label class="fld"><span>Delivery fee (£)</span><input name="delivery_fee" type="number" min="0" step="0.01" value="${(+(d.delivery_fee??0)).toFixed(2)}"></label></div></div></div>
+     <div class="row2"><label class="fld"><span>Radius (miles)</span><input name="delivery_radius_miles" type="number" min="0" step="0.5" value="${+(d.delivery_radius_miles??5)||0}"></label><label class="fld"><span>Delivery fee (£)</span><input name="delivery_fee" type="number" min="0" step="0.01" value="${(+(d.delivery_fee??0)).toFixed(2)}"></label></div></div></div>
     <div class="card fs"><div class="chd"><h3>Branding</h3></div><div class="cb">
      <div class="upl"><span class="lgp">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>Logo</b><small class="mut">Square, at least 256px</small></div><label class="btn ghost sm">Upload<input type="file" accept="image/*" data-up="logo" hidden></label></div>
      <div class="upl"><span class="cvp">${s.cover_url?`<img src="${esc(s.cover_url)}" alt="">`:''}</span><div><b>Cover image</b><small class="mut">Wide, shown on your shop page</small></div><label class="btn ghost sm">Upload<input type="file" accept="image/*" data-up="cover" hidden></label></div></div></div></div>
@@ -307,6 +323,8 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
       order_items:[{listing_id:it[0].id,sku:it[0].sku,name:it[0].name,image:it[0].image,unit_price:it[0].retail_price,qty:2},{listing_id:it[1].id,sku:it[1].sku,name:it[1].name,image:it[1].image,unit_price:it[1].retail_price,qty:1}],order_events:[{status:'placed',at:ts}]};
     M.O.unshift(o);onLive({eventType:'INSERT',new:o});return}
   if(d.st){e.stopPropagation();setStatus(d.id,d.st);return}
+  if(d.collect){e.preventDefault();e.stopPropagation();collect(d.collect);return}
+  if(d.a==='vclear'){e.preventDefault();D.ui.vq='';rerender();return}
   if(d.of){D.ui.of=d.of;rerender();return}if(d.pf){D.ui.pf=d.pf;D.ui.pn=60;rerender();return}
   if(d.a==='pmore'){D.ui.pn+=60;rerender();return}
   if(d.a==='addcat'){D.ui.cat=true;D.ui.cq='';rerender();catalog().then(rerender);return}
@@ -337,3 +355,4 @@ boot();
 })();
 /* sign-out on index.html (shared Supabase session) signs this tab out too */
 addEventListener('storage',e=>{if((e.key&&/^sb-.*auth-token$/.test(e.key)&&!e.newValue)||(e.key==='nb_mock_out'&&e.newValue))location.reload()});
+

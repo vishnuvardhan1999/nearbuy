@@ -39,7 +39,7 @@ addEventListener('click',e=>{const t=e.target.closest('[data-plink]');if(!t)retu
 const pct=(p,c)=>Math.round((1-p/c)*100);
 const _card=P4.card;P4.card=p=>{let h=_card(p);if(p.cmp&&p.cmp>p.price){h=h.replace('<div class="pim">',`<div class="pim"><span class="disc">-${pct(p.price,p.cmp)}%</span>`).replace(/(<span class="pr">.*?)<\/span>/,`$1 <s>${gbp(p.cmp)}</s></span>`)}return h};
 function dcard(p,demo){const d=pct(p.price,p.cmp),s=!demo&&S.shops.find(x=>x.id===p.shop_id);
-  return `<div class="pc deal" data-psku="${esc(p.sku)}" data-lid="${esc(demo?'':p.listing_id||'')}"><div class="pim"><span class="disc">-${d}%</span>${demo?'':''}<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
+  return `<div class="pc deal" data-psku="${esc(p.sku)}" data-lid="${esc(demo?'':p.listing_id||'')}"><div class="pim"><span class="disc">-${d}%</span>${demo?'':''}<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fb></div>
   <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pmeta">${demo?'':s?esc(s.name):''}</div>
   <div class="dpr"><b>${gbp(p.price)}</b><s>${gbp(p.cmp)}</s></div><div class="dbar"><i style="width:${30+(p.sku.length*13)%60}%"></i></div>
   <div class="pf">${demo?`<button class="ntf" data-ntf="${esc(p.sku)}">Notify me</button>`:`<span class="save">Save ${gbp(p.cmp-p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add">${svg('plus')}</button>`}</div></div></div>`}
@@ -122,7 +122,7 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='nwf')return;e.pre
 
 // ---------- ticker + glassy header + mega menu ----------
 function chrome(){const top=$('.top');if(!top||$('.ticker'))return;
-  const items=[['bag','Free click & collect'],['pin','Local shops near you'],['store','Join the pilot','#sell'],['lock','Pay at the shop'],['bolt','Same-day local delivery'],['tag','Deals every day','#search']];
+  const items=[['bag','Free click & collect'],['bolt','Same-day local delivery'],['lock','Pay at the shop']];/* p25: shorter ticker */
   const one=items.map(([i,t,l])=>`<span ${l?`data-plink="${l}" class="tk-l"`:''}>${svg(i)}${t}</span>`).join('<i>•</i>');
   top.insertAdjacentHTML('afterbegin',`<div class="ticker" role="marquee" aria-label="Announcements"><div class="tk">${one}<i>•</i>${one}<i>•</i></div></div>`);
   const mm=CATS.map(([l,t],i)=>{const ps=CAT().filter(p=>p.images?.length&&t(p));const thumbs=[0,7,15,23].map(k=>ps[k]).filter(Boolean);

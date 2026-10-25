@@ -33,7 +33,7 @@ function card(p){const o=p.offers||[],soon=p.demo&&!p.listing_id,s=!soon&&shopOf
   const meta=soon?'<div class="pmeta soonm">Not stocked near you yet</div>':o.length>1?`<div class="pmeta"><b>${o.length} shops nearby</b>${d!=null?' · nearest '+fmi(d):''}</div>`:s?`<div class="pmeta">${svg('store')}${esc(s.name)}${d!=null?' · '+fmi(d):''}</div>`:'';
   const price=soon?'':o.length>1?`<span class="pr"><small>From</small> ${gbp(p.price)}</span>`:`<span class="pr">${gbp(p.price)}</span>`;
   const btn=soon?`<button class="ntf ${on?'on':''}" data-ntf="${esc(p.sku)}">${on?svg('check')+'Notified':'Notify me'}</button>`:`<button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button>`;
-  return `<div class="pc ${soon?'soon':''}" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" onerror="this.src='icon-192.png'"></div>
+  return `<div class="pc ${soon?'soon':''}" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fb></div>
 <div class="pb"><div class="pn">${esc(p.name)}</div>${meta}<div class="pf">${price}${btn}</div></div></div>`}
 
 function notify(sku){const n=NT(),i=n.indexOf(sku);i<0?n.push(sku):n.splice(i,1);localStorage.nb_notify=JSON.stringify(n);
