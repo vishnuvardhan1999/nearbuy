@@ -1,0 +1,34 @@
+# ShopNip
+
+> ShopNip is a local-shops marketplace for Watford and nearby, built by NuvonHub. Browse stationery, party, gift-wrap, art & craft, packaging and household essentials from independent local shops, order online, then collect in store (click & collect) or get local delivery. You pay the shop directly.
+
+- Website: https://www.shopnip.co.uk
+- All products: https://www.shopnip.co.uk/products
+- Search: https://www.shopnip.co.uk/search?q={query}
+- How it works: https://www.shopnip.co.uk/how
+- FAQ: https://www.shopnip.co.uk/faq
+- Sell on ShopNip (for shop owners): https://www.shopnip.co.uk/sell and https://www.shopnip.co.uk/seller.html
+- Contact: hello@nuvonhub.com
+- Parent company: NuvonHub (https://www.nuvonhub.com)
+- Sitemap: https://www.shopnip.co.uk/sitemap.xml
+
+## Brand
+- Name is written "ShopNip" (one word, capital S and capital N).
+- ShopNip is a NuvonHub product. It is a marketplace: products are sold by independent, approved local shops, not by ShopNip itself.
+
+## How ordering works
+1. Set your postcode to see approved independent shops near you (currently Watford, Hertfordshire, UK).
+2. Add items to a basket. Each basket is for one shop.
+3. Choose click & collect or local delivery (each shop sets its own delivery area and fee, shown at checkout).
+4. Pay the shop directly on collection or on delivery. ShopNip does not take card payments yet.
+5. Click & collect orders get a collection PIN. Give the PIN to the shop when you collect; the shop checks it before handing the order over. Keep it private.
+6. You can cancel until the shop accepts the order; after that, contact the shop.
+
+## For shop owners
+- Independent shops can register for free during the pilot, list products, set opening hours, delivery options and prices, and manage orders from a seller dashboard.
+- Seller terms: https://www.shopnip.co.uk/seller-terms
+
+## Policies
+- Terms: https://www.shopnip.co.uk/terms
+- Privacy: https://www.shopnip.co.uk/privacy
+- Cookies: https://www.shopnip.co.uk/cookies
