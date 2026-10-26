@@ -349,7 +349,7 @@ document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf')
    try{const x=await API.saveShop(r);D.shop={...s,...x};toast('Shop settings saved');rerender()}catch(er){toast(er.message||'Could not save')}}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(D.ui.drawer||D.ui.cat)){D.ui.drawer=null;D.ui.cat=false;rerender()}});
 if('serviceWorker' in navigator&&!MOCK)navigator.serviceWorker.register('sw.js').catch(()=>{});
-window.NBSeller={D,API,render};
+window.NBSeller={D,API,render,rerender,PAGES,NAV,TITLE,DASH,I,M,MOCK,sb,catalog,svg,esc,gbp,gbp0,toast,keep,LOW,DEAD,OPEN,LBL,chip,nexts,actBtns,when,ago};
 if(!MOCK)catalog().then(()=>{if(!page())rerender()});else catalog();
 boot();
 })();

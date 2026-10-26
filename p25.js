@@ -7,7 +7,7 @@ const keepQS=extra=>{const Q=new URLSearchParams(location.search),o=new URLSearc
 const slug=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
 const SITE=(CFG.SITE_URL||'https://www.shopnip.co.uk').replace(/\/$/,'');
 const INFO=['about','how','sell','faq','contact','terms','privacy','seller-terms','cookies'];
-const SIMPLE=['basket','checkout','orders','account','register','myshop','inbox','addprod'];
+const SIMPLE=['basket','checkout','orders','account','register','myshop','inbox','addprod','partner'];
 const shopSlug=s=>{const b=slug(s.name);return S.shops.filter(x=>slug(x.name)===b).length>1?b+'-'+String(s.id).slice(0,8):b};
 const findShop=seg=>S.shops.find(s=>shopSlug(s)===seg||String(s.id)===seg)||S.shops.find(s=>String(s.id).startsWith(seg.split('-').pop()));
 

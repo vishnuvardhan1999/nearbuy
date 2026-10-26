@@ -14,7 +14,7 @@
  ],
  "rewrites": [
   {
-   "source": "/(products|search|basket|checkout|orders|account|register|myshop|inbox|addprod|about|how|sell|faq|contact|terms|privacy|seller-terms|cookies)",
+   "source": "/(products|search|basket|checkout|orders|account|register|myshop|inbox|addprod|partner|about|how|sell|faq|contact|terms|privacy|seller-terms|cookies)",
    "destination": "/index.html"
   },
   {
