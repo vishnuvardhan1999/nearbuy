@@ -157,14 +157,10 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
    <div class="ben">${BEN.map(([i,t,p])=>`<div><span class="ic">${svg(i)}</span><h3>${t}</h3><p>${p}</p></div>`).join('')}</div></div></section>
   <section class="lsec" id="how"><div class="wrap"><span class="kick">How it works</span><h2>Live in four simple steps</h2><p class="sub">Most shops are set up in about ten minutes, then approved within a working day.</p>
    <div class="steps">${HOW.map(([t,p])=>`<div><h3>${t}</h3><p>${p}</p></div>`).join('')}</div></div></section>
-  <section class="lsec alt" id="fees"><div class="wrap"><span class="kick">Fees</span><h2>Free while we grow together</h2><p class="sub">Join during the pilot and pay nothing. The plans below are indicative and still being finalised with pilot shops.</p>
+  <section class="lsec alt" id="fees"><div class="wrap"><span class="kick">Fees</span><h2>Free while we grow together</h2><p class="sub">Join during the pilot and pay nothing.</p>
    <div class="fees"><div class="plan hot"><span class="badge">Available now</span><h3>Pilot</h3><div class="pr">£0 <small>/ month</small></div><small>No commission during the pilot</small>
-     <ul><li>${svg('check')}Your own shop page</li><li>${svg('check')}Products auto-listed from wholesale orders</li><li>${svg('check')}Click &amp; collect and local delivery</li><li>${svg('check')}Seller dashboard with order alerts</li></ul></div>
-    <div class="plan"><span class="tagp">Planned</span><h3 style="margin-top:10px">Starter</h3><div class="pr">~£9.99 <small>/ month</small></div><small>Plus around 5–10% commission per order (indicative)</small>
-     <ul><li>${svg('check')}Everything in Pilot</li><li>${svg('check')}Deals and “was” prices</li><li>${svg('check')}Sales insights</li></ul></div>
-    <div class="plan"><span class="tagp">Planned</span><h3 style="margin-top:10px">Growth</h3><div class="pr">~£19.99 <small>/ month</small></div><small>Plus around 5–10% commission per order (indicative)</small>
-     <ul><li>${svg('check')}Everything in Starter</li><li>${svg('check')}Featured shop and sponsored placements</li></ul></div></div>
-   <p class="fnote">Planned prices are indicative only and may change before launch. Pilot shops will get at least 30 days’ notice before any fees apply, and paid plans will be optional.</p></div></section>
+     <ul><li>${svg('check')}Your own shop page</li><li>${svg('check')}Products auto-listed from wholesale orders</li><li>${svg('check')}Click &amp; collect and local delivery</li><li>${svg('check')}Seller dashboard with order alerts</li></ul></div></div>
+   <p class="fnote">Pilot shops will get at least 30 days’ notice before any fees apply.</p></div></section>
   <section class="lsec" id="faq"><div class="wrap"><span class="kick">FAQs</span><h2>Questions from shop owners</h2><p class="sub">Can’t find your answer? Email <a href="mailto:${esc(MAIL)}">${esc(MAIL)}</a>.</p>
    <div class="faq">${FAQ.map(([q,a],i)=>`<details ${i?'':'open'}><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></div></section>
   <section class="lsec" style="padding-top:0"><div class="wrap"><div class="lcta"><div><h2>Ready to bring your shop online?</h2><p>Join the free pilot today. It takes about ten minutes.</p></div>
