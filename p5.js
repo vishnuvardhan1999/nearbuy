@@ -46,12 +46,15 @@ function dcard(p,demo){const d=pct(p.price,p.cmp),s=!demo&&S.shops.find(x=>x.id=
 const sponsoredCard=(p,promo)=>P4.card(p).replace('<div class="pb">','<div class="pb"><span class="spons">Sponsored</span>').replace('class="pc','class="pc sp');
 // ---------- sections ----------
 const head=(t,extra='',more='')=>`<div class="sh5"><h2>${t}</h2>${extra}${more}</div>`;
-function hero(){const B=banners();return `<section class="h5" id="h5" aria-roledescription="carousel"><div class="h5s">${B.map((b,i)=>{const im=b.image?'':(b.sku?[S.products.find(p=>p.sku===b.sku)].filter(Boolean):cpick(b.kw||['pen'],3,i)).map((p,j)=>`<span class="cut c${j}"><img src="${esc(p.images[0])}" alt=""></span>`).join('');
-  return `<div class="h5i th-${esc(b.theme||'teal')} ${i?'':'on'}" ${b.image?`style="--bg:url('${esc(b.image)}')"`:''} data-i="${i}">${b.image?'<div class="h5bg"></div>':''}<div class="h5o"></div>
-   <div class="h5t"><span class="h5k">${esc(b.k||'ShopNip')}</span><h1>${esc(b.title)}</h1>${b.subtitle?`<p>${esc(b.subtitle)}</p>`:''}<button class="h5c" data-plink="${esc(b.link||'#search')}">${esc(b.cta||'Shop now')}${svg('arrow')}</button></div>
-   <div class="h5p">${im}<i class="orb o1"></i><i class="orb o2"></i></div></div>`}).join('')}</div>
-  <button type="button" class="h5a h5prev" data-h5go="-1" aria-label="Previous slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="h5a h5next" data-h5go="1" aria-label="Next slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
-  <div class="h5d">${B.map((_,i)=>`<button data-h5="${i}" class="${i?'':'on'}" aria-label="Slide ${i+1}"><i></i></button>`).join('')}</div></section>`}
+function hero(){return `<section class="hero-uk" id="h5" aria-labelledby="hero-h">
+  <div class="hero-copy">
+   <p class="eyebrow">Local shops · United Kingdom</p>
+   <h1 id="hero-h">Order from the shops on your street.</h1>
+   <p>Click &amp; collect or local delivery from independent shops. Prices in pounds. You pay the shop — ShopNip does not take a card payment online.</p>
+   <div class="hero-cta"><button class="h5c" data-setpc type="button">Set your postcode</button><button class="h5c ghost" data-t="search" type="button">Browse products</button></div>
+   <p class="hero-fine">Welcome offer: free delivery on your first order, when the shop delivers.</p>
+  </div>
+ </section>`}
 const trust=()=>`<div class="trust">${[['lock','Secure ordering','Sign-in & verified shops'],['store','Local shops','Independents near you'],['clock','Quick collection','Often ready same day'],['chat','Friendly support','Real people, UK based']].map(([i,t,s])=>`<div>${svg(i)}<span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>`;
 function deals(){let L=S.products.filter(p=>p.cmp>p.price&&!p.demo),demo=false;
   if(!L.length)return '';L=L.sort((a,b)=>pct(b.price,b.cmp)-pct(a.price,a.cmp)).slice(0,12);
@@ -87,6 +90,7 @@ const CEMO={'Stationery':'✏️','Party':'🎈','Art & craft':'🎨','Gift wrap
 function home5(){const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0]||CAT().find(t);return `<button class="cat" data-cat="${i}"><span class="ci" data-emo="${CEMO[l]||'🛍️'}">${p?`<img src="${esc(p.images[0])}" alt="" onerror="this.remove()">`:''}</span>${l}</button>`}).join('');
   return `${hero()}
   ${shopsSection().replace('class="sec"','class="sec sec5"')}
+  <!--promos-->
   ${CROWS.map(([t,w,q],k)=>crow(t,p=>kw(...w)(p)&&(k!==2||!/candle/i.test(p.name)),q,k)).join('')}
   <!--tgrid-->
   ${trust()}

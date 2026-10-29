@@ -10,16 +10,27 @@
    ],
    "destination": "https://www.shopnip.co.uk/:path",
    "permanent": true
-  }
+  },
+  {"source": "/cart", "destination": "/basket", "permanent": true},
+  {"source": "/login", "destination": "/account", "permanent": false},
+  {"source": "/signin", "destination": "/account", "permanent": false},
+  {"source": "/signup", "destination": "/account?view=signup", "permanent": false},
+  {"source": "/shop", "destination": "/products", "permanent": false},
+  {"source": "/stores", "destination": "/", "permanent": false},
+  {"source": "/help", "destination": "/faq", "permanent": false},
+  {"source": "/shipping", "destination": "/faq", "permanent": false},
+  {"source": "/returns", "destination": "/faq", "permanent": false},
+  {"source": "/blog", "destination": "/", "permanent": false},
+  {"source": "/seller", "destination": "/seller.html", "permanent": false}
  ],
  "rewrites": [
   {
    "source": "/(products|search|basket|checkout|orders|account|register|myshop|inbox|addprod|partner|about|how|sell|faq|contact|terms|privacy|seller-terms|cookies)",
-   "destination": "/index.html"
+   "destination": "/api/shell?path=/$1"
   },
   {
    "source": "/(product|shop|category|collection|orders)/(.*)",
-   "destination": "/index.html"
+   "destination": "/api/shell?path=/$1/$2"
   }
  ],
  "headers": [
@@ -55,6 +66,14 @@
      "value": "same-origin"
     }
    ]
+  },
+  {
+   "source": "/(.*)\\.css",
+   "headers": [{"key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400"}]
+  },
+  {
+   "source": "/(.*)\\.(png|jpg|jpeg|svg|ico|webp)",
+   "headers": [{"key": "Cache-Control", "value": "public, max-age=604800"}]
   },
   {
    "source": "/sw.js",
