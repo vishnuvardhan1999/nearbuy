@@ -57,7 +57,7 @@ const grid=()=>`<section class="tgrid">${TILES.map(([t,l,g,f],i)=>{const ps=mix(
 // ---------- install over p5's home ----------
 const _home=V.home;
 V.home=function(...a){let h=_home.apply(this,a);
-  h=h.replace(/<section class="h5"[\s\S]*?<\/section>/,strip()+grid()).replace(/<section class="tiles">[\s\S]*?<\/section>/,'');
+  h=h.replace(/<section class="h5"[\s\S]*?<\/section>/,strip()).replace('<!--tgrid-->',grid()).replace(/<section class="tiles">[\s\S]*?<\/section>/,'');
   return h};
 addEventListener('click',e=>{const b=e.target.closest('[data-psgo]');if(!b)return;e.preventDefault();e.stopPropagation();const r=$('#psr');r.scrollBy({left:(+b.dataset.psgo)*r.clientWidth*.8,behavior:'smooth'})},true);
 const upd=()=>{const r=$('#psr');if(!r)return;const s=r.closest('.pstrip');s.classList.toggle('atstart',r.scrollLeft<8);s.classList.toggle('atend',r.scrollLeft+r.clientWidth>=r.scrollWidth-8)};
@@ -95,7 +95,7 @@ const realProducts=()=>S.products.filter(p=>!p.demo&&p.offers?.length);
 const value=()=>`<div class="vstrip" aria-label="Why shop with ShopNip">${[['store','Local shops','Independents near you'],['bolt','Same-day delivery','From shops that deliver locally'],['bag','Pay at the shop','On collection or delivery'],['heart','Support local','Your money stays on your high street']].map(([i,t,s])=>`<div class="vs">${svg(i)}<span><b>${t}</b><small>${s}</small></span></div>`).join('')}</div>`;
 function about(){const ns=realShops().length,np=realProducts().length;
   const stats=ns&&np?`<div class="abst"><div><b>${ns}</b><small>local shop${ns>1?'s':''} live</small></div><div><b>${np}</b><small>product${np>1?'s':''} to order</small></div></div>`:'';
-  const vals=[['store','Real independent shops','Every shop is a local independent, reviewed and approved by us. No warehouses.'],['bolt','Collect or local delivery','Pick up on your way home, or have it delivered by shops that deliver nearby.'],['lock','Pay at the shop','Pay the shop on collection or delivery. Online payments are coming later.'],['check','Always up to date','Shop listings fill automatically from each shop’s wholesale orders.']];
+  const vals=[['store','Real independent shops','Every shop is a local independent, reviewed and approved by us. No warehouses.'],['bolt','Collect or local delivery','Pick up on your way home, or have it delivered by shops that deliver nearby.'],['lock','Pay at the shop','Pay the shop on collection or delivery.'],['check','Always up to date','Shop listings fill automatically from each shop’s wholesale orders.']];
   const steps=[['pin','Set your postcode','See the local shops near you.'],['search','Browse & compare','Search everything stocked on your high street.'],['bag','Order ahead','Choose click & collect or local delivery.'],['heart','Pay at the shop','Collect, pay and support local.']];
   return `<section class="about12" id="about" aria-labelledby="ab-h"><div class="abin">
    <div class="abtop rv"><span class="abk">About ShopNip · a NuvonHub product</span><h2 id="ab-h">Your high street, <em>in your pocket.</em></h2>
@@ -118,7 +118,7 @@ window.P12={about:toAbout};
 // scroll reveal
 let io;function reveal(){const v=$('#view');if(!v||!v.querySelector('.h12'))return;
   const els=v.querySelectorAll('.h12>section:not(.pstrip),.h12>.vstrip,.h12 .tcard,.h12 .rv');
-  if(RM()||!('IntersectionObserver' in window)){els.forEach(e=>e.classList.add('in'));return}
+  if(true){els.forEach(e=>e.classList.add('in'));return}
   io?.disconnect();io=new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{rootMargin:'0px 0px -6% 0px',threshold:.06});
   els.forEach(e=>{if(!e.classList.contains('in')){e.classList.add('rv');io.observe(e)}})}
 new MutationObserver(reveal).observe(document.getElementById('view'),{childList:true});reveal();

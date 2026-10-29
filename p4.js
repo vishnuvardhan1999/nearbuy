@@ -80,7 +80,7 @@ V.search=function(){const q=$('#q').value.trim(),t=q.toLowerCase().split(/\s+/).
     return {...p,offers:of,listing_id:of[0].listing_id,shop_id:of[0].shop_id,stock:of[0].stock,price:Math.min(...of.map(o=>o.price)),dist:of.reduce((m,o)=>o.dist!=null&&(m==null||o.dist<m)?o.dist:m,null)}}).filter(Boolean);
   const so={nearest:(a,b)=>(a.dist??1e9)-(b.dist??1e9)||a.price-b.price,price:(a,b)=>a.price-b.price,price_desc:(a,b)=>b.price-a.price,newest:(a,b)=>(b.updated||'')<(a.updated||'')?-1:1}[F.sort];res.sort(so);
   const have=new Set(live.map(p=>p.sku));
-  const soon=[]||CAT.filter(p=>p.images?.length&&!have.has(p.sku)&&(!t.length||match(p,t))&&(!F.cat||p.category===F.cat)).slice(0,24).map(p=>({...p,demo:true})):[];
+  const soon=[];
   const cats=[...new Set([...live,...CAT].map(p=>p.category).filter(Boolean))].sort();
   const nf=[F.cat,F.min,F.max,F.dist,F.stock,F.ful].filter(Boolean).length;
   const rec=REC();

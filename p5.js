@@ -81,11 +81,16 @@ const news=()=>`<section class="news"><div class="nwt"><span class="h5k">${svg('
   <form class="nwf" id="nwf"><div class="nwi"><input type="email" id="nw_e" required placeholder="you@example.com" aria-label="Email address" autocomplete="email"><input id="nw_p" placeholder="Postcode" aria-label="Postcode (optional)" value="${esc(S.pc||'')}" maxlength="8"></div>
   <button class="btn" type="submit">Get deals ${svg('arrow')}</button><small>By subscribing you agree to receive emails from ShopNip. See our <a href="#privacy">Privacy Policy</a>.</small><div class="nwok" id="nwok"></div></form></section>`;
 function rowSec(t,f,s,i,extra=''){const items=pick(f,12,s);if(!items.length)return '';return `<section class="sec5">${head(t,'',`<a href="#" data-sec="${i}" class="more">See all ${svg('arrow')}</a>`)}<div class="row prods">${extra}${items.map(pcard).join('')}</div></section>`}
-function home5(){const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0]||CAT().find(t);return `<button class="cat" data-cat="${i}"><span class="ci">${p?`<img src="${esc(p.images[0])}" alt="">`:''}</span>${l}</button>`}).join('');
-  return `${hero()}${trust()}
-  
-  <section class="sec5">${head('Shop by category')}<div class="cats">${cats}</div></section>
+const CROWS=[['Top-selling stationery',['pen','pencil','notebook','highlighter','marker','stapler'],'stationery'],['Birthday candles',['candle'],'candle'],['Balloons & party',['balloon','party','banner','confetti'],'balloon'],['Parcel bags & boxes',['parcel','mailing','postal','padded','box'],'parcel']];
+function crow(t,f,q,k){const items=pick(f,12,k*3+1);if(!items.length)return '';return `<section class="sec5 crow">${head(t,'',`<a href="#" data-plink="q:${esc(q)}" class="more">See all ${svg('arrow')}</a>`)}<div class="row prods">${items.map(pcard).join('')}</div></section>`}
+const CEMO={'Stationery':'✏️','Party':'🎈','Art & craft':'🎨','Gift wrap':'🎁','Cards':'💌','Packaging':'📦','Tapes':'🧻','Tapes & glue':'🧴','Household':'🏠','Toys':'🧸','Toys & games':'🧸','Office':'📎','School':'🎒','Seasonal':'🎄'};
+function home5(){const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0]||CAT().find(t);return `<button class="cat" data-cat="${i}"><span class="ci" data-emo="${CEMO[l]||'🛍️'}">${p?`<img src="${esc(p.images[0])}" alt="" onerror="this.remove()">`:''}</span>${l}</button>`}).join('');
+  return `${hero()}
   ${shopsSection().replace('class="sec"','class="sec sec5"')}
+  ${CROWS.map(([t,w,q],k)=>crow(t,p=>kw(...w)(p)&&(k!==2||!/candle/i.test(p.name)),q,k)).join('')}
+  <!--tgrid-->
+  ${trust()}
+  <section class="sec5">${head('Shop by category')}<div class="cats">${cats}</div></section>
   ${deals()}${tiles()}
   ${rowSec('Best sellers',SECTIONS[0][1],SECTIONS[0][2],0)}
   ${featured()}
@@ -142,8 +147,7 @@ window.P5={promos:()=>P.list,go:l=>go(l),async init(){
     {id:'pm3',type:'sponsored',title:'Sponsored pencils',sku:g[1]?.sku,shop_id:'s1',priority:3,active:true,start_at:'2026-10-01T00:00:00Z'},
     {id:'pm4',type:'sponsored',title:'Sponsored',sku:g[5]?.sku,shop_id:'s3',priority:2,active:true,start_at:'2026-10-01T00:00:00Z'},
     {id:'pm5',type:'banner',placement:'mid',title:'Bonfire night essentials',subtitle:'Sparkler-safe gloves, glow sticks and party packs. Collect today.',cta:'Shop now',link:'q:party',theme:'night',priority:4,active:true,start_at:'2026-10-20T00:00:00Z',end_at:'2026-11-06T00:00:00Z'},
-    {id:'pm6',type:'deal',title:'3 for 2 on cards',subtitle:'Mix & match',link:'q:card',theme:'teal',priority:1,active:false,start_at:'2026-10-01T00:00:00Z'},
-    {id:'pm7',type:'banner',placement:'hero',title:'Christmas wrap shop',subtitle:'Opens 1 November.',cta:'Preview',link:'q:gift wrap',theme:'gold',priority:2,active:true,start_at:'2026-11-01T00:00:00Z'}]}
+    {id:'pm6',type:'deal',title:'3 for 2 on cards',subtitle:'Mix & match',link:'q:card',theme:'teal',priority:1,active:false,start_at:'2026-10-01T00:00:00Z'}]}
   if(sb&&!MOCK&&S.L?.length){try{const {data,error}=await sb.from('shop_listings').select('id,compare_at_price').in('id',S.L.map(x=>x.id)).not('compare_at_price','is',null);
     if(!error&&data.length){const m=Object.fromEntries(data.map(x=>[x.id,x.compare_at_price]));S.L.forEach(x=>{if(m[x.id]!=null)x.compare_at_price=m[x.id]});P4.regroup()}}catch(e){}}
   await refreshPromos();chrome();

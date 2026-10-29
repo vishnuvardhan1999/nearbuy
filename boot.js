@@ -7,5 +7,9 @@
   /* image fallbacks: <img data-fb> -> app icon, <img data-fbhide> -> hidden */
   addEventListener('error',function(e){var t=e.target;if(!t||t.tagName!=='IMG')return;
     if(t.hasAttribute('data-fbhide')){t.style.visibility='hidden';return}
-    if(t.hasAttribute('data-fb')&&!t.dataset.fbd){t.dataset.fbd='1';t.src='/icon-192.png'}},true);
+    if(t.dataset.fbd)return;t.dataset.fbd='1';
+    var n=((t.getAttribute('alt')||'')+' '+((t.closest('[data-psku]')||{}).textContent||'')).toLowerCase(),
+     m=[['ballo|party|banner','🎈','#fde7ef'],['candle|birthday','🕯️','#fff4d6'],['wrap|gift|ribbon|bow','🎁','#fdeee3'],['card|envelope','💌','#fde7ef'],['parcel|mail|box|bubble|packag','📦','#efe7dc'],['paint|craft|glitter|brush','🎨','#e9f1ff'],['tape|glue','🧴','#eef7e6'],['toy|game|ball','🧸','#fff1e0'],['pen|pencil|note|ruler|station','✏️','#e3f4f1']],
+     g=['🛍️','#eef2f1'];for(var i=0;i<m.length;i++)if(new RegExp(m[i][0]).test(n)){g=[m[i][1],m[i][2]];break}
+    t.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" rx="24" fill="'+g[1]+'"/><text x="100" y="125" font-size="80" text-anchor="middle">'+g[0]+'</text></svg>')},true);
 })();

@@ -65,7 +65,7 @@ function shopsSection(){
   const filt=S.me?`<div class="dist">${[1,3,5,10].map(r=>`<button data-r="${r}" class="${r===S.radius?'on':''}">${r} mi</button>`).join('')}<button class="geo" id="geo">${svg('target')}Use my location</button></div>`:`<div class="noshops" style="padding:14px"><p style="margin:0 0 10px">Showing all shops. Set your location to see distances and shops near you.</p><button class="btn" id="setpc2">Set your location</button> <button class="btn ghost" id="geo">Use my current location</button></div>`;
   const body=n?`<div class="row">${list.map(scard).join('')}</div>`:`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No ShopNip shops near you yet</h4>
    <p>${S.me?`Nothing within ${S.radius} miles of ${esc(S.pc)}. Try a wider distance.`:'Set your location to find registered shops nearby.'}</p>${S.me?'':'<button class="btn" id="setpc2">Set your location</button>'}</div>`;
-  return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2>${S.me?'':'<a href="#" id="setpc2">Set your location</a>'}</div>${filt}${body}</section>`}
+  return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2></div>${filt}${body}</section>`}
 function home(){
   const h1=pick(kw('pen','notebook','glue'),3,4),h2=pick(kw('pencil','ruler','notebook'),3,9),h3=pick(kw('balloon','gift bag'),3,2);
   const art=a=>`<div class="art">${a.map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
