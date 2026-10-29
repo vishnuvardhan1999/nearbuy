@@ -6,10 +6,14 @@ const L=()=>A.viewL||[],pr=l=>+l.retail_price||0,was=l=>+l.compare_at_price>pr(l
 function readURL(){const q=new URLSearchParams(location.search);F.cats=(q.get('fc')||'').split('|').filter(Boolean);F.min=q.get('fmin')||'';F.max=q.get('fmax')||'';F.deals=q.get('fd')==='1';F.stock=q.get('fs')==='1';F.sort=q.get('sort')||'featured'}
 function writeURL(){const q=new URLSearchParams(location.search);const set=(k,v)=>v?q.set(k,v):q.delete(k);set('fc',F.cats.join('|'));set('fmin',F.min);set('fmax',F.max);set('fd',F.deals?'1':'');set('fs',F.stock?'1':'');set('sort',F.sort==='featured'?'':F.sort);
   const s=q.toString();history.replaceState(null,'',location.pathname+(s?'?'+s:'')+location.hash)}
-function match(l,skip){if(skip!=='cat'&&F.cats.length&&!F.cats.includes(l.category||'Other'))return false;const p=pr(l);if(F.min!==''&&p<+F.min)return false;if(F.max!==''&&p>+F.max)return false;if(F.deals&&!was(l))return false;if(F.stock&&!(l.stock>0))return false;return true}
+function match(l,skip){if(skip!=='cat'&&F.cats.length&&!F.cats.includes(prettyCat(l.category)))return false;const p=pr(l);if(F.min!==''&&p<+F.min)return false;if(F.max!==''&&p>+F.max)return false;if(F.deals&&!was(l))return false;if(F.stock&&!(l.stock>0))return false;return true}
 function results(){const r=L().filter(l=>match(l));const s=F.sort;if(s==='plh')r.sort((a,b)=>pr(a)-pr(b));else if(s==='phl')r.sort((a,b)=>pr(b)-pr(a));else if(s==='disc')r.sort((a,b)=>disc(b)-disc(a));else if(s==='az')r.sort((a,b)=>a.name.localeCompare(b.name));return r}
 const n=x=>`${x} product${x===1?'':'s'}`;
-function filtersHTML(){const counts={};L().filter(l=>match(l,'cat')).forEach(l=>{const c=l.category||'Other';counts[c]=(counts[c]||0)+1});const all=[...new Set(L().map(l=>l.category||'Other'))].sort();
+function prettyCat(c){let s=String(c||'Other').replace(/^\*/,'').replace(/[-_]+/g,' ').replace(/\bimage\b/ig,'').replace(/\s+/g,' ').trim();
+  const map={'house hold':'Household','tapes adhesives':'Tapes & adhesives','sil candles':'Candles','pens pencils':'Pens & pencils','note books':'Notebooks','mailing and packaging':'Packaging'};
+  const k=s.toLowerCase();if(map[k])s=map[k];else s=s.replace(/\b[a-z]/g,ch=>ch.toUpperCase());
+  if(/sale|% off/i.test(s))s='Offers';return s||'Other'}
+function filtersHTML(){const counts={};L().filter(l=>match(l,'cat')).forEach(l=>{const c=prettyCat(l.category);counts[c]=(counts[c]||0)+1});const all=[...new Set(L().map(l=>prettyCat(l.category)))].sort();
   const chip=([t,a,b])=>`<button type="button" class="fq ${String(F.min)===String(a)&&String(F.max)===String(b)?'on':''}" data-sfq="${a}|${b}">${t}</button>`;
   return `<div class="fgrp"><h4>Category</h4>${all.map(c=>`<label class="fck"><input type="checkbox" data-sfc="${esc(c)}" ${F.cats.includes(c)?'checked':''}><span>${esc(c)}</span><em>${counts[c]||0}</em></label>`).join('')||'<p class="fnone">No categories</p>'}</div>
   <div class="fgrp"><h4>Price</h4><div class="frng"><label><span>£</span><input type="number" min="0" step="0.5" placeholder="Min" data-sfp="min" value="${esc(F.min)}"></label><i>–</i><label><span>£</span><input type="number" min="0" step="0.5" placeholder="Max" data-sfp="max" value="${esc(F.max)}"></label></div><div class="fqs">${CH.map(chip).join('')}</div></div>

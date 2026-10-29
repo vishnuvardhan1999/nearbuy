@@ -13,7 +13,7 @@ async function catalog(){if(!A.catalog)A.catalog=await (await fetch('products.js
 // ---------- data layer (Supabase or mock) ----------
 const M={users:{},shops:[],listings:[]};
 const DB=MOCK?{
-  async session(){if(M.user)return{user:M.user};if(localStorage.nb_mock_out)return null;const a=Q.get('as');return a&&a!=='none'?{user:{id:'u1',email:'owner@example.com'}}:null},
+  async session(){if(M.user)return{user:M.user};if(localStorage.nb_mock_out)return null;const a=Q.get('as');return a&&a!=='none'?{user:{id:'u1',email:a==='shopper'?'priya.shah@example.com':'owner@sumanbros.example'}}:null},
   async signUp(e,p,role,name){delete localStorage.nb_mock_out;if(Q.get('dup')===e)throw new Error('User already registered');A.user=M.user={id:'u9',email:e};M.name=name;return{}}, async signIn(e){delete localStorage.nb_mock_out;A.user=M.user={id:'u1',email:e};return{}}, async signOut(){M.user=null;localStorage.nb_mock_out='1'},
   async profile(){if(M.user)return{role:M.user.id==='u1'&&!M.name?'owner':'shopper',full_name:M.name||''};return{role:Q.get('as')==='shopper'?'shopper':'owner',full_name:'Priya Shah'}},
   async myShop(){return M.shops.find(s=>s.owner_id===A.user?.id)||null},
@@ -50,15 +50,15 @@ async function refresh(){
 }
 // ---------- mock seed ----------
 async function seedMock(){
+  if(!(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'))return;
   const c=await catalog();const pick=k=>c.filter(p=>p.images.length&&p.name.toLowerCase().includes(k));
-  if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
-    M.shops.push({id:'s1',owner_id:'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
+  const ownerId=Q.get('as')==='shopper'?'u-shop':'u1';
+    M.shops.push({id:'s1',owner_id:ownerId,name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
       opening_hours:'Mon–Sat 7am–7pm, Sun 9am–2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
       delivery_options:{collect:true,delivery:true,delivery_radius_miles:3,delivery_fee:2.5},logo_url:null,cover_url:null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
       M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],compare_at_price:i%3===1?+(p.trade_price*2.1).toFixed(2):null,active:i!==2,source:i<5?'wholesale':'manual'}));
     M.shops.push({id:'s2',owner_id:'u2',name:'Village Post Office Store',address:'1 Church Lane, Oadby',postcode:'LE2 5AA',status:'pending',bluepark_customer_email:'vpo@example.com',created_at:'2026-10-23',delivery_options:{collect:true}});
-  }
 }
 // ---------- views ----------
 const field=(id,label,attrs='',val='')=>`<label class="fl"><span>${label}</span><input id="${id}" ${attrs} value="${esc(val)}"></label>`;
@@ -90,7 +90,7 @@ V.account=function(){
 .pa .at b{display:block;font-size:15px}.pa .at small{display:block;color:#64748b;font-size:13px;margin-top:3px;line-height:1.35}
 .pa .shopc{margin-top:14px;padding:16px;border-radius:14px;background:#fff6f2;border:1px solid #ffd9cc;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .pa .shopc b{display:block}.pa .shopc small{color:#64748b}.pa .cdf{margin-top:12px}.pa .foot{text-align:center;margin-top:18px;font-size:13px;color:#64748b}.pa .foot a{color:#64748b}
-</style><div class="sh"><h2>Your account</h2></div>${msg()}
+</style><div class="sh"><h2>Shopping account</h2></div><p class="mode-note">You are shopping. Selling uses a separate seller dashboard.</p>${msg()}
    <div class="pc2"><span class="av">${esc((nm||A.user.email)[0].toUpperCase())}</span><div><b>${esc(nm||A.user.email.split('@')[0])}</b><small>${esc(A.user.email)}</small></div></div>
    <div class="atg">
     <button class="at" data-t="orders">${svg('orders')}<span><b>Your orders</b><small>${ordSub}</small></span></button>
@@ -101,12 +101,12 @@ V.account=function(){
    ${A.editDet?`<form class="panel form cdf" data-form="contact"><h3 class="ft">Saved details</h3>
     ${field('cd_name','Name','autocomplete="name"',ck.name||nm)}${field('cd_phone','Phone','type="tel" autocomplete="tel"',ck.phone)}${field('cd_addr','Delivery address','autocomplete="street-address"',ck.addr)}
     <div class="two"><button class="btn">Save details</button><button type="button" class="btn ghost" data-act="details">Cancel</button></div></form>`:''}
-   ${owner?`<div class="shopc"><div><b>Your shop</b><small>${A.shop?esc(A.shop.name)+' · '+statusLabel(A.shop.status):'Manage your shop on ShopNip'}</small></div><a class="btn" href="${dash}">Go to my shop dashboard</a></div>`:''}
+   ${owner?`<div class="shopc seller-handoff"><div><b>Seller tools</b><small>${A.shop?esc(A.shop.name)+' · '+statusLabel(A.shop.status):'This account also runs a shop.'} This is not the shopping view.</small></div><a class="btn" href="${dash}">Open seller dashboard</a></div>`:''}
    <button class="btn ghost full" data-act="logout" style="margin-top:16px">Log out</button>
    ${owner?'':`<p class="foot">Own a shop? <a href="${land}">Sell on ShopNip</a></p>`}</section>`};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s);
 V.register=function(){
-  if(!A.user){setTimeout(()=>location.replace(window.SELLER_URL?SELLER_URL('signup'):'seller.html#signup'));return '<div class="empty">Opening seller sign up…</div>'}
+  if(!A.user)return `<section class="sec narrow seller-gate"><p class="eyebrow">Seller account</p><h2>Register your shop</h2><p>Shop registration uses a <b>seller account</b>, which is separate from a shopping sign-in. Create the seller account first, then add your shop. You will not be sent back to the homepage.</p><a class="btn" href="/seller.html#signup">Create a seller account</a><p class="hint">Already selling? <a href="/seller.html#login">Seller sign in</a></p></section>`
   const s=A.shop||{},d=s.delivery_options||{collect:true};
   return `<section class="sec narrow"><div class="sh"><h2>${s.id?'Edit shop details':'Register your shop'}</h2></div>
   <p class="sub">${s.id?'Changes to your trade email send the shop back for review.':'Tell shoppers about your shop. We review every new shop before it goes live, usually within a day.'}</p>
@@ -119,7 +119,8 @@ V.register=function(){
    <div class="panel"><h3 class="ft">How customers get their order</h3>
     <label class="tog"><input type="checkbox" id="s_col" ${d.collect!==false?'checked':''}><span><b>Click &amp; collect</b><small>Customers pick up in store</small></span></label>
     <label class="tog"><input type="checkbox" id="s_del" ${d.delivery?'checked':''}><span><b>Local delivery</b><small>You deliver nearby</small></span></label>
-    <div class="two" id="delx">${field('s_rad','Delivery radius (miles)','type="number" min="0.5" max="25" step="0.5"',d.delivery_radius_miles??3)}${field('s_fee','Delivery fee (£)','type="number" min="0" step="0.01"',d.delivery_fee??2.5)}</div></div>
+    <div class="two" id="delx">${field('s_rad','Delivery radius (miles)','type="number" min="0.5" max="25" step="0.5"',d.delivery_radius_miles??3)}${field('s_fee','Delivery fee (£)','type="number" min="0" step="0.01" placeholder="0.00"',d.delivery_fee??0)}</div>
+    <p class="hint">Leave the fee at 0.00 for free delivery. ShopNip’s welcome offer also makes a customer’s first delivery free.</p></div>
    <div class="panel"><h3 class="ft">Wholesale account</h3>
     ${field('s_trade','Trade account email','type="email" required placeholder="The email you order wholesale with"',s.bluepark_customer_email)}
     <p class="hint">Products you buy wholesale with this email are added to your shop automatically after they ship.</p></div>
@@ -162,7 +163,7 @@ V.addprod=function(){const q=(A.aq||'').toLowerCase(),have=new Set(A.listings.ma
    ${have.has(p.sku)?'<span class="added">Listed</span>':`<button class="add" data-act="addsku" data-v="${esc(p.sku)}" aria-label="Add">${svg('plus')}</button>`}</div>`).join('')}</div></section>`};
 V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div class="empty">Loading shop…</div>'}
   const d=s.delivery_options||{},dist=S.me&&s.lat!=null?miles(S.me,s).toFixed(1)+' mi away':'';
-  return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" data-t="home" aria-label="Back">‹</button></div>
+  return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" type="button" data-back aria-label="Back">‹</button></div>
   <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>

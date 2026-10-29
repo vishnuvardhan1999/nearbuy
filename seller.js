@@ -25,7 +25,8 @@ const svg=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[n]||''}</svg>`;
 const toast=m=>{let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t)}t.textContent=m;t.className='on';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',2600)};
 const keep=()=>MOCK?'mock=1'+(Q.get('as')?'&as='+encodeURIComponent(Q.get('as')):''):'';
 const idx=q=>'index.html?'+[keep(),q].filter(Boolean).join('&');
-const home=()=>'index.html'+(MOCK?'?'+keep():'');
+const home=()=>'/'+(MOCK?'?'+keep():'');
+const regHref=()=>{if(!MOCK)return '/register';const q=new URLSearchParams();q.set('mock','1');q.set('as','owner');q.set('shop','none');return '/register?'+q.toString()};
 const when=t=>new Date(t).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const ago=t=>{const m=Math.round((Date.now()-Date.parse(t))/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
 const pct=(r,t)=>r>0&&t!=null?Math.round((r-t)/r*100):null;
@@ -105,8 +106,8 @@ const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?
 const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
 // after login / email confirmation: dashboard if there is a shop, otherwise shop registration
 // p29: new seller sign-ups (Become a seller) go to shop registration; signing in without a shop shows a friendly choice, not a redirect
-function landSeller(su){if(D.shop){location.hash='overview';return true}if(D.user){if(su){location.href=idx('view=register&seller=1');return true}location.hash='dash';return true}return false}
-function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>`;
+function landSeller(su){if(D.shop){location.hash='overview';return true}if(D.user){if(su){location.assign(regHref());return true}location.hash='dash';return true}return false}
+function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="${home()}" aria-label="ShopNip home"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>`;
   return `<div class="gate sauth"><div class="card">${brand}<h2>${su?'Create your seller account':'Seller sign in'}</h2>
    <p>${su?'Put your shop on ShopNip. Free during the pilot. Every shop is reviewed before it goes live.':'For shop owners: manage your shop, orders and products. Same email and password as your shopping account.'}</p>
    ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
@@ -118,9 +119,9 @@ function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="s
    <div class="alt">${su?'Already selling on ShopNip? <a href="#login">Seller sign in</a>':'New to ShopNip? <a href="#signup">Create a seller account</a>'}</div>
    <div class="xl">Shopping? <a href="${idx('view=account')}">Go to customer sign in</a></div></div></div>`}
 function render(){if(fromAuth()&&D.user){const su=/type=signup/.test(location.hash);history.replaceState(null,'',location.pathname+location.search);if(landSeller(su))return}
-  const am=AUTH();if(am){if(D.user&&!D.ui.busy){if(landSeller(am==='signup'))return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller sign in')+' · ShopNip for sellers';$('#app').innerHTML=authView(am);return}
-  const p=page();if(!p){document.body.className='land';document.title='Sell on ShopNip · Put your shop online';$('#app').innerHTML=landing();return}
-  document.body.className='dash';$('#app').innerHTML=dash(p);document.title=(TITLE[p]||'Dashboard')+' · ShopNip Seller'}
+  const am=AUTH();if(am){if(D.user&&!D.ui.busy){if(landSeller(am==='signup'))return}document.body.className='auth mode-seller';document.title=(am==='signup'?'Seller sign up':'Seller sign in')+' · ShopNip for sellers';$('#app').innerHTML=authView(am);return}
+  const p=page();if(!p){document.body.className='land mode-seller';document.title='Sell on ShopNip · Put your shop online';$('#app').innerHTML=landing();return}
+  document.body.className='dash mode-seller';$('#app').innerHTML=dash(p);document.title=(TITLE[p]||'Dashboard')+' · ShopNip Seller'}
 // =================== LANDING ===================
 const BEN=[['sync','Listed from your wholesale orders','Products you buy wholesale appear in your shop automatically after they ship, with name, category and trade price filled in.'],
  ['camoff','No photo uploads','Every product comes with professional photos and descriptions from the catalogue. Nothing to shoot, nothing to type.'],
@@ -139,7 +140,7 @@ const FAQ=[['How much does it cost?','Nothing during the pilot: no setup fee, no
  ['Can I leave at any time?','Yes. There is no contract during the pilot. Switch products off, or ask us to close your shop, whenever you like.'],
  ['Who runs ShopNip?','ShopNip is a NuvonHub product, built to help independent shops sell online without the cost of their own website.']];
 function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>p.images?.length),sample=[cat[120],cat[640],cat[1180],cat[1730]].filter(Boolean);
-  const SU='#signup',LI='#login',RG=idx('view=register&seller=1');
+  const SU='#signup',LI='#login',RG=regHref();
   const primary=has?`<a class="btn coral lg" href="#dash">Open seller dashboard ${svg('arrow')}</a>`:signed?`<a class="btn coral lg" href="${RG}">Register your shop ${svg('arrow')}</a>`:`<a class="btn coral lg" href="${SU}">Start selling free ${svg('arrow')}</a>`;
   const second=signed?`<a class="btn line lg" href="${home()}">Back to shopping</a>`:`<a class="btn line lg" href="${LI}">Sign in</a>`;
   return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="ShopNip home"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Sellers</small></a>
@@ -171,15 +172,15 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
 const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};
 const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','tag'],['settings','cog']];
 const newCount=()=>D.O.filter(o=>o.status==='placed').length;
-function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span></a>`;
+function gate(){const brand=`<a class="brand" href="${home()}" aria-label="ShopNip home"><span class="mark">S</span><span>Shop<b>Nip</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller sign in</h2><p>Sign in with your shop owner account to manage orders, products and your shop.</p>
    <div class="btns"><a class="btn lg" href="#login">Sign in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on ShopNip</a></div></div></div>`;
   return `<div class="gate"><div class="card">${brand}<h2>You don’t have a shop yet</h2><p>You’re signed in as ${esc(D.user.email)}. This account works for shopping on ShopNip. Want to sell too? Registering your shop takes about three minutes.</p>
-   <div class="btns"><a class="btn coral lg" href="${idx('view=register&seller=1')}">Register your shop</a><a class="btn ghost lg" href="${home()}">Go shopping</a><a class="btn ghost" href="#" data-a="logout">Sign out</a></div></div></div>`}
+   <div class="btns"><a class="btn coral lg" href="${regHref()}">Register your shop</a><a class="btn ghost lg" href="${home()}">Go shopping</a><a class="btn ghost" href="#" data-a="logout">Sign out</a></div></div></div>`}
 function dash(p){
   if(!D.user||!D.shop)return gate();
   const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`;
-  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
+  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="${home()}" aria-label="ShopNip home" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
    <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
    <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="${home()}">${svg('bag')}Switch to shopping</a><a href="#" data-a="logout">${svg('out')}Sign out</a><small>ShopNip, a NuvonHub product</small></div></aside>`;

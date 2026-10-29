@@ -57,7 +57,8 @@ const grid=()=>`<section class="tgrid">${TILES.map(([t,l,g,f],i)=>{const ps=mix(
 // ---------- install over p5's home ----------
 const _home=V.home;
 V.home=function(...a){let h=_home.apply(this,a);
-  h=h.replace(/<section class="h5"[\s\S]*?<\/section>/,strip()).replace('<!--tgrid-->',grid()).replace(/<section class="tiles">[\s\S]*?<\/section>/,'');
+  /* Keep the hero. Registered shops stay directly underneath it; offers follow the shops. */
+  h=h.replace('<!--promos-->',strip()).replace('<!--tgrid-->',grid()).replace(/<section class="tiles">[\s\S]*?<\/section>/,'');
   return h};
 addEventListener('click',e=>{const b=e.target.closest('[data-psgo]');if(!b)return;e.preventDefault();e.stopPropagation();const r=$('#psr');r.scrollBy({left:(+b.dataset.psgo)*r.clientWidth*.8,behavior:'smooth'})},true);
 const upd=()=>{const r=$('#psr');if(!r)return;const s=r.closest('.pstrip');s.classList.toggle('atstart',r.scrollLeft<8);s.classList.toggle('atend',r.scrollLeft+r.clientWidth>=r.scrollWidth-8)};
