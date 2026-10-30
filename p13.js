@@ -31,7 +31,9 @@ function askShop(){C.step='shop';const L=shops();
   bot('Which shop would you like to order from?');quick(L.slice(0,8).map(s=>[esc(s.name),'s:'+s.id]),'Type a shop name…')}
 async function pickShop(id){C.busy=true;try{C.shop=await P3.shop(id);C.L=(await P2.DB.shopListings(id)).filter(l=>l.active!==false&&(l.shop_id==null||l.shop_id===id));}catch(e){C.busy=false;return bot('Sorry, I could not load that shop. '+esc(e.message||''))}C.busy=false;
   if(!C.shop)return bot('Sorry, I could not find that shop.'),askShop();
-  bot(`Great, ordering from <b>${esc(C.shop.name)}</b>${C.shop.opening_hours?`<br><small>Hours: ${esc(C.shop.opening_hours)}</small>`:''}`);askItems()}
+  const hrs=C.shop.opening_hours?(window.ShopHours?ShopHours.display(C.shop.opening_hours):C.shop.opening_hours):'';
+  const st=window.ShopHours?ShopHours.status(C.shop.opening_hours):null;
+  bot(`Great, ordering from <b>${esc(C.shop.name)}</b>${st?`<br><small>${esc(st.label)}</small>`:''}${hrs?`<br><small>Hours: ${esc(hrs)}</small>`:''}`);askItems()}
 function askItems(){C.step='items';const n=items().length;
   bot(n?`Your basket:<br>${bsum()}<br>Search for more, or carry on.`:'What are you looking for? Type a product, e.g. <i>envelopes</i>, <i>tape</i> or <i>pens</i>.');
   const cats=[...new Set(C.L.map(l=>l.category).filter(Boolean))].slice(0,4);

@@ -13,10 +13,11 @@ const I={home:'<path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1
  bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',tag:'<path d="M20 12 12 20l-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',store:'<path d="M3 9 5 4h14l2 5M4 9v11h16V9M3 9h18M9 20v-6h6v6"/>',
  pin:'<path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>'};
 const svg=n=>`<svg viewBox="0 0 24 24">${I[n]}</svg>`;
-const S={products:[],shops:[],basket:JSON.parse(localStorage.nb_basket||'[]'),pc:localStorage.nb_pc||'',me:JSON.parse(localStorage.nb_me||'null'),radius:+(localStorage.nb_r||5)};
-const DEMO_SHOPS=[{id:'d1',name:'Corner News & Stationers',postcode:'Sample',lat:0,lng:0,demoMi:0.3,rating:4.8,mins:'25–35',open:true,delivery_options:{collect:true,delivery:true},cat:'Stationery'},
- {id:'d2',name:'High Street Cards & Gifts',postcode:'Sample',demoMi:0.8,rating:4.6,mins:'30–45',open:true,delivery_options:{collect:true,delivery:false},cat:'Party'},
- {id:'d3',name:'Village Post Office Store',postcode:'Sample',demoMi:1.4,rating:4.7,mins:'40–55',open:false,delivery_options:{collect:true,delivery:true},cat:'Craft'}];
+const S={products:[],shops:[],basket:JSON.parse(localStorage.nb_basket||'[]'),pc:localStorage.nb_pc||'',me:JSON.parse(localStorage.nb_me||'null'),radius:+(localStorage.nb_r||5),openOnly:new URLSearchParams(location.search).get('open')==='1'};
+function shopStatus(s){return window.ShopHours?ShopHours.status(s&&s.opening_hours):{open:false,unknown:true,openingSoon:false,closingSoon:false,label:'Hours not set'}}
+const DEMO_SHOPS=[{id:'d1',name:'Corner News & Stationers',postcode:'Sample',lat:0,lng:0,demoMi:0.3,rating:4.8,mins:'25–35',opening_hours:'Mon-Sat 7am-7pm, Sun 9am-2pm',delivery_options:{collect:true,delivery:true},cat:'Stationery'},
+ {id:'d2',name:'High Street Cards & Gifts',postcode:'Sample',demoMi:0.8,rating:4.6,mins:'30–45',opening_hours:'Mon-Fri 9am-5:30pm, Sat 10am-4pm, Sun closed',delivery_options:{collect:true,delivery:false},cat:'Party'},
+ {id:'d3',name:'Village Post Office Store',postcode:'Sample',demoMi:1.4,rating:4.7,mins:'40–55',opening_hours:'Mon-Thu 9am-5pm, Fri closed, Sat 9am-1pm, Sun closed',delivery_options:{collect:true,delivery:true},cat:'Craft'}];
 
 const saveB=()=>{localStorage.nb_basket=JSON.stringify(S.basket);const n=S.basket.reduce((a,b)=>a+b.qty,0);document.querySelectorAll('[data-bc]').forEach(e=>{e.textContent=n;e.classList.toggle('hidden',!n)})};
 const miles=(a,b)=>{const R=3958.8,r=x=>x*Math.PI/180,dLa=r(b.lat-a.lat),dLo=r(b.lng-a.lng),h=Math.sin(dLa/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
@@ -54,7 +55,8 @@ const pcard=p=>window.P4?P4.card(p):`<div class="pc" data-psku="${esc(p.sku)}" d
 <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
 const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
 function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
- const open=s.open!==false;return `<div class="shop" data-shop="${esc(s.id)}"><div class="cover" style="background:${s.cover_url?`center/cover url('${esc(s.cover_url)}')`:grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${open?'':'closed'}"><i></i>${open?'Open now':'Closed'}</span></div>
+ const st=s._st||shopStatus(s);const cls=st.unknown?'unknown':st.open?(st.closingSoon?'soon':''):(st.openingSoon?'soon':'closed');
+ return `<div class="shop" data-shop="${esc(s.id)}"><div class="cover" style="background:${s.cover_url?`center/cover url('${esc(s.cover_url)}')`:grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${cls}"><i></i>${esc(st.label)}</span></div>
  <div class="sb"><div class="sav">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</div><h4>${esc(s.name)}${s.demo?'<span class="sample">Sample</span>':''}</h4>
  <div class="meta">${s.rating?`<span class="star">${svg('star')}${s.rating}</span><span class="dot"></span>`:'<span class="star">New</span><span class="dot"></span>'}${d?`<span>${d}</span><span class="dot"></span>`:''}<span>${s.mins||'30–60'} min</span></div>
  <div class="tags">${s.delivery_options?.collect!==false?'<span class="tg">Click & collect</span>':''}${s.delivery_options?.delivery?'<span class="tg">Delivery</span>':''}</div></div></div>`}
@@ -63,9 +65,13 @@ function shopsSection(){
   if(S.me)list=list.filter(s=>s.dist!=null&&s.dist<=S.radius).sort((a,b)=>a.dist-b.dist);
   const n=list.length,head=S.me?(n?`${n} shop${n>1?'s':''} near you`:'Shops near you'):(n?`All shops (${n})`:'Shops');
   const filt=S.me?`<div class="dist">${[1,3,5,10].map(r=>`<button data-r="${r}" class="${r===S.radius?'on':''}">${r} mi</button>`).join('')}<button class="geo" id="geo">${svg('target')}Use my location</button></div>`:`<div class="noshops" style="padding:14px"><p style="margin:0 0 10px">Showing all shops. Set your location to see distances and shops near you.</p><button class="btn" id="setpc2">Set your location</button> <button class="btn ghost" id="geo">Use my current location</button></div>`;
-  const body=n?`<div class="row">${list.map(scard).join('')}</div>`:`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No ShopNip shops near you yet</h4>
-   <p>${S.me?`Nothing within ${S.radius} miles of ${esc(S.pc)}. Try a wider distance.`:'Set your location to find registered shops nearby.'}</p>${S.me?'':'<button class="btn" id="setpc2">Set your location</button>'}</div>`;
-  return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2></div>${filt}${body}</section>`}
+  const stamped=list.map(s=>({...s,_st:shopStatus(s)})),visible=S.openOnly?stamped.filter(s=>s._st.open):stamped,openN=stamped.filter(s=>s._st.open).length;
+  const hoursFilt=n?`<div class="dist" role="group" aria-label="Open now"><button type="button" data-openf="all" class="${S.openOnly?'':'on'}">All shops</button><button type="button" data-openf="open" class="${S.openOnly?'on':''}">Open now (${openN})</button></div>`:'';
+  const body=!n?`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No ShopNip shops near you yet</h4>
+   <p>${S.me?`Nothing within ${S.radius} miles of ${esc(S.pc)}. Try a wider distance.`:'Set your location to find registered shops nearby.'}</p>${S.me?'':'<button class="btn" id="setpc2">Set your location</button>'}</div>`
+    :!visible.length?`<div class="noshops"><div class="ic">${svg('store')}</div><h4>No shops open right now</h4><p>Show every shop to see when they open. You can still browse a closed shop.</p><button type="button" class="btn" data-openf="all">Show all shops</button></div>`
+    :`<div class="row">${visible.map(scard).join('')}</div>`;
+  return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2></div>${filt}${hoursFilt}${body}</section>`}
 function home(){
   const h1=pick(kw('pen','notebook','glue'),3,4),h2=pick(kw('pencil','ruler','notebook'),3,9),h3=pick(kw('balloon','gift bag'),3,2);
   const art=a=>`<div class="art">${a.map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
@@ -108,7 +114,8 @@ function carousel(){const s=$('#slides'),d=[...document.querySelectorAll('#dots 
  s.addEventListener('scroll',()=>{const i=Math.round(s.scrollLeft/s.clientWidth);d.forEach((e,k)=>e.classList.toggle('on',k===i))},{passive:true});
  clearInterval(window._ct);window._ct=setInterval(()=>{if(!document.body.contains(s)||innerWidth>=768)return;const i=(Math.round(s.scrollLeft/s.clientWidth)+1)%3;s.scrollTo({left:i*s.clientWidth,behavior:'smooth'})},5000)}
 async function askPostcode(){const v=prompt('Enter your postcode',S.pc);if(!v)return;try{const r=await lookupPostcode(v.trim());setMe({lat:r.lat,lng:r.lng},r.pc)}catch(e){alert('Sorry, we could not find that postcode.')}}
-document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-cat],[data-sec],[data-sku],[data-rm],[data-r],[data-shop],#loc,#setpc2,#geo,#checkout,[id^=register]');if(!el)return;e.preventDefault();
+document.addEventListener('click',e=>{const el=e.target.closest('[data-t],[data-cat],[data-sec],[data-sku],[data-rm],[data-r],[data-shop],[data-openf],#loc,#setpc2,#geo,#checkout,[id^=register]');if(!el)return;e.preventDefault();
+ if(el.dataset.openf){S.openOnly=el.dataset.openf==='open';const u=new URL(location.href);if(S.openOnly)u.searchParams.set('open','1');else u.searchParams.delete('open');history.replaceState(history.state,'',u.pathname+u.search+u.hash);return render()}
  if(el.dataset.t)return route(el.dataset.t);if(el.dataset.cat)return route('cat',+el.dataset.cat);if(el.dataset.sec)return route('sec',+el.dataset.sec);
  if(el.dataset.shop&&!S.shops.find(s=>s.id===el.dataset.shop)?.demo){location.hash='shop='+el.dataset.shop;return route('shop',el.dataset.shop)}
  if(el.dataset.r){S.radius=+el.dataset.r;localStorage.nb_r=S.radius;return render()}

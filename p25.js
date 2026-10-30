@@ -1,7 +1,7 @@
 // ShopNip (a NuvonHub product) · p25: real URLs (History API), All products page with filters, accurate "Use my location",
 // UI/UX polish (price-first cards, "Ready today by", checkout postcode, toast position, mobile nav/category targets, shorter ticker).
 (()=>{const {MOCK,toast}=P2;
-const KEEP=['mock','demo','as','rich','multi','promos','status','dup','shop'];               // dev/test params carried across navigation
+const KEEP=['mock','demo','as','rich','multi','promos','status','dup','shop','open'];               // dev/test params carried across navigation
 const keepQS=extra=>{const Q=new URLSearchParams(location.search),o=new URLSearchParams();KEEP.forEach(k=>Q.has(k)&&o.set(k,Q.get(k)));
   if(extra)for(const[k,v]of Object.entries(extra))if(v!==''&&v!=null&&v!==false)o.set(k,v===true?'1':v);const s=o.toString();return s?'?'+s:''};
 const slug=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
@@ -108,12 +108,13 @@ new MutationObserver(watch).observe(document.body,{childList:true});
 // ---------- "Ready today by …" from the shop's opening hours ----------
 const fmtT=m=>{let h=Math.floor(m/60)%24,mi=m%60;const ap=h>=12?'pm':'am';h=h%12||12;return h+(mi?':'+String(mi).padStart(2,'0'):'')+ap};
 const DN=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-function readyBy(shop,now=new Date()){if(!shop||!shop.opening_hours||!window.HoursPicker)return '';let w;try{w=HoursPicker.parse(shop.opening_hours).w}catch(e){return ''}if(!w)return '';
-  const mins=t=>{const[h,m]=String(t).split(':').map(Number);return h*60+m},PREP=60;
-  const d=(now.getDay()+6)%7,n=now.getHours()*60+now.getMinutes();
-  for(let k=0;k<7;k++){const x=w[(d+k)%7];if(!x||!x.o)continue;const a=x.all?0:mins(x.a),b=x.all?1440:mins(x.b);
-    let t=k?a+PREP:Math.max(Math.ceil((n+PREP)/30)*30,a+PREP);if(t>b)continue;t=Math.min(t,b);
-    return k===0?'Ready today by '+fmtT(t):k===1?'Ready tomorrow by '+fmtT(t):'Ready '+DN[(d+k)%7]+' by '+fmtT(t)}
+function readyBy(shop,now=new Date()){if(!shop||!window.ShopHours)return '';
+  const H=ShopHours,p=H.parse(shop.opening_hours);if(!p.usable)return '';
+  const L=H.london(now),PREP=60;
+  for(let k=0;k<7;k++){const iso=H.addDays(L.iso,k),x=H.daySchedule(p,iso);if(!x)continue;
+    const a=x.all?0:x.start,b=x.all||x.overnight?1440:x.end;
+    let t=k?a+PREP:Math.max(Math.ceil((L.mins+PREP)/30)*30,a+PREP);if(t>b)continue;t=Math.min(t,b);
+    return k===0?'Ready today by '+fmtT(t):k===1?'Ready tomorrow by '+fmtT(t):'Ready '+DN[H.weekdayOf(iso)]+' by '+fmtT(t)}
   return ''}
 window.P25={readyBy};
 

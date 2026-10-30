@@ -162,11 +162,15 @@ V.addprod=function(){const q=(A.aq||'').toLowerCase(),have=new Set(A.listings.ma
    ${have.has(p.sku)?'<span class="added">Listed</span>':`<button class="add" data-act="addsku" data-v="${esc(p.sku)}" aria-label="Add">${svg('plus')}</button>`}</div>`).join('')}</div></section>`};
 V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div class="empty">Loading shop…</div>'}
   const d=s.delivery_options||{},dist=S.me&&s.lat!=null?miles(S.me,s).toFixed(1)+' mi away':'';
+  const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
+  const hoursTxt=window.ShopHours?ShopHours.display(s.opening_hours):(s.opening_hours||'');
+  const note=hs?`<div class="hours-note ${hs.unknown?'unknown':hs.open?'live':hs.openingSoon?'soon':'closed'}" role="status"><b>${esc(hs.label)}</b>${hs.notice?`<span>${esc(hs.notice)}</span>`:''}</div>`:'';
   return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" data-t="home" aria-label="Back">‹</button></div>
   <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
-   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${s.opening_hours?`<div class="line"><span>Hours</span><span>${esc(s.opening_hours)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
+   ${note}
+   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${hoursTxt?`<div class="line"><span>Hours</span><span>${esc(hoursTxt)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
   <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
