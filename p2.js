@@ -162,11 +162,15 @@ V.addprod=function(){const q=(A.aq||'').toLowerCase(),have=new Set(A.listings.ma
    ${have.has(p.sku)?'<span class="added">Listed</span>':`<button class="add" data-act="addsku" data-v="${esc(p.sku)}" aria-label="Add">${svg('plus')}</button>`}</div>`).join('')}</div></section>`};
 V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div class="empty">Loading shop…</div>'}
   const d=s.delivery_options||{},dist=S.me&&s.lat!=null?miles(S.me,s).toFixed(1)+' mi away':'';
+  const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
+  const hoursTxt=window.ShopHours?ShopHours.display(s.opening_hours):(s.opening_hours||'');
+  const note=hs?`<div class="hours-note ${hs.unknown?'unknown':hs.open?'live':hs.openingSoon?'soon':'closed'}" role="status"><b>${esc(hs.label)}</b>${hs.notice?`<span>${esc(hs.notice)}</span>`:''}</div>`:'';
   return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" data-t="home" aria-label="Back">‹</button></div>
   <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
-   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${s.opening_hours?`<div class="line"><span>Hours</span><span>${esc(s.opening_hours)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
+   ${note}
+   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${hoursTxt?`<div class="line"><span>Hours</span><span>${esc(hoursTxt)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
   <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
@@ -184,7 +188,9 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
     if(!MOCK&&!r.session){A.tab='login';A.msg='Check your email to confirm your account, then log in.';return route('account')}
     await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};A.authPage=false;route('account');toast('Welcome to ShopNip')});
   if(f.dataset.form==='shop')return busy($('#s_submit'),async()=>{
-    const pc=await lookupPostcode(v('s_pc')).catch(()=>{throw new Error('We could not find that UK postcode.')});
+    const rawPc=v('s_pc');
+    if(window.UKGate&&UKGate.checkPlace(rawPc))return;
+    const pc=await lookupPostcode(rawPc).catch(()=>{if(window.UKGate&&!UKGate.isUkPostcode(rawPc))UKGate.show(rawPc);throw new Error('We could not find that UK postcode.')});
     const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:pc.lat,lng:pc.lng,phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),
       delivery_options:{collect:$('#s_col').checked,delivery:$('#s_del').checked,delivery_radius_miles:+v('s_rad')||0,delivery_fee:+v('s_fee')||0}};
     if(!rec.delivery_options.collect&&!rec.delivery_options.delivery)throw new Error('Choose click & collect, delivery or both.');
@@ -245,9 +251,10 @@ window.askPostcode=askPostcode=function(){closeLoc();const d=document.createElem
 <div class="lor">or</div><button class="btn ghost full" data-lgeo>Use my current location</button></div>`;document.body.appendChild(d);setTimeout(()=>d.querySelector('#loc_pc')?.focus())};
 document.addEventListener('click',e=>{if(e.target.id==='locm'||e.target.closest('[data-lx]')){closeLoc();return}
   if(e.target.closest('[data-lgeo]')){if(!navigator.geolocation){$('#loc_err').textContent='Location is not available in this browser. Please type your postcode.';return}
-    navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng))},()=>{$('#loc_err').textContent='We could not get your location. Please type your postcode.'})}},true);
+    navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};const pc=await reversePc(me.lat,me.lng);if(!pc||pc==='Current location'){if(window.UKGate)UKGate.show();return}setMe(me,pc)},()=>{$('#loc_err').textContent='We could not get your location. Please type your postcode.'})}},true);
 document.addEventListener('submit',async e=>{if(!e.target.closest('[data-locf]'))return;e.preventDefault();e.stopPropagation();const v=$('#loc_pc').value.trim();if(!v)return;
-  try{const r=await lookupPostcode(v);setMe({lat:r.lat,lng:r.lng},r.pc)}catch(err){$('#loc_err').textContent='Sorry, we could not find that postcode.'}},true);
+  if(window.UKGate&&UKGate.checkPlace(v))return;
+  try{const r=await lookupPostcode(v);setMe({lat:r.lat,lng:r.lng},r.pc)}catch(err){if(window.UKGate&&!UKGate.isUkPostcode(v))UKGate.show(v);else $('#loc_err').textContent='Sorry, we could not find that postcode.'}},true);
 window.P2={A,DB,M,MOCK,Q,refresh,toast,go,async init(){if(MOCK)await seedMock();await refresh();
   /* dual role: customer login on index.html always stays on the customer site, even for shop owners */if(sb&&!MOCK)sb.auth.onAuthStateChange(async(ev)=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'){await refresh();if(['account','myshop'].includes(cur[0]))render()}});
   const v=Q.get('view')||(location.hash==='#account'?'account':'');if(v){if(v==='addprod'){await catalog();A.aq=Q.get('q')||'pen'}if(v==='signup')A.tab='signup';if(['signup','login','signin'].includes(v))A.authPage=true;window.P2_START=['signup','login','signin'].includes(v)?'account':v}},

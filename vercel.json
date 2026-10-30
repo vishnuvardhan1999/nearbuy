@@ -28,7 +28,7 @@
    "headers": [
     {
      "key": "Content-Security-Policy",
-     "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://nvkfatgnlydgznzczehj.supabase.co wss://nvkfatgnlydgznzczehj.supabase.co https://api.postcodes.io https://cdn.jsdelivr.net; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+     "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://nvkfatgnlydgznzczehj.supabase.co wss://nvkfatgnlydgznzczehj.supabase.co https://api.postcodes.io https://cdn.jsdelivr.net https://get.geojs.io https://ipwho.is; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
     },
     {
      "key": "X-Frame-Options",

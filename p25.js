@@ -1,7 +1,7 @@
 // ShopNip (a NuvonHub product) · p25: real URLs (History API), All products page with filters, accurate "Use my location",
 // UI/UX polish (price-first cards, "Ready today by", checkout postcode, toast position, mobile nav/category targets, shorter ticker).
 (()=>{const {MOCK,toast}=P2;
-const KEEP=['mock','demo','as','rich','multi','promos','status','dup','shop'];               // dev/test params carried across navigation
+const KEEP=['mock','demo','as','rich','multi','promos','status','dup','shop','open'];               // dev/test params carried across navigation
 const keepQS=extra=>{const Q=new URLSearchParams(location.search),o=new URLSearchParams();KEEP.forEach(k=>Q.has(k)&&o.set(k,Q.get(k)));
   if(extra)for(const[k,v]of Object.entries(extra))if(v!==''&&v!=null&&v!==false)o.set(k,v===true?'1':v);const s=o.toString();return s?'?'+s:''};
 const slug=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
@@ -108,12 +108,13 @@ new MutationObserver(watch).observe(document.body,{childList:true});
 // ---------- "Ready today by …" from the shop's opening hours ----------
 const fmtT=m=>{let h=Math.floor(m/60)%24,mi=m%60;const ap=h>=12?'pm':'am';h=h%12||12;return h+(mi?':'+String(mi).padStart(2,'0'):'')+ap};
 const DN=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-function readyBy(shop,now=new Date()){if(!shop||!shop.opening_hours||!window.HoursPicker)return '';let w;try{w=HoursPicker.parse(shop.opening_hours).w}catch(e){return ''}if(!w)return '';
-  const mins=t=>{const[h,m]=String(t).split(':').map(Number);return h*60+m},PREP=60;
-  const d=(now.getDay()+6)%7,n=now.getHours()*60+now.getMinutes();
-  for(let k=0;k<7;k++){const x=w[(d+k)%7];if(!x||!x.o)continue;const a=x.all?0:mins(x.a),b=x.all?1440:mins(x.b);
-    let t=k?a+PREP:Math.max(Math.ceil((n+PREP)/30)*30,a+PREP);if(t>b)continue;t=Math.min(t,b);
-    return k===0?'Ready today by '+fmtT(t):k===1?'Ready tomorrow by '+fmtT(t):'Ready '+DN[(d+k)%7]+' by '+fmtT(t)}
+function readyBy(shop,now=new Date()){if(!shop||!window.ShopHours)return '';
+  const H=ShopHours,p=H.parse(shop.opening_hours);if(!p.usable)return '';
+  const L=H.london(now),PREP=60;
+  for(let k=0;k<7;k++){const iso=H.addDays(L.iso,k),x=H.daySchedule(p,iso);if(!x)continue;
+    const a=x.all?0:x.start,b=x.all||x.overnight?1440:x.end;
+    let t=k?a+PREP:Math.max(Math.ceil((L.mins+PREP)/30)*30,a+PREP);if(t>b)continue;t=Math.min(t,b);
+    return k===0?'Ready today by '+fmtT(t):k===1?'Ready tomorrow by '+fmtT(t):'Ready '+DN[H.weekdayOf(iso)]+' by '+fmtT(t)}
   return ''}
 window.P25={readyBy};
 
@@ -220,7 +221,7 @@ function geoDetect(){if(!$('#locm'))askPostcode();const st=()=>$('#loc_st'),btn=
   if(btn){btn.disabled=true;btn.textContent='Finding you…'}say('<i class="spin"></i>Getting an accurate fix. This can take a few seconds…');
   const done=()=>{if(btn){btn.disabled=false;btn.textContent='Use my current location again'}};
   navigator.geolocation.getCurrentPosition(async p=>{const {latitude:lat,longitude:lng,accuracy:acc}=p.coords;const pc=await revGeo(lat,lng);done();
-    if(!pc){pending=null;say('We found you, but couldn’t match a UK postcode there. Please type your postcode above.','bad');return}
+    if(!pc){pending=null;if(window.UKGate)UKGate.show();say('We found you, but couldn’t match a UK postcode there. Please type your postcode above.','bad');return}
     pending={lat,lng,pc};const i=$('#loc_pc');if(i){i.value=pc}
     say(`We think you’re at <b>${esc(pc)}</b>${acc?` <span>(accurate to about ${acc<1000?Math.round(acc)+' m':(acc/1609).toFixed(1)+' miles'})</span>`:''}. Check it’s right, edit it if not, then tap <b>Set</b>.${acc>1000?'<br><em>Your device only gave a rough location, so please double-check.</em>':''}`,'ok');
     document.querySelector('[data-locf] .btn')?.focus()},
@@ -238,10 +239,12 @@ let coPrep=0;const _co=V.checkout;V.checkout=function(...a){let h=_co.apply(this
   if(/Loading/.test(h)&&h.length<400&&!coPrep&&window.P3?.prep){coPrep=1;P3.prep().then(()=>{if(cur[0]==='checkout')_route('checkout')}).catch(()=>{}).finally(()=>setTimeout(()=>coPrep=0,500))}
   return h.replace('<a href="#" id="setpc2" class="hint">Set your postcode</a>',`<div class="copc"><label for="co_pc">Your postcode, to check delivery</label><div class="copc-r"><input id="co_pc" autocomplete="postal-code" placeholder="e.g. WD18 0AA" value="${esc(S.pc||'')}"><button type="button" class="btn" data-copc>Check</button></div><div class="copc-e" id="co_pc_e" role="alert"></div></div>`)};
 addEventListener('click',async e=>{const b=e.target.closest('[data-copc]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const v=$('#co_pc').value.trim(),er=$('#co_pc_e');
-  if(!v){er.textContent='Enter your postcode';return}b.disabled=true;b.textContent='Checking…';
+  if(!v){er.textContent='Enter your postcode';return}
+  if(window.UKGate&&UKGate.checkPlace(v)){b.disabled=false;b.textContent='Check';return}
+  b.disabled=true;b.textContent='Checking…';
   try{const r=await lookupPostcode(v);S.me={lat:r.lat,lng:r.lng};S.pc=r.pc;LOC.set(S.me,r.pc);LOC.hdr();if(window.P4)P4.regroup();
     if(window.P3?.prep)await P3.prep();route('checkout');toast('Postcode set to '+r.pc)}
-  catch(err){er.textContent='Sorry, we couldn’t find that postcode.';b.disabled=false;b.textContent='Check'}},true);
+  catch(err){if(window.UKGate&&!UKGate.isUkPostcode(v))UKGate.show(v);er.textContent='Sorry, we couldn’t find that postcode.';b.disabled=false;b.textContent='Check'}},true);
 
 // ---------- toasts at the top while a form, sheet or dialog is open ----------
 const tt=()=>{const a=document.activeElement,f=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);document.body.classList.toggle('tt',!!(f||$('#locm')||$('#sheet.on')||document.body.classList.contains('pf-open')))};
