@@ -66,6 +66,7 @@ function weekRows(w,today){
   }
   return rows;
 }
+function weekSummary(w){return weekRows(w,null).map(r=>r.label+' '+r.hours).join(' · ')}
 const pt=s=>{
   const m=String(s||'').trim().toLowerCase().match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?$/);
   if(!m)return null;
@@ -236,5 +237,5 @@ function status(txt,at){
   };
 }
 
-return {DAYS,FULL,parse,summary,encode,display,status,london,now,addDays,weekdayOf,daySchedule,fmtM,toMins,span,defaults,weekRows,hoursLabel};
+return {DAYS,FULL,parse,summary,encode,display,status,london,now,addDays,weekdayOf,daySchedule,fmtM,toMins,span,defaults,weekRows,weekSummary,hoursLabel};
 });

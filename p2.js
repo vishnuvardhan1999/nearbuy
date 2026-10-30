@@ -53,7 +53,7 @@ async function seedMock(){
   const c=await catalog();const pick=k=>c.filter(p=>p.images.length&&p.name.toLowerCase().includes(k));
   if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
     M.shops.push({id:'s1',owner_id:Q.get('as')==='shopper'?'u-owner':'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
-      opening_hours:'Mon–Sat 7am–7pm, Sun 9am–2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
+      opening_hours:'Mon-Fri 10am-6pm, Sat closed, Sun 10am-2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
       delivery_options:{collect:true,delivery:true,delivery_radius_miles:3,delivery_fee:2.5},logo_url:null,cover_url:null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
       M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],compare_at_price:i%3===1?+(p.trade_price*2.1).toFixed(2):null,active:i!==2,source:i<5?'wholesale':'manual'}));
@@ -171,17 +171,14 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
    ${note}
-   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${weekTable(s.opening_hours)}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
+   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${weekLine(s.opening_hours)}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
   <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
-function weekTable(txt){
+function weekLine(txt){
   if(!window.ShopHours)return '';
   const p=ShopHours.parse(txt);if(!p.usable)return '';
-  const today=ShopHours.london(ShopHours.now()).weekday;
-  const rows=ShopHours.weekRows(p.w,today);
-  const lis=rows.map(r=>`<li class="${r.today?'today':''}"><span>${esc(r.label)}${r.today?' <em>Today</em>':''}</span><b class="${r.hours==='Closed'?'shut':''}">${esc(r.hours)}</b></li>`).join('');
-  return `<div class="whours"><div class="wh-cap">Opening hours <small>UK time</small></div><ul class="wh-list">${lis}</ul><button type="button" class="wh-more" data-whmore aria-expanded="false">See all hours</button></div>`;
+  const bits=ShopHours.weekRows(p.w,null).map(r=>`<span class="wh-bit">${esc(r.label+' '+r.hours)}</span>`).join('<span class="wh-dot"> · </span>');
+  return `<div class="wh-sum"><span>Hours</span><span class="wh-txt">${bits}</span></div>`;
 }
-document.addEventListener('click',e=>{const b=e.target.closest('[data-whmore]');if(!b)return;e.preventDefault();const box=b.closest('.whours');const on=box.classList.toggle('open');b.setAttribute('aria-expanded',on?'true':'false');b.textContent=on?'Hide hours':'See all hours'});
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
 
