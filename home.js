@@ -18,36 +18,39 @@ function listShops(){const feat=new Set(promos().filter(p=>p.type==='featured_sh
   return shops().map(s=>({...s,dist:S.me&&s.lat!=null&&s.lng!=null?miles(S.me,s):null,_st:shopStatus(s),_feat:feat.has(s.id)}))
    .sort(S.me?(a,b)=>(a.dist??1e9)-(b.dist??1e9)||b._feat-a._feat:(a,b)=>b._feat-a._feat||b._st.open-a._st.open)}
 
-/* Until P2 has checked the saved session, a returning customer gets a placeholder rather than a flash of the guest hero. */
-let authChecked=false;const _init=P2.init;P2.init=async function(...a){try{return await _init.apply(this,a)}finally{authChecked=true}};
-const maybeSignedIn=()=>!authChecked&&(P2.MOCK?!!P2.Q.get('as')&&P2.Q.get('as')!=='none':Object.keys(localStorage).some(k=>/^sb-.*-auth-token$/.test(k)));
+/* Hero carousel for everyone, using p5's slide markup so its auto-advance, dots, arrows and swipe apply.
+   Admin "banner" promotions come first; house slides only appear when that category has live stock to picture. */
+const catIdx=l=>CATS.findIndex(c=>c[0]===l);
+const HOUSE=[
+ {theme:'teal',k:'Shop local',title:'Your high street, online',sub:'Order from independent shops near you. Collect for free or get local delivery.',cta:'Browse products',go:'data-t="products"'},
+ {theme:'coral',k:'Party',cat:'Party',title:'Party essentials, ready today',sub:'Balloons, candles and banners from shops near you.',cta:'Shop party'},
+ {theme:'night',k:'Stationery',cat:'Stationery',title:'Desk and school essentials',sub:'Pens, pads and pencils from your local shop.',cta:'Shop stationery'},
+ {theme:'gold',k:'Post & packaging',cat:'Packaging',title:'Posting a parcel?',sub:'Mail bags, envelopes and boxes, ready to collect.',cta:'Shop packaging'},
+ {theme:'lime',k:'Click & collect',title:'Order now, collect later',sub:'Click & collect is always free, and you pay the shop when you pick up.',cta:'How it works',go:'data-about'}];
+function slides(){const L=live(),out=[];
+  promos().filter(b=>b.type==='banner'&&(b.placement||'hero')==='hero').forEach(b=>out.push({theme:b.theme||'teal',k:b.shop_id?'Promoted':'ShopNip',title:b.title,sub:b.subtitle,cta:b.cta||'Shop now',go:`data-plink="${esc(b.link||'#search')}"`,img:b.image,art:b.sku?L.filter(p=>p.sku===b.sku):[]}));
+  HOUSE.forEach(h=>{const i=h.cat?catIdx(h.cat):-1,art=i>=0?varied(L.filter(CATS[i][1]),3):varied(L,3);
+    if(h.cat&&art.length<3)return;out.push({...h,art,go:h.go||`data-cat="${i}"`})});
+  return out.slice(0,6)}
+function hero(){const B=slides();if(!B.length)return '';
+  return `<section class="h5 hm-h5" id="h5" aria-roledescription="carousel" aria-label="Featured"><div class="h5s">${B.map((b,i)=>`<div class="h5i th-${esc(b.theme)} ${i?'':'on'}"${b.img?` style="--bg:url('${esc(b.img)}')"`:''} role="group" aria-roledescription="slide" aria-label="${i+1} of ${B.length}">
+    ${b.img?'<div class="h5bg"></div>':''}<div class="h5o"></div>
+    <div class="h5t"><span class="h5k">${esc(b.k)}</span><h2>${esc(b.title)}</h2>${b.sub?`<p>${esc(b.sub)}</p>`:''}<button type="button" class="h5c" ${b.go}>${esc(b.cta)}${svg('arrow')}</button></div>
+    ${b.img?'':`<div class="h5p" aria-hidden="true">${(b.art||[]).slice(0,3).map((p,j)=>`<span class="cut c${j}"><img src="${esc(p.images[0])}" alt="" data-fbhide></span>`).join('')}<i class="orb o1"></i><i class="orb o2"></i></div>`}</div>`).join('')}</div>
+   ${B.length>1?`<button type="button" class="h5a h5prev" data-h5go="-1" aria-label="Previous slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="h5a h5next" data-h5go="1" aria-label="Next slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+   <div class="h5d">${B.map((_,i)=>`<button type="button" data-h5="${i}" class="${i?'':'on'}" aria-label="Go to slide ${i+1}"><i></i></button>`).join('')}</div>`:''}</section>`}
 
-/* Guests: what ShopNip is and an invitation to create a shopping account. Location is asked for at sign-up, not here. */
-function hero(){if(P2.A.user)return welcome();if(maybeSignedIn())return '<section class="hm-w hm-skel" aria-busy="true"><span class="hm-av"></span><span class="hm-sk"></span></section>';const art=pick(p=>!p.demo&&!!p.listing_id,4,7),ns=shops().length,np=live().length;
-  return `<section class="hm-hero"><div class="hm-hero-t"><p class="hm-eye">Independent shops near you</p>
-   <h1>Your local shops, <em>online.</em></h1>
-   <p class="hm-lead">Order from the independent shops on your high street. Collect in store or get local delivery, and pay the shop when you get your order.</p>
-   <div class="hm-cta"><button type="button" class="btn" data-acc="new">Create a shopping account</button><button type="button" class="hm-btn2" data-t="products">Browse products</button></div>
-   <p class="hm-signin">Already shop with us? <a href="/account" data-acc="login">Sign in</a></p>
-   <ul class="hm-trust"><li>${svg('check')}Free click &amp; collect</li><li>${svg('check')}No card payment online</li><li>${svg('check')}Real local shops</li></ul></div>
-   ${art.length>=4?`<div class="hm-art" aria-hidden="true">${art.map(p=>`<span><img src="${esc(p.images[0])}" alt="" data-fbhide></span>`).join('')}
-    ${ns?`<div class="hm-float">${svg('store')}<span><b>${plural(ns,'local shop')}</b><small>${plural(np,'product')} ready to order</small></span></div>`:''}</div>`:''}</section>`}
-
-/* Signed-in customers: no hero. Their saved postcode, what is near them, and quick links. */
-function welcome(){const nm=firstName(),L=listShops(),near=S.me?L.filter(s=>s.dist!=null&&s.dist<=10):[],open=near.filter(s=>s._st.open).length,bn=S.basket.reduce((a,b)=>a+b.qty,0);
+/* Signed-in customers: a slim bar under the carousel with their saved postcode, what is near them, and quick links. */
+function welcome(){if(!P2.A.user)return '';const nm=firstName(),L=listShops(),near=S.me?L.filter(s=>s.dist!=null&&s.dist<=10):[],open=near.filter(s=>s._st.open).length,bn=S.basket.reduce((a,b)=>a+b.qty,0);
   const where=S.pc?`<p class="hm-w-loc">${svg('pin')}<span>Shopping near <b>${esc(S.pc)}</b></span><a href="/account" data-hmloc>Change in account settings</a></p>`
    :`<p class="hm-w-loc warn">${svg('pin')}<span>Add your delivery postcode to see shops near you.</span><a href="/account" data-hmloc>Add it in account settings</a></p>`;
-  return `<section class="hm-w"><div class="hm-w-a"><span class="hm-av" aria-hidden="true">${esc((nm||'?')[0].toUpperCase())}</span><div><h1>Hi ${esc(nm)}</h1>${where}</div></div>
+  return `<section class="hm-w"><div class="hm-w-a"><span class="hm-av" aria-hidden="true">${esc((nm||'?')[0].toUpperCase())}</span><div><b class="hm-w-name">Hi ${esc(nm)}</b>${where}</div></div>
    <div class="hm-w-b">${S.pc?`<div class="hm-w-st"><b>${near.length}</b><small>${near.length===1?'shop':'shops'} within 10 mi</small></div><div class="hm-w-st"><b>${open}</b><small>open now</small></div>`:''}
     <button type="button" class="hm-btn2" data-t="orders">${svg('orders')}Your orders</button>${bn?`<button type="button" class="btn" data-t="basket">${svg('basket')}Basket (${bn})</button>`:''}</div></section>`}
 
 function cats(){const L=live(),rows=CATS.map(([l,t],i)=>({l,i,n:L.filter(t).length})).sort((a,b)=>!!b.n-!!a.n);
   return `<nav class="hm-cats" aria-label="Shop by category">${rows.map(c=>`<button type="button" class="hm-cat${c.n?'':' none'}" data-cat="${c.i}"><span aria-hidden="true">${EMO[c.l]||'🛍️'}</span><b>${esc(c.l)}</b>${c.n?`<small>${c.n}</small>`:''}</button>`).join('')}
    <button type="button" class="hm-cat" data-t="products"><span aria-hidden="true">🛒</span><b>All products</b></button></nav>`}
-
-function banner(){const b=promos().find(x=>x.type==='banner');if(!b)return '';
-  return `<a href="#" class="hm-banner th-${esc(b.theme||'teal')}" data-plink="${esc(b.link||'#search')}"${b.image?` style="background-image:linear-gradient(90deg,rgba(0,0,0,.6),rgba(0,0,0,.1)),url('${esc(b.image)}')"`:''}>
-   <span class="hm-eye">${b.shop_id?'Promoted':'ShopNip'}</span><b>${esc(b.title)}</b>${b.subtitle?`<small>${esc(b.subtitle)}</small>`:''}<span class="hm-bc">${esc(b.cta||'Shop now')}${svg('arrow')}</span></a>`}
 
 const varied=(L,n)=>{const out=CATS.map(([,t])=>L.find(t)).filter((p,i,a)=>p&&a.indexOf(p)===i);return out.concat(L.filter(p=>!out.includes(p))).slice(0,n)};
 function shopCard(s){const L=live().filter(p=>sids(p).includes(s.id)),st=s._st,d=s.delivery_options||{},rb=readyBy(s);
@@ -104,7 +107,7 @@ const news=()=>`<section class="hm-news"><div><h2>Hear about offers near you</h2
   <form class="nwf" id="nwf"><div class="hm-nwi"><input type="email" id="nw_e" required placeholder="you@example.com" aria-label="Email address" autocomplete="email"><input id="nw_p" placeholder="Postcode" aria-label="Postcode (optional)" value="${esc(S.pc||'')}" maxlength="8"><button class="btn" type="submit">Sign up</button></div>
   <small>See our <a href="/privacy">Privacy Policy</a>.</small><div class="nwok" id="nwok"></div></form></section>`;
 
-V.home=function(){return `<div class="hm">${hero()}${cats()}${banner()}${shopsSec()}${prodSec()}${dealsSec()}${how()}${sell()}${news()}</div>${foot()}`};
+V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${welcome()}${cats()}${shopsSec()}${prodSec()}${dealsSec()}${how()}${sell()}${news()}</div>${foot()}`};
 
 addEventListener('click',e=>{const t=e.target.closest('[data-hmloc],[data-hmall]');if(!t)return;e.preventDefault();e.stopImmediatePropagation();
   if(t.hasAttribute('data-hmloc'))return askPostcode();
@@ -112,40 +115,24 @@ addEventListener('click',e=>{const t=e.target.closest('[data-hmloc],[data-hmall]
 
 const css=`.hm{display:grid;gap:40px;padding:20px 0 8px}.hm .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .hm-eye{margin:0 0 10px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
-.hm-hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:32px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:28px;padding:48px;position:relative;overflow:hidden}
-.hm-hero:before{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,#dff3ef 0,rgba(223,243,239,0) 70%);pointer-events:none}
-.hm-hero-t{position:relative}.hm-hero h1{margin:0;font-size:clamp(34px,4.4vw,54px);line-height:1.04;letter-spacing:-.035em;font-weight:800}.hm-hero h1 em{font-style:normal;color:var(--navy)}
-.hm-lead{margin:16px 0 24px;font-size:17px;line-height:1.55;color:#475467;max-width:32em}
-.hm-cta{display:flex;flex-wrap:wrap;gap:10px}.hm-cta .btn{padding:14px 24px;font-size:16px}
 .hm-btn2{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:12px;border:1.5px solid #cfd8d6;background:#fff;color:var(--txt);font-weight:700;font-size:15px}.hm-btn2:hover{border-color:var(--navy);color:var(--navy)}.hm-btn2 svg{width:18px;height:18px}
-.hm-signin{margin:14px 0 0;font-size:14.5px;color:var(--mut)}.hm-signin a{color:var(--navy);font-weight:700}
 .hm-w{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px 24px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px 26px}
 .hm-w-a{display:flex;align-items:center;gap:16px;min-width:0}.hm-av{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;font-weight:800;font-size:24px;display:grid;place-items:center;flex:none}
-.hm-w h1{margin:0;font-size:26px;letter-spacing:-.02em;line-height:1.2}
+.hm-w-name{display:block;font-size:22px;letter-spacing:-.02em;line-height:1.2}
+.hm-h5 .h5t h2{font-size:29px;line-height:1.06;letter-spacing:-1.1px;font-weight:800;margin:12px 0 8px;max-width:13ch;text-wrap:balance}
+@media(min-width:768px){.hm-h5{margin:0}.hm-h5 .h5t{max-width:min(560px,50%)}.hm-h5 .h5t h2{font-size:clamp(36px,4.2vw,52px);letter-spacing:-2px}
+ .hm-h5 .h5p{width:44%;right:24px}.hm-h5 .h5p .c0{width:min(230px,19vw);height:min(230px,19vw);right:30%;bottom:20px}
+ .hm-h5 .h5p .c1{width:min(190px,15vw);height:min(190px,15vw);right:0;bottom:130px}.hm-h5 .h5p .c2{width:min(140px,11vw);height:min(140px,11vw);right:66%;bottom:210px}}
 .hm-w-loc{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin:4px 0 0;color:#344054;font-size:15px}.hm-w-loc svg{width:18px;height:18px;color:var(--navy)}.hm-w-loc a{color:var(--navy);font-weight:700;font-size:14px}
 .hm-w-loc.warn{color:#7a4b00}.hm-w-loc.warn svg{color:#c2410c}
 .hm-w-b{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.hm-w-st{min-width:88px;padding:8px 14px;border-radius:14px;background:#f2f7f6;text-align:center}.hm-w-st b{display:block;font-size:22px;line-height:1.1}.hm-w-st small{color:var(--mut);font-size:12.5px}
 .hm-w .btn{min-height:48px}.hm-w .btn svg{width:18px;height:18px}
-.hm-float svg{width:22px;height:22px;color:var(--navy)}
-.hm-skel{justify-content:flex-start;min-height:100px}.hm-skel .hm-av{background:#e8eeec}.hm-sk{width:min(260px,50%);height:22px;border-radius:8px;background:#e8eeec}
 .hm-h p a{color:var(--navy);font-weight:700}
 .hm-all{display:block;margin:16px auto 0;min-height:44px;padding:0 22px;border-radius:12px;border:1.5px solid #cfd8d6;background:#fff;font-weight:700;color:var(--txt)}.hm-all:hover{border-color:var(--navy);color:var(--navy)}
-.hm-trust{list-style:none;display:flex;flex-wrap:wrap;gap:8px 18px;margin:24px 0 0;padding:0;font-size:14px;color:#344054;font-weight:600}
-.hm-trust li{display:flex;align-items:center;gap:6px}.hm-trust svg{width:18px;height:18px;color:var(--navy);stroke-width:2.6}
-.hm-art{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:380px;width:100%;justify-self:center;padding-bottom:34px}
-.hm-art>span{aspect-ratio:1;background:#f5f7f6;border:1px solid #ebefed;border-radius:22px;display:grid;place-items:center;overflow:hidden}.hm-art>span:nth-child(even){transform:translateY(24px)}
-.hm-art img{width:76%;height:76%;object-fit:contain}
-.hm-float{position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#fff;border-radius:16px;padding:10px 16px;box-shadow:0 14px 34px rgba(16,32,56,.18);white-space:nowrap}
-.hm-float b{display:block;font-size:14px}.hm-float small{display:block;color:var(--mut);font-size:12.5px}
 .hm-cats{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding:2px;margin-top:-16px}.hm-cats::-webkit-scrollbar{display:none}
 .hm-cat{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 14px 6px 6px;background:#fff;border:1px solid var(--line);border-radius:16px;color:var(--txt);text-align:left;transition:border-color .15s,box-shadow .15s}
 .hm-cat:hover{border-color:var(--navy);box-shadow:0 4px 14px rgba(16,32,56,.08)}.hm-cat>span{width:40px;height:40px;border-radius:12px;background:#f1faf8;display:grid;place-items:center;font-size:22px;flex:none}
 .hm-cat b{font-size:14px;white-space:nowrap}.hm-cat small{font-size:12px;font-weight:700;color:#475467;background:#f2f4f7;border-radius:99px;padding:2px 8px}.hm-cat.none b{color:var(--mut)}.hm-cat.none>span{filter:grayscale(.6);opacity:.7}
-.hm-banner{display:flex;flex-direction:column;gap:6px;padding:26px 30px;border-radius:22px;color:#fff;background:linear-gradient(135deg,#134e4a,#0f766e) center/cover;margin-top:-16px}
-.hm-banner .hm-eye{color:inherit;opacity:.85;margin:0}.hm-banner b{font-size:24px;letter-spacing:-.02em}.hm-banner small{font-size:15px;opacity:.9}
-.hm-bc{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-weight:800;align-self:flex-start;background:#fff;color:#14202e;border-radius:99px;padding:8px 14px;font-size:14px}.hm-bc svg{width:16px;height:16px}
-.hm-banner.th-coral{background-color:#e8553a;background-image:linear-gradient(135deg,#ff6b4a,#e8553a)}.hm-banner.th-night{background-image:linear-gradient(135deg,#1e3a8a,#172554)}
-.hm-banner.th-gold{background-image:linear-gradient(135deg,#facc15,#f59e0b);color:#3b2600}.hm-banner.th-lime{background-image:linear-gradient(135deg,#a3e635,#4d7c0f);color:#1a2e05}
 .hm-sec{scroll-margin-top:96px}.hm-h{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
 .hm-h h2{margin:0;font-size:26px;letter-spacing:-.02em;line-height:1.2}.hm-h p{margin:4px 0 0;color:var(--mut);font-size:15px}
 .hm-more{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--navy);white-space:nowrap;font-size:15px;padding:8px 0}.hm-more svg{width:18px;height:18px}
@@ -188,12 +175,11 @@ const css=`.hm{display:grid;gap:40px;padding:20px 0 8px}.hm .sr{position:absolut
 .hm-news .nwok.on{color:#146c36;margin-top:8px}.hm-news .nwok.err{color:#b42318;margin-top:8px}.nwf.done .hm-nwi{opacity:.5;pointer-events:none}
 @media(min-width:761px){.hm-cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;overflow:visible}
  .hm-cat{flex-direction:column;justify-content:center;text-align:center;padding:12px 6px;gap:6px;min-height:118px}.hm-cat>span{width:52px;height:52px;font-size:28px;border-radius:16px}.hm-cat b{white-space:normal;font-size:13px;line-height:1.25}}
-@media(max-width:900px){.hm-hero{grid-template-columns:minmax(0,1fr);padding:32px}.hm-art{display:none}.hm-how ol{grid-template-columns:1fr}.hm-sell,.hm-news{grid-template-columns:minmax(0,1fr)}.hm-sell-a{justify-self:start;flex-direction:row;align-items:center;flex-wrap:wrap;gap:18px}}
-@media(max-width:760px){.hm{gap:30px;padding-top:12px}.hm-hero{padding:24px 20px;border-radius:22px}.hm-lead{font-size:15.5px;margin:10px 0 18px}.hm-trust{gap:6px 14px;font-size:13px;margin-top:16px}
- .hm-cats{margin:-14px -16px 0;padding:2px 16px}.hm-h h2{font-size:21px}.hm-h p{font-size:14px}.hm-shops{grid-template-columns:1fr}.hm-grid>:nth-child(n+9){display:none}
+@media(max-width:900px){.hm-how ol{grid-template-columns:1fr}.hm-sell,.hm-news{grid-template-columns:minmax(0,1fr)}.hm-sell-a{justify-self:start;flex-direction:row;align-items:center;flex-wrap:wrap;gap:18px}}
+@media(max-width:760px){.hm{gap:30px;padding-top:12px} .hm-cats{margin:-14px -16px 0;padding:2px 16px}.hm-h h2{font-size:21px}.hm-h p{font-size:14px}.hm-shops{grid-template-columns:1fr}.hm-grid>:nth-child(n+9){display:none}
  .hm-how{padding:22px 18px}.hm-how ol{gap:10px}.hm-how li{padding:16px 40px 16px 16px;display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:12px}.hm-how li>svg{grid-row:span 2;width:24px;height:24px;margin-top:2px}.hm-how li b{margin:0 0 4px;font-size:16px}.hm-how li p{font-size:14px}.hm-sell{padding:26px 22px}.hm-sell h2{font-size:24px}.hm-news{padding:22px 18px}
- .hm-cta>*{flex:1 1 100%}.hm-w{padding:18px;border-radius:20px}.hm-w h1{font-size:22px}.hm-av{width:46px;height:46px;font-size:20px}.hm-w-b{width:100%}.hm-w-st{flex:1}.hm-w-b>button{flex:1 1 40%}
- .hm-nwi{flex-wrap:wrap}.hm-nwi #nw_e{flex-basis:100%}.hm-nwi #nw_p{flex:1 1 100px}.hm-banner{padding:20px;margin-top:-14px}.hm-banner b{font-size:20px}}`;
+ .hm-w{padding:16px;border-radius:20px}.hm-w-name{font-size:19px}.hm-h5{margin-top:-12px}.hm-h5 .h5a,.hm-h5 .h5p .c2{display:none}.hm-av{width:46px;height:46px;font-size:20px}.hm-w-b{width:100%}.hm-w-st{flex:1}.hm-w-b>button{flex:1 1 40%}
+ .hm-nwi{flex-wrap:wrap}.hm-nwi #nw_e{flex-basis:100%}.hm-nwi #nw_p{flex:1 1 100px}}`;
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 if(cur&&cur[0]==='home')render();
 })();
