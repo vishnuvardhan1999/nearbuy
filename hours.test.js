@@ -157,4 +157,18 @@ const NIGHT='Every day 8pm-2am';
   assert.deepStrictEqual(again.w.map(d=>[d.o,d.a,d.b]),p.w.map(d=>[d.o,d.a,d.b]));
 }
 
+{
+  const p=H.parse(SUMAN);
+  const rows=H.weekRows(p.w,4);
+  assert.strictEqual(rows.map(r=>r.label+' '+r.hours).join(' | '),'Mon 10am–6pm | Tue 10am–8pm | Wed 10am–6pm | Thu 10am–8pm | Fri 10am–6pm | Sat Closed | Sun 10am–2pm');
+  assert.strictEqual(rows[4].today,true);
+  assert.strictEqual(rows.filter(r=>r.today).length,1);
+  const g=H.weekRows(H.parse('Mon-Fri 9am-5pm, Sat closed, Sun closed').w,2);
+  assert.strictEqual(g[0].label,'Mon–Fri');
+  assert.strictEqual(g[0].hours,'9am–5pm');
+  assert.strictEqual(g[0].today,true);
+  assert.strictEqual(g[1].label,'Sat–Sun');
+  assert.strictEqual(g[1].hours,'Closed');
+  assert.strictEqual(H.weekSummary(H.parse('Mon-Fri 10am-6pm, Sat closed, Sun 10am-2pm').w),'Mon–Fri 10am–6pm · Sat Closed · Sun 10am–2pm');
+}
 console.log('all opening-hours checks passed');

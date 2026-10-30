@@ -53,7 +53,7 @@ async function seedMock(){
   const c=await catalog();const pick=k=>c.filter(p=>p.images.length&&p.name.toLowerCase().includes(k));
   if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
     M.shops.push({id:'s1',owner_id:'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
-      opening_hours:'Mon–Sat 7am–7pm, Sun 9am–2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
+      opening_hours:'Mon-Fri 10am-6pm, Sat closed, Sun 10am-2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
       delivery_options:{collect:true,delivery:true,delivery_radius_miles:3,delivery_fee:2.5},logo_url:null,cover_url:null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
       M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],compare_at_price:i%3===1?+(p.trade_price*2.1).toFixed(2):null,active:i!==2,source:i<5?'wholesale':'manual'}));
@@ -163,15 +163,20 @@ V.addprod=function(){const q=(A.aq||'').toLowerCase(),have=new Set(A.listings.ma
 V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div class="empty">Loading shop…</div>'}
   const d=s.delivery_options||{},dist=S.me&&s.lat!=null?miles(S.me,s).toFixed(1)+' mi away':'';
   const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
-  const hoursTxt=window.ShopHours?ShopHours.display(s.opening_hours):(s.opening_hours||'');
   const note=hs?`<div class="hours-note ${hs.unknown?'unknown':hs.open?'live':hs.openingSoon?'soon':'closed'}" role="status"><b>${esc(hs.label)}</b>${hs.notice?`<span>${esc(hs.notice)}</span>`:''}</div>`:'';
   return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" data-t="home" aria-label="Back">‹</button></div>
   <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
    ${note}
-   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${hoursTxt?`<div class="line"><span>Hours</span><span>${esc(hoursTxt)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
+   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${weekLine(s.opening_hours)}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
   <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
+function weekLine(txt){
+  if(!window.ShopHours)return '';
+  const p=ShopHours.parse(txt);if(!p.usable)return '';
+  const rows=ShopHours.weekRows(p.w,null).map(r=>`<span>${esc(r.label)}</span><b>${esc(r.hours)}</b>`).join('');
+  return `<div class="wh-sum"><span>Hours</span><div class="wh-rows">${rows}</div></div>`;
+}
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
 
