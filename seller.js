@@ -49,7 +49,7 @@ const API=MOCK?{
   async listings(){return M.L.filter(l=>l.shop_id===D.shop.id)},async orders(){return M.O.filter(o=>o.shop_id===D.shop.id)},
   async updListing(id,ch){Object.assign(M.L.find(l=>l.id===id)||{},ch)},async addListing(l){l.id='l'+Math.random().toString(36).slice(2,8);l.updated_at=new Date().toISOString();M.L.unshift(l);return l},
   async saveShop(s){const x=M.shops.find(z=>z.id===s.id);Object.assign(x,s);if(s.bluepark_customer_email&&s._tradeChanged)x.status='pending';return x},async upload(f){return URL.createObjectURL(f)},
-  async status(id,st,note,cancel){const o=M.O.find(x=>x.id===id);if(DEAD.includes(st))o.order_items.forEach(i=>{const l=M.L.find(x=>x.id===i.listing_id);if(l)l.stock+=i.qty});o.status=st;if(note)o.reject_reason=note;if(st==='cancelled'){if(!cancel||!cancel.reason)throw new Error('Choose a cancellation reason');window.CancelBox&&CancelBox.apply(o,cancel,'seller')}o.order_events.push({status:st,at:new Date().toISOString(),note})},
+  async status(id,st,note){const o=M.O.find(x=>x.id===id);if(DEAD.includes(st))o.order_items.forEach(i=>{const l=M.L.find(x=>x.id===i.listing_id);if(l)l.stock+=i.qty});o.status=st;if(note)o.reject_reason=note;o.order_events.push({status:st,at:new Date().toISOString(),note})},
   live(){}
 }:{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
@@ -65,7 +65,7 @@ const API=MOCK?{
   async saveShop(s){const id=s.id,r={...s};delete r.id;delete r._tradeChanged;const {data,error}=await sb.from('shops').update(r).eq('id',id).select().single();if(error)throw error;return data},
   async upload(f,kind){const ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=`${D.user.id}/${kind}-${Date.now()}.${ext}`;
     const {error}=await sb.storage.from('shop-media').upload(path,f,{upsert:true,contentType:f.type});if(error)throw error;return sb.storage.from('shop-media').getPublicUrl(path).data.publicUrl},
-  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error},
+  async status(id,st,note){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null});if(error)throw error},
   live(shopId,cb){if(D.ch)sb.removeChannel(D.ch);D.ch=sb.channel('seller-orders-'+shopId).on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:'shop_id=eq.'+shopId},cb).subscribe()}
 };
 async function catalog(){if(!D.cat)D.cat=await fetch('products.json').then(r=>r.json()).catch(()=>[]);return D.cat}
@@ -224,7 +224,7 @@ PAGES.orders=()=>{const u=D.ui,q=u.oq.toLowerCase(),L=D.O.filter(FIL[u.of][1]).f
    ${L.map(o=>`<tr class="click ${o.status==='placed'?'isnew':''} ${D.ui.newIds.has(o.id)?'flash':''}" data-o="${esc(o.id)}"><td><b>${esc(o.order_number)}</b><div class="mut">${when(o.created_at)}</div></td>
     <td data-l="Customer"><b style="font-weight:600">${esc(o.customer_name)}</b><div class="mut">${esc(o.customer_phone||'')}</div></td>
     <td data-l="Items" class="mut">${nItems(o)} item${nItems(o)===1?'':'s'}</td><td data-l="Fulfilment" class="mut">${o.fulfilment==='delivery'?'Delivery':'Click & collect'}</td>
-    <td data-l="Status">${chip(o.status)}${o.cancel_reason&&window.CancelBox?`<div class="mut">${esc(CancelBox.label(o.cancel_reason))}${o.cancelled_role?' · '+(o.cancelled_role==='seller'?'shop':'customer'):''}</div>`:''}</td><td class="num" data-l="Total"><b>${gbp(o.total)}</b></td><td class="full"><div class="racts">${actBtns(o)||'<span class="mut">–</span>'}</div></td></tr>`).join('')}</tbody></table>`
+    <td data-l="Status">${chip(o.status)}</td><td class="num" data-l="Total"><b>${gbp(o.total)}</b></td><td class="full"><div class="racts">${actBtns(o)||'<span class="mut">–</span>'}</div></td></tr>`).join('')}</tbody></table>`
    :`<div class="empty">${svg('orders')}<b>No ${FIL[u.of][0].toLowerCase()} orders</b>${u.oq?'Try a different search.':'New orders appear here instantly.'}</div>`}</div>`};
 /* click & collect verification: customer quotes "NB-1004 · PIN 4821" */
 const normQ=s=>(s||'').toUpperCase().replace(/\s+/g,'');
@@ -248,7 +248,7 @@ function drawer(){const o=D.ui.drawer&&D.O.find(x=>x.id===D.ui.drawer);if(!o)ret
   return `<div class="drw on"><div class="bg" data-a="close"></div><div class="pn2" role="dialog" aria-label="Order ${esc(o.order_number)}"><div class="dh"><div style="flex:1"><h3>${esc(o.order_number)}</h3><small class="mut">${when(o.created_at)}</small></div>${chip(o.status)}<button class="ib" data-a="close" aria-label="Close">${svg('x')}</button></div>
    <div class="db"><div class="card"><div class="cb">${timeline(o)}</div></div>
     <div class="card"><div class="chd"><h3>Customer</h3><a href="tel:${esc(o.customer_phone)}">Call</a></div><div class="cb"><div class="kv"><span>Name</span><b>${esc(o.customer_name)}</b></div><div class="kv"><span>Phone</span><a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a></div>
-     <div class="kv"><span>${o.fulfilment==='delivery'?'Deliver to':'Fulfilment'}</span><span style="color:var(--txt);text-align:right">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+', '+(o.delivery_postcode||'')):'Click & collect in store'}</span></div>${o.fulfilment==='collect'&&o.collection_pin?`<div class="kv"><span>Collection PIN</span><b style="font-size:16px;letter-spacing:.06em">${esc(o.collection_pin)}</b></div>`:''}${o.note?`<div class="kv"><span>Note</span><span style="color:var(--txt);text-align:right">“${esc(o.note)}”</span></div>`:''}${window.CancelBox?CancelBox.html(o):''}</div></div>
+     <div class="kv"><span>${o.fulfilment==='delivery'?'Deliver to':'Fulfilment'}</span><span style="color:var(--txt);text-align:right">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+', '+(o.delivery_postcode||'')):'Click & collect in store'}</span></div>${o.fulfilment==='collect'&&o.collection_pin?`<div class="kv"><span>Collection PIN</span><b style="font-size:16px;letter-spacing:.06em">${esc(o.collection_pin)}</b></div>`:''}${o.note?`<div class="kv"><span>Note</span><span style="color:var(--txt);text-align:right">“${esc(o.note)}”</span></div>`:''}</div></div>
     <div class="card"><div class="chd"><h3>Items · ${nItems(o)}</h3></div><div class="cb">${o.order_items.map(i=>`<div class="oi"><img class="pimg" src="${esc(i.image||'icon-192.png')}" alt="" data-fb><span>${i.qty} × ${esc(i.name)}</span><b>${gbp(i.unit_price*i.qty)}</b></div>`).join('')}
      <div class="kv"><span>Subtotal</span><span>${gbp(o.subtotal??o.total)}</span></div>${+o.delivery_fee?`<div class="kv"><span>Delivery</span><span>${gbp(o.delivery_fee)}</span></div>`:''}<div class="kv tot"><span style="color:var(--txt)">Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</span><span>${gbp(o.total)}</span></div></div></div></div>
    ${a?`<div class="df">${a}</div>`:''}</div></div>`}
@@ -299,9 +299,9 @@ function ding(){try{const c=new (window.AudioContext||window.webkitAudioContext)
 function alertNew(o){ding();D.ui.newIds.add(o.id);toast('New order '+(o.order_number||'')+' · '+gbp(o.total));
   try{if(Notification.permission==='granted'&&document.hidden)new Notification('New ShopNip order',{body:(o.order_number||'')+' · '+gbp(o.total),icon:'icon-192.png'})}catch{}}
 async function onLive(ev){const isNew=ev.eventType==='INSERT';try{D.O=await API.orders()}catch{}if(isNew)alertNew(ev.new);rerender()}
-async function setStatus(id,st){let note=null,pack=null;if(st==='rejected'){note=prompt('Reason for rejecting (shown to the customer)','Sorry, we can’t fulfil this order right now');if(note===null)return}
-  else if(st==='cancelled'){pack=window.CancelBox?await CancelBox.ask('seller'):null;if(!pack)return;note=pack.note}
-  try{await API.status(id,st,note,pack);D.O=await API.orders();if(DEAD.includes(st))D.L=await API.listings();toast('Order '+LBL[st].toLowerCase());rerender()}catch(e){toast(e.message||'Could not update order')}}
+async function setStatus(id,st){let note=null;if(st==='rejected'){note=prompt('Reason for rejecting (shown to the customer)','Sorry, we can’t fulfil this order right now');if(note===null)return}
+  else if(st==='cancelled'&&!confirm('Cancel this order? Stock will be returned.'))return;
+  try{await API.status(id,st,note);D.O=await API.orders();if(DEAD.includes(st))D.L=await API.listings();toast('Order '+LBL[st].toLowerCase());rerender()}catch(e){toast(e.message||'Could not update order')}}
 const saveT={};
 function saveField(inp){const tr=inp.closest('[data-l-id]'),id=tr.dataset.lId,f=inp.dataset.f,l=D.L.find(x=>x.id===id);if(!l)return;
   let v=f==='active'?inp.checked:inp.value===''?null:+inp.value;if(f==='stock')v=Math.max(0,Math.round(v||0));if(f==='retail_price'&&!(v>0))return toast('Enter a retail price');
