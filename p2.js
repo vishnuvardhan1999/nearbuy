@@ -164,7 +164,9 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
   const d=s.delivery_options||{},dist=S.me&&s.lat!=null?miles(S.me,s).toFixed(1)+' mi away':'';
   const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
   const hoursTxt=window.ShopHours?ShopHours.display(s.opening_hours):(s.opening_hours||'');
-  const note=hs?`<div class="hours-note ${hs.unknown?'unknown':hs.open?'live':hs.openingSoon?'soon':'closed'}" role="status"><b>${esc(hs.label)}</b>${hs.notice?`<span>${esc(hs.notice)}</span>`:''}</div>`:'';
+  const clk='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>';
+  const hsCls=hs?(hs.unknown?'unknown':(hs.openingSoon||hs.closingSoon)?'soon':hs.open?'live':'closed'):'';
+  const note=hs?`<div class="hours-status ${hsCls}" role="status"><span class="hs-pill">${clk}${esc(hs.label)}</span>${hs.notice?`<p>${esc(hs.notice)}</p>`:''}</div>`:'';
   return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" data-t="home" aria-label="Back">‹</button></div>
   <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>

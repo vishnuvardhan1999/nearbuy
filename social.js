@@ -127,6 +127,18 @@ function accountExtra(){
   const nhtml=notes.length?notes.map(n=>`<div class="line"><span><b>${esc(n.shop_name||'Shop')}</b> · ${esc(n.title)}</span></div>`).join(''):'';
   return `<div class="panel"><h3 class="ft">Shops you follow</h3>${fhtml}</div>${nhtml?`<div class="panel"><h3 class="ft">New offers</h3>${nhtml}</div>`:''}`;
 }
+function rateKey(orderId,when){return String(orderId)+':'+(when||'placed')}
+function rateSkipped(orderId,when){try{return JSON.parse(root.localStorage.nb_rate_skip||'[]').includes(rateKey(orderId,when))}catch(e){return false}}
+function rateSkip(orderId,when){let a=[];try{a=JSON.parse(root.localStorage.nb_rate_skip||'[]')}catch(e){}const k=rateKey(orderId,when);if(!a.includes(k))a.push(k);try{root.localStorage.nb_rate_skip=JSON.stringify(a)}catch(e){}}
+function alreadyReviewed(shopId){const id=uid();return !!id&&store.reviews.some(r=>r.shop_id===shopId&&r.customer_id===id)}
+function rateHTML(shopId,shopName,orderId,when){
+  if(!shopId||!orderId||rateSkipped(orderId,when)||alreadyReviewed(shopId))return '';
+  return `<form class="ratebox" data-rate="${esc(shopId)}" data-oid="${esc(orderId)}" data-when="${esc(when||'placed')}"><h3>Rate your order</h3><p>How was ${esc(shopName||'this shop')}?</p>
+    <div class="ratestars" role="radiogroup" aria-label="Rating">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="stars" value="${n}">${n}</label>`).join('')}</div>
+    <textarea name="body" maxlength="400" placeholder="Optional short review"></textarea>
+    <p class="rateerr" role="alert"></p>
+    <div class="rateacts"><button type="button" class="btn ghost" data-rateskip>Skip</button><button class="btn" type="submit">Save rating</button></div></form>`;
+}
 function cancelHtml(o){
   if(!o||o.status!=='cancelled'||!o.cancel_reason)return '';
   const who=o.cancelled_role==='seller'?'the shop':'the customer';
@@ -164,8 +176,9 @@ async function toggleFollow(shopId){
 }
 async function saveReview(shopId,rating,body){
   const id=uid();if(!id)throw new Error('Sign in to leave a review');
-  if(live()&&db()){const {error}=await db().rpc('save_shop_review',{p_shop:shopId,p_rating:rating,p_body:body});if(error)throw error}
-  const row={shop_id:shopId,customer_id:id,author:'You',rating,body:body.trim(),hidden:false,reports:0,updated_at:new Date().toISOString(),created_at:new Date().toISOString()};
+  const text=String(body||'').trim();
+  if(live()&&db()){const {error}=await db().rpc('save_shop_review',{p_shop:shopId,p_rating:rating,p_body:text});if(error)throw error}
+  const row={shop_id:shopId,customer_id:id,author:'You',rating,body:text,hidden:false,reports:0,updated_at:new Date().toISOString(),created_at:new Date().toISOString()};
   const i=store.reviews.findIndex(r=>r.shop_id===shopId&&r.customer_id===id);
   if(i>=0)store.reviews[i]={...store.reviews[i],...row};else store.reviews.push(row);
   save();
@@ -211,11 +224,15 @@ function hook(){
 root.document.addEventListener('click',async e=>{
   const f=e.target.closest('[data-follow]');if(f){e.preventDefault();try{await toggleFollow(f.dataset.follow);root.toast&&root.toast(store.follows.some(x=>x.shop_id===f.dataset.follow&&x.customer_id===uid())?'Following':'Unfollowed');paint();if(typeof root.render==='function')root.render();if(NBRerender())NBRerender()}catch(err){root.toast&&root.toast(err.message||'Could not update follow')}}
   const rp=e.target.closest('[data-revrep]');if(rp){e.preventDefault();await reportReview(rp.dataset.revrep,rp.dataset.revwho);root.toast&&root.toast('Reported. Repeated reports hide a review.');if(typeof root.render==='function')root.render()}
+  const sk=e.target.closest('[data-rateskip]');if(sk){e.preventDefault();const f=sk.closest('[data-rate]');rateSkip(f.dataset.oid,f.dataset.when);f.outerHTML='<p class="rateskip">You can rate this shop later from its page.</p>'}
 });
 function NBRerender(){return root.NBSeller&&root.NBSeller.rerender}
 root.document.addEventListener('submit',async e=>{
   const f=e.target.closest('[data-revform]');if(f){e.preventDefault();e.stopPropagation();const rating=+(f.querySelector('input[name=rating]:checked')||{}).value||0;const body=f.querySelector('textarea').value;try{await saveReview(f.dataset.revform,rating,body);root.toast&&root.toast('Review saved');paint();root.render&&root.render()}catch(err){root.toast&&root.toast(err.message||'Could not save review')}return}
-  if(e.target.id==='eodf'){e.preventDefault();const F=new FormData(e.target);try{await postOffer({title:F.get('title'),detail:F.get('detail'),price:F.get('price'),discount:F.get('discount'),until:F.get('until')});root.NBSeller&&root.NBSeller.toast('Offer posted. Followers are notified.');NBRerender()&&root.NBSeller.rerender()}catch(err){root.NBSeller&&root.NBSeller.toast(err.message||'Could not post offer')}}
+  if(e.target.id==='eodf'){e.preventDefault();const F=new FormData(e.target);try{await postOffer({title:F.get('title'),detail:F.get('detail'),price:F.get('price'),discount:F.get('discount'),until:F.get('until')});root.NBSeller&&root.NBSeller.toast('Offer posted. Followers are notified.');NBRerender()&&root.NBSeller.rerender()}catch(err){root.NBSeller&&root.NBSeller.toast(err.message||'Could not post offer')}return}
+  const rf=e.target.closest('[data-rate]');if(rf){e.preventDefault();e.stopPropagation();const rating=+(rf.querySelector('input[name=stars]:checked')||{}).value||0;const err=rf.querySelector('.rateerr');
+    if(rating<1){if(err)err.textContent='Choose a star rating.';return}
+    try{await saveReview(rf.dataset.rate,rating,rf.querySelector('textarea').value);rf.outerHTML='<p class="ratesaved">Thanks. Your rating is on the shop.</p>';root.toast&&root.toast('Rating saved')}catch(ex){if(err)err.textContent=ex.message||'Could not save'}}
 });
 const css=root.document.createElement('style');css.textContent=`
 .eods{display:flex;gap:10px;overflow:auto;padding-bottom:8px}.eod{flex:0 0 240px;text-align:left;background:#fff;border:1px solid #f3e2c2;border-radius:14px;padding:12px;display:grid;gap:4px;box-shadow:0 1px 2px rgba(16,32,56,.06)}
@@ -230,9 +247,15 @@ const css=root.document.createElement('style');css.textContent=`
 #cancelbox h2{margin:0;font-size:22px}#cancelbox p{margin:0;color:#3d4a57;font-size:14px}
 #cancelbox label{display:grid;gap:4px;font-size:13px;font-weight:700}#cancelbox select,#cancelbox textarea{font:inherit;font-weight:500;border:1px solid #d6dbe1;border-radius:10px;padding:10px}
 #cancelbox .cxerr{color:#b42318;min-height:1.2em}#cancelbox .cxacts{display:flex;gap:8px;justify-content:flex-end}
-.social .sh{align-items:center}`;
+.social .sh{align-items:center}
+.ratebox{margin:18px 0;padding:16px;border:1px solid #e7ecef;border-radius:16px;background:#fff;text-align:left;display:grid;gap:8px;box-shadow:0 1px 2px rgba(16,32,56,.06)}
+.ratebox h3{margin:0;font-size:18px}.ratebox p{margin:0;color:#3d4a57;font-size:14px}
+.ratestars{display:flex;gap:8px}.ratestars label{font-weight:800;color:#0f766e}
+.ratebox textarea{width:100%;border:1px solid #e6eaf0;border-radius:12px;padding:10px;font:inherit;min-height:64px}
+.rateacts{display:flex;gap:8px;justify-content:flex-end}.rateerr{color:#b42318;min-height:1em;font-size:13px}
+.ratesaved,.rateskip{margin:14px 0;font-weight:700;color:#146c36}`;
 root.document.head.appendChild(css);
-root.Social={api,store,avg,decorate,dealsHTML,shopExtra,accountExtra,cancelHtml,askCancel,applyCancel,validateCancel,reasonLabel,boot,paint,activeOffers,postOffer,saveReview,toggleFollow};
+root.Social={api,store,avg,decorate,dealsHTML,shopExtra,accountExtra,cancelHtml,askCancel,applyCancel,validateCancel,reasonLabel,boot,paint,activeOffers,postOffer,saveReview,toggleFollow,rateHTML,alreadyReviewed};
 root.CancelBox={ask:askCancel,apply:applyCancel,html:cancelHtml,label:reasonLabel,validate:validateCancel};
 hook();
 if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,400));

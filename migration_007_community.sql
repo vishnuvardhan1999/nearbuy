@@ -6,7 +6,7 @@ create table if not exists shop_reviews (
   shop_id uuid not null references shops(id) on delete cascade,
   customer_id uuid not null references auth.users(id) on delete cascade,
   rating smallint not null check (rating between 1 and 5),
-  body text not null check (char_length(btrim(body)) between 2 and 400),
+  body text not null default '' check (char_length(body) <= 400),
   hidden boolean not null default false,
   reports int not null default 0,
   created_at timestamptz not null default now(),
@@ -39,7 +39,7 @@ declare v_uid uuid := auth.uid();
 begin
   if v_uid is null then raise exception 'Please log in to leave a review'; end if;
   if p_rating < 1 or p_rating > 5 then raise exception 'Choose a rating from 1 to 5'; end if;
-  if char_length(btrim(coalesce(p_body,''))) < 2 then raise exception 'Write a short review'; end if;
+  if char_length(coalesce(p_body,'')) > 400 then raise exception 'Keep the review under 400 characters'; end if;
   if exists (select 1 from shops where id = p_shop and owner_id = v_uid) then
     raise exception 'You can’t review your own shop';
   end if;
