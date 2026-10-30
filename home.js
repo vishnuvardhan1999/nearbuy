@@ -61,8 +61,8 @@ function shopCard(s){const L=live().filter(p=>sids(p).includes(s.id)),st=s._st,d
     <span class="hm-st ${stCls(st)}"><i></i>${esc(st.label)}</span></div>
    <div class="hm-shop-b"><span class="hm-logo">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span>
     <h3>${esc(s.name)}${s._feat?'<span class="hm-feat">Featured</span>':''}</h3>
-    <p class="hm-meta">${s.dist!=null?`<span>${fmi(s.dist)}</span>`:''}${s.postcode?`<span>${esc(s.postcode)}</span>`:''}${L.length?`<span>${L.length} product${L.length>1?'s':''}</span>`:''}</p>
-    <ul class="hm-tags">${d.collect!==false?'<li>Click &amp; collect · free</li>':''}${del?`<li class="${S.me&&!inRange?'off':''}">${del}</li>`:''}</ul>
+    <p class="hm-meta">${s.rating_n?`<span class="hm-rate">★ ${Number(s.rating_avg).toFixed(1)} (${s.rating_n})</span>`:''}${s.dist!=null?`<span>${fmi(s.dist)}</span>`:''}${s.postcode?`<span>${esc(s.postcode)}</span>`:''}${L.length?`<span>${L.length} product${L.length>1?'s':''}</span>`:''}</p>
+    <ul class="hm-tags">${s.active_offer?'<li class="eod">End-of-day deal</li>':''}${d.collect!==false?'<li>Click &amp; collect · free</li>':''}${del?`<li class="${S.me&&!inRange?'off':''}">${del}</li>`:''}</ul>
     ${rb&&d.collect!==false?`<p class="hm-rb">${svg('clock')}${esc(rb)}</p>`:''}</div></a>`}
 
 let showAll=false;const FIRST=6;
@@ -107,7 +107,7 @@ const news=()=>`<section class="hm-news"><div><h2>Hear about offers near you</h2
   <form class="nwf" id="nwf"><div class="hm-nwi"><input type="email" id="nw_e" required placeholder="you@example.com" aria-label="Email address" autocomplete="email"><input id="nw_p" placeholder="Postcode" aria-label="Postcode (optional)" value="${esc(S.pc||'')}" maxlength="8"><button class="btn" type="submit">Sign up</button></div>
   <small>See our <a href="/privacy">Privacy Policy</a>.</small><div class="nwok" id="nwok"></div></form></section>`;
 
-V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${welcome()}${cats()}${shopsSec()}${prodSec()}${dealsSec()}${how()}${sell()}${news()}</div>${foot()}`};
+V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${welcome()}${cats()}${shopsSec()}${window.Social?Social.dealsHTML():''}${prodSec()}${dealsSec()}${how()}${sell()}${news()}</div>${foot()}`};
 
 addEventListener('click',e=>{const t=e.target.closest('[data-hmloc],[data-hmall]');if(!t)return;e.preventDefault();e.stopImmediatePropagation();
   if(t.hasAttribute('data-hmloc'))return askPostcode();
@@ -151,7 +151,7 @@ const css=`.hm{display:grid;gap:40px;padding:20px 0 8px}.hm .sr{position:absolut
 .hm-shop h3{margin:0;font-size:18px;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .hm-feat{background:#fff1ec;color:#c2410c;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:3px 8px}
 .hm-meta{display:flex;flex-wrap:wrap;margin:4px 0 12px;color:var(--mut);font-size:13.5px}.hm-meta span+span:before{content:'·';margin:0 7px}
-.hm-tags{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}.hm-tags li{font-size:12.5px;font-weight:700;background:#effaf7;color:#0f5f58;border-radius:8px;padding:5px 9px}.hm-tags li.off{background:#f2f4f7;color:#667085}
+.hm-tags{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}.hm-tags li{font-size:12.5px;font-weight:700;background:#effaf7;color:#0f5f58;border-radius:8px;padding:5px 9px}.hm-tags li.off{background:#f2f4f7;color:#667085}.hm-tags li.eod{background:#fff4e5;color:#9a6700}.hm-rate{color:var(--txt);font-weight:700}
 .hm-rb{display:flex;align-items:center;gap:6px;margin:14px 0 0;padding-top:12px;border-top:1px solid #eef0f3;font-size:13.5px;font-weight:700;color:#344054}.hm-rb svg{width:17px;height:17px;color:var(--navy)}
 .hm-empty{background:#fff;border:1px dashed #d0d5dd;border-radius:20px;padding:32px 20px;text-align:center;color:var(--mut);display:grid;justify-items:center}
 .hm-empty svg{width:36px;height:36px;color:var(--navy)}.hm-empty b{color:var(--txt);font-size:17px;margin:8px 0 4px}.hm-empty p{margin:0 0 14px}.hm-empty a{color:var(--navy);font-weight:700}.hm-empty .btn{align-self:auto}
