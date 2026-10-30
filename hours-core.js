@@ -206,27 +206,32 @@ function status(txt,at){
   const openingSoon=!!(next&&next.k===0&&(next.mins-L.mins)<=SOON&&(next.mins-L.mins)>0);
   const hol=holidayOn(p,L.iso);
   let label,notice='';
-  const browse='You can browse now — collection & delivery start when the shop opens.';
   if(isOpen){
-    if(today&&today.all&&!openFromY)label='Open 24 hours';
-    else if(closingSoon)label='Closes at '+fmtM(closesMin);
-    else if(closesMin!=null)label='Open · Closes '+fmtM(closesMin);
+    if(today&&today.all&&!openFromY)label='Open now · Open 24 hours';
+    else if(closingSoon)label='Closes soon · '+fmtM(closesMin);
+    else if(closesMin!=null)label='Open now · Closes '+fmtM(closesMin);
     else label='Open now';
-    notice=hol&&hol.note?hol.note+'.':'';
+    notice=hol&&hol.note?hol.note+'.':'' ;
   }else if(!next){
     label='Closed';
-    notice=browse;
+    notice='This shop is closed.';
+  }else if(openingSoon){
+    label='Opens soon · '+fmtM(next.mins);
+    notice='Opening soon, at '+fmtM(next.mins)+'. You can browse now. Collection and delivery start once the shop is open.';
   }else if(next.k===0){
     label='Opens at '+fmtM(next.mins);
-    notice=browse;
+    notice='This shop is closed right now. It opens today at '+fmtM(next.mins)+'. You can still browse.';
   }else if(next.k===1){
-    label='Opens tomorrow at '+fmtM(next.mins);
-    notice=browse;
+    label='Closed · Opens tomorrow '+fmtM(next.mins);
+    notice='This shop is closed today. It opens tomorrow at '+fmtM(next.mins)+'.';
   }else{
-    label='Opens '+DAYS[weekdayOf(next.iso)]+' at '+fmtM(next.mins);
-    notice=browse;
+    const day=FULL[weekdayOf(next.iso)];
+    label='Closed · Opens '+DAYS[weekdayOf(next.iso)]+' '+fmtM(next.mins);
+    notice='This shop is closed today. It opens '+day+' at '+fmtM(next.mins)+'.';
   }
-  if(!isOpen&&hol&&hol.note)notice=(hol.closed?hol.note+'. ':hol.note+'. ')+notice;
+  if(!isOpen&&hol&&hol.note){
+    notice=(hol.closed?'Closed for '+hol.note+'. ':hol.note+'. ')+notice;
+  }
   return {
     open:isOpen,unknown:false,openingSoon,closingSoon,
     state:isOpen?(closingSoon?'closing-soon':'open'):(openingSoon?'opening-soon':'closed'),

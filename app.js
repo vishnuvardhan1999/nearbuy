@@ -37,7 +37,7 @@ async function load(){
   }catch(e){console.warn('Supabase unavailable',e)}}
   if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
   if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
-  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();if(window.P5)await P5.init();if(window.Social)await Social.boot();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
+  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();if(window.P5)await P5.init();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
 }
 // ---------- curation ----------
 const has=p=>p.images&&p.images.length;
@@ -58,8 +58,8 @@ function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<i
  const st=s._st||shopStatus(s);const cls=st.unknown?'unknown':st.open?(st.closingSoon?'soon':''):(st.openingSoon?'soon':'closed');
  return `<div class="shop" data-shop="${esc(s.id)}"><div class="cover" style="background:${s.cover_url?`center/cover url('${esc(s.cover_url)}')`:grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${cls}"><i></i>${esc(st.label)}</span></div>
  <div class="sb"><div class="sav">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</div><h4>${esc(s.name)}${s.demo?'<span class="sample">Sample</span>':''}</h4>
- <div class="meta">${s.rating_n?`<span class="star">${svg('star')}${Number(s.rating_avg).toFixed(1)} (${s.rating_n})</span><span class="dot"></span>`:(s.rating?`<span class="star">${svg('star')}${s.rating}</span><span class="dot"></span>`:'<span class="star">New</span><span class="dot"></span>')}${d?`<span>${d}</span><span class="dot"></span>`:''}<span>${s.mins||'30–60'} min</span></div>
- <div class="tags">${s.active_offer?'<span class="tg eodtag">End-of-day deal</span>':''}${s.delivery_options?.collect!==false?'<span class="tg">Click & collect</span>':''}${s.delivery_options?.delivery?'<span class="tg">Delivery</span>':''}</div></div></div>`}
+ <div class="meta">${s.rating?`<span class="star">${svg('star')}${s.rating}</span><span class="dot"></span>`:'<span class="star">New</span><span class="dot"></span>'}${d?`<span>${d}</span><span class="dot"></span>`:''}<span>${s.mins||'30–60'} min</span></div>
+ <div class="tags">${s.delivery_options?.collect!==false?'<span class="tg">Click & collect</span>':''}${s.delivery_options?.delivery?'<span class="tg">Delivery</span>':''}</div></div></div>`}
 function shopsSection(){
   let list=S.shops.map(s=>({...s,dist:s.demo?s.demoMi:(S.me&&s.lat!=null&&s.lng!=null?miles(S.me,s):null)}));
   if(S.me)list=list.filter(s=>s.dist!=null&&s.dist<=S.radius).sort((a,b)=>a.dist-b.dist);
@@ -84,7 +84,7 @@ function home(){
   </div><div class="dots" id="dots"><i class="on"></i><i></i><i></i></div></section>
   <div class="chips"><button class="chip" data-t="search">${svg('bag')}Click &amp; collect</button><button class="chip" data-t="search">${svg('bolt')}Same-day delivery</button><button class="chip" data-sec="0">${svg('tag')}Offers</button><button class="chip" id="register2">${svg('store')}Sell on ShopNip</button></div>
   ${shopsSection()}
-  ${window.Social?Social.dealsHTML():''}
+  
   <section class="sec"><div class="sh"><h2>Shop by category</h2></div><div class="cats">${cats}</div></section>
   ${secs}
   <section class="sell"><div><h3>Shop owner? Sell on ShopNip</h3><p>Get a free online shop for your store. Your products are listed for you with photos and descriptions. Just set your prices.</p></div>
