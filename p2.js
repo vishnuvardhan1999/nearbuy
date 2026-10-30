@@ -163,7 +163,6 @@ V.addprod=function(){const q=(A.aq||'').toLowerCase(),have=new Set(A.listings.ma
 V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div class="empty">Loading shop…</div>'}
   const d=s.delivery_options||{},dist=S.me&&s.lat!=null?miles(S.me,s).toFixed(1)+' mi away':'';
   const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
-  const hoursTxt=window.ShopHours?ShopHours.display(s.opening_hours):(s.opening_hours||'');
   const clk='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>';
   const hsCls=hs?(hs.unknown?'unknown':(hs.openingSoon||hs.closingSoon)?'soon':hs.open?'live':'closed'):'';
   const note=hs?`<div class="hours-status ${hsCls}" role="status"><span class="hs-pill">${clk}${esc(hs.label)}</span>${hs.notice?`<p>${esc(hs.notice)}</p>`:''}</div>`:'';
@@ -172,8 +171,17 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
    ${note}
-   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${hoursTxt?`<div class="line"><span>Hours</span><span>${esc(hoursTxt)}</span></div>`:''}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
+   <div class="panel"><div class="line"><span>Address</span><span>${esc(s.address||'')}</span></div>${weekTable(s.opening_hours)}${s.phone?`<div class="line"><span>Phone</span><a href="tel:${esc(s.phone)}">${esc(s.phone)}</a></div>`:''}</div></section>
   <section class="sec"><div class="sh"><h2>${A.viewL.length} products</h2></div><div class="grid">${A.viewL.map(l=>pcard({listing_id:l.id,sku:l.sku,name:l.name,images:[l.image||'icon-192.png'],price:l.retail_price,shop_id:s.id})).join('')||'<div class="empty">No products yet</div>'}</div></section>`};
+function weekTable(txt){
+  if(!window.ShopHours)return '';
+  const p=ShopHours.parse(txt);if(!p.usable)return '';
+  const today=ShopHours.london(ShopHours.now()).weekday;
+  const rows=ShopHours.weekRows(p.w,today);
+  const lis=rows.map(r=>`<li class="${r.today?'today':''}"><span>${esc(r.label)}${r.today?' <em>Today</em>':''}</span><b class="${r.hours==='Closed'?'shut':''}">${esc(r.hours)}</b></li>`).join('');
+  return `<div class="whours"><div class="wh-cap">Opening hours <small>UK time</small></div><ul class="wh-list">${lis}</ul><button type="button" class="wh-more" data-whmore aria-expanded="false">See all hours</button></div>`;
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-whmore]');if(!b)return;e.preventDefault();const box=b.closest('.whours');const on=box.classList.toggle('open');b.setAttribute('aria-expanded',on?'true':'false');b.textContent=on?'Hide hours':'See all hours'});
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
 

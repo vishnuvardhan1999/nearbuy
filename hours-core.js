@@ -55,6 +55,17 @@ function summary(w){
   }
   return out.length===1&&w[0].o?'Every day '+span(w[0]):out.join(', ');
 }
+function hoursLabel(d){return !d||!d.o?'Closed':d.all?'Open 24 hours':fmtT(d.a)+'–'+fmtT(d.b)}
+function weekRows(w,today){
+  const rows=[];let i=0;
+  while(i<7){
+    let j=i;
+    while(j<6&&span(w[j+1])===span(w[i]))j++;
+    rows.push({label:i===j?DAYS[i]:DAYS[i]+'–'+DAYS[j],hours:hoursLabel(w[i]),today:today!=null&&today>=i&&today<=j,from:i,to:j});
+    i=j+1;
+  }
+  return rows;
+}
 const pt=s=>{
   const m=String(s||'').trim().toLowerCase().match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?$/);
   if(!m)return null;
@@ -225,5 +236,5 @@ function status(txt,at){
   };
 }
 
-return {DAYS,FULL,parse,summary,encode,display,status,london,now,addDays,weekdayOf,daySchedule,fmtM,toMins,span,defaults};
+return {DAYS,FULL,parse,summary,encode,display,status,london,now,addDays,weekdayOf,daySchedule,fmtM,toMins,span,defaults,weekRows,hoursLabel};
 });
