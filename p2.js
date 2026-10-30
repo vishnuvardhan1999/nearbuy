@@ -176,8 +176,8 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
 function weekLine(txt){
   if(!window.ShopHours)return '';
   const p=ShopHours.parse(txt);if(!p.usable)return '';
-  const bits=ShopHours.weekRows(p.w,null).map(r=>`<span class="wh-bit">${esc(r.label+' '+r.hours)}</span>`).join('<span class="wh-dot"> · </span>');
-  return `<div class="wh-sum"><span>Hours</span><span class="wh-txt">${bits}</span></div>`;
+  const rows=ShopHours.weekRows(p.w,null).map(r=>`<span>${esc(r.label)}</span><b>${esc(r.hours)}</b>`).join('');
+  return `<div class="wh-sum"><span>Hours</span><div class="wh-rows">${rows}</div></div>`;
 }
 async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
