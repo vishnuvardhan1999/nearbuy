@@ -52,7 +52,7 @@ async function refresh(){
 async function seedMock(){
   const c=await catalog();const pick=k=>c.filter(p=>p.images.length&&p.name.toLowerCase().includes(k));
   if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
-    M.shops.push({id:'s1',owner_id:'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
+    M.shops.push({id:'s1',owner_id:Q.get('as')==='shopper'?'u-owner':'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
       opening_hours:'Mon–Sat 7am–7pm, Sun 9am–2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
       delivery_options:{collect:true,delivery:true,delivery_radius_miles:3,delivery_fee:2.5},logo_url:null,cover_url:null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
