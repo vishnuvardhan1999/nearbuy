@@ -45,15 +45,15 @@ function add(id){const l=C.L.find(x=>x.id===id);if(!l)return;if(P3.add(toP(l),1)
   quick([['Done, next step','done','pri'],['Search again','more']],'Search more products…')}}
 function askFul(){C.step='ful';const d=C.shop.delivery_options||{},o=[];
   if(d.collect!==false)o.push(['Click &amp; collect · free','collect','pri']);
-  if(d.delivery){const q=window.P3?.quoteFee?P3.quoteFee('delivery',d):{fee:+(d.delivery_fee||0),welcome:false,raw:+(d.delivery_fee||0)};o.push([q.welcome?'Local delivery · Free (welcome offer)':`Local delivery · ${gbp(q.fee)}`,'delivery']);}
+  if(d.delivery)o.push([`Local delivery · ${gbp(d.delivery_fee||0)}`,'delivery']);
   bot('How would you like to get it?');quick(o)}
 function ask(k){C.step=k;const v=C.d[k==='addr'?'addr':k];
   const Q={name:'What name should the shop put on the order?',phone:'And your mobile number, so the shop can reach you?',addr:'What is the delivery address?',pc:'And the postcode?',note:'Any note for the shop? (optional)'};
   bot(Q[k]);quick(k==='note'?[['No note','-']]:v?[[esc('Use '+v),'=']]:[],k==='phone'?'e.g. 07700 900123':'Type here…')}
 const NEXT={name:'phone',phone:'addr',addr:'pc',pc:'note'};
 function nextAfter(k){let n=NEXT[k];if(C.f!=='delivery'&&(n==='addr'))n='note';n?ask(n):confirmStep()}
-function confirmStep(){C.step='confirm';const d=C.shop.delivery_options||{},q=window.P3?.quoteFee?P3.quoteFee(C.f,d):{fee:C.f==='delivery'?+(d.delivery_fee||0):0,welcome:false,raw:+(d.delivery_fee||0)},fee=q.fee,s=P3.subtotal();
-  bot(`<div class="cb-sum"><b>${esc(C.shop.name)}</b><br>${bsum()}<hr>${C.f==='delivery'?`Delivery <b>${q.welcome?'Free':gbp(fee)}</b>${q.welcome?' <small>(welcome offer)</small>':''}<br>`:''}Total <b>${gbp(s+fee)}</b> · pay ${C.f==='delivery'?'on delivery':'on collection'}<hr>
+function confirmStep(){C.step='confirm';const d=C.shop.delivery_options||{},fee=C.f==='delivery'?+(d.delivery_fee||0):0,s=P3.subtotal();
+  bot(`<div class="cb-sum"><b>${esc(C.shop.name)}</b><br>${bsum()}<hr>${fee?`Delivery <b>${gbp(fee)}</b><br>`:''}Total <b>${gbp(s+fee)}</b> · pay ${C.f==='delivery'?'on delivery':'on collection'}<hr>
    ${C.f==='delivery'?'Deliver to '+esc(C.d.addr+', '+C.d.pc):'Click &amp; collect · '+esc(C.shop.address||'')}<br>${esc(C.d.name)} · ${esc(C.d.phone)}${C.d.note?'<br>“'+esc(C.d.note)+'”':''}</div>Shall I place this order?`);
   quick([['Place order · '+gbp(s+fee),'place','pri'],['Edit items','edit'],['Start over','restart']])}
 async function place(){if(!A.user){window.CK&&CK.set({name:C.d.name,phone:C.d.phone,addr:C.d.addr||''});

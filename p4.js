@@ -136,8 +136,7 @@ addEventListener('hashchange',hroute);
 document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(a&&INFO[a.getAttribute('href').slice(1)]&&location.hash===a.getAttribute('href'))scrollTo(0,0)});
 
 window.P4={card,regroup,F,gsheet:g=>gsheet(g),ssheet:p=>ssheet(p),cat:()=>CAT,async init(){
-  if(A0.catalog)CAT=A0.catalog;
-  else if(window.__catP)window.__catP.then(c=>{CAT=c||[];if(cur&&(cur[0]==='home'||cur[0]==='cat'||cur[0]==='search'))render()}).catch(()=>{});
+  CAT=A0.catalog||await fetch('products.json').then(r=>r.json()).catch(()=>[]);
   if(MOCK&&M.shops[0]&&Q.get('multi')!=='0'){ // a second approved shop sharing SKUs, to show grouping
     if(!M.shops.find(s=>s.id==='s3')){M.shops.push({id:'s3',owner_id:'u3',name:'High Street Cards & Gifts',address:'40 Market Street, Leicester',postcode:'LE1 6DP',lat:52.6335,lng:-1.1325,phone:'0116 765 4321',status:'approved',active:true,delivery_options:{collect:true,delivery:false}});
       M.listings.filter(l=>l.active).slice(0,4).forEach((l,i)=>M.listings.push({...l,id:'m'+i,shop_id:'s3',retail_price:+(l.retail_price*(i%2?0.9:1.12)).toFixed(2),stock:[5,0,14,2][i],source:'manual',updated_at:'2026-10-2'+(i+1)}))}

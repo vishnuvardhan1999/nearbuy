@@ -64,7 +64,7 @@ V.account=function(...a){if(A.user&&A.authPage&&(LIVE||P.MOCK))return `<section 
   <div class="or">${su?'Already have an account?':'New to ShopNip?'}</div>
   <button class="alt" data-acc="${su?'login':'new'}">${su?'Sign in instead':'Create your ShopNip account'}</button>
   <p class="fine">By continuing you agree to shop with local independents on ShopNip.</p></div>
-  <p class="sel">This is a shopping account. Selling is separate. <a href="${sel}">Seller sign in</a></p></section>`};
+  <p class="sel">Are you a shop? <a href="${sel}">Seller login</a></p></section>`};
 /* refresh header whenever views re-render (login, logout, signup all route) */
 const _r=window.route;window.route=route=function(...a){const r=_r.apply(this,a);paint();return r};
 paint();

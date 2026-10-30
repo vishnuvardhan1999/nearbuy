@@ -10,10 +10,9 @@ const css=document.createElement('style');css.textContent=`
 .p28 small,.p28card small{color:#667085}.p28list{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px;font-size:14px}.p28list li{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #f0f2f5;padding-top:6px}
 .p28bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#ecfdf9;border:1px solid #99f6e4;color:#134e4a;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14px}.p28bar b{flex:1;min-width:180px}
 .p28btn{border:0;border-radius:12px;padding:10px 16px;font:inherit;font-weight:700;background:#0f766e;color:#fff;cursor:pointer}.p28btn.ghost{background:#fff;color:#14202e;border:1px solid #e7e9ee}
-#p28inst{position:fixed;left:12px;right:auto;bottom:24px;z-index:45;max-width:340px;margin:0;background:#0b3b38;color:#fff;border-radius:18px;padding:14px;display:flex;gap:12px;align-items:center;box-shadow:0 14px 40px rgba(0,0,0,.25)}
+#p28inst{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:60;max-width:460px;margin:0 auto;background:#0b3b38;color:#fff;border-radius:18px;padding:14px;display:flex;gap:12px;align-items:center;box-shadow:0 14px 40px rgba(0,0,0,.25)}
 #p28inst img{width:44px;height:44px;border-radius:12px}#p28inst div{flex:1;font-size:13.5px;line-height:1.35}#p28inst b{display:block;font-size:15px}#p28inst .p28btn{background:#ff6b4a}#p28inst .x{background:none;border:0;color:#fff;opacity:.7;font-size:22px;cursor:pointer;padding:4px}
-@media(max-width:767px){#p28inst{left:10px;right:78px;bottom:calc(86px + env(safe-area-inset-bottom));max-width:none}}
-@media(min-width:900px){#p28inst{bottom:24px;left:24px;right:auto}}
+@media(min-width:900px){#p28inst{bottom:20px;left:auto;right:20px}}
 #p28al{position:fixed;top:10px;left:10px;right:10px;z-index:80;max-width:480px;margin:0 auto;background:#fff;border:2px solid #0f766e;border-radius:16px;padding:14px;box-shadow:0 14px 40px rgba(0,0,0,.2);display:flex;gap:12px;align-items:center}
 #p28al div{flex:1}#p28al b{display:block}
 .p28 .kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}.p28 .kp div{background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:14px}.p28 .kp b{display:block;font-size:24px;letter-spacing:-.5px}
@@ -54,7 +53,7 @@ const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator
 const iOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent);
 function instBar(ios){if(dismissed()||standalone()||document.getElementById('p28inst'))return;const d=document.createElement('div');d.id='p28inst';d.setAttribute('role','dialog');d.setAttribute('aria-label','Install ShopNip');
   d.innerHTML=`<img src="/icon-192.png" alt=""><div><b>Get the ShopNip app</b>${ios?'Tap Share, then “Add to Home Screen”.':'Install for faster ordering and order-ready alerts.'}</div>${ios?'':'<button class="p28btn" data-p28="inst">Install</button>'}<button class="x" data-p28="instx" aria-label="Not now">×</button>`;document.body.appendChild(d)}
-addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e;setTimeout(()=>instBar(false),12000)});
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e;setTimeout(()=>instBar(false),4000)});
 if(iOS&&!standalone())setTimeout(()=>{if(+(localStorage.nb_visits||0)>=2)instBar(true)},5000);
 localStorage.nb_visits=(+(localStorage.nb_visits||0))+1;
 if(new URLSearchParams(location.search).get('install')==='1')setTimeout(()=>instBar(false),300);   // preview/screenshot

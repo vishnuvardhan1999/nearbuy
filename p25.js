@@ -29,12 +29,9 @@ function pathFor(c){const [t,a]=c;
   if(t==='order'&&a)return '/orders/'+encodeURIComponent(a)+keepQS();
   if(INFO.includes(t)||SIMPLE.includes(t))return '/'+t+keepQS();
   return null}
-function parse(){let p=decodeURIComponent(location.pathname).replace(/\/+$/,'')||'/';if(p==='/index.html')p='/';const seg=p.split('/').filter(Boolean),Q=new URLSearchParams(location.search);
+function parse(){const p=decodeURIComponent(location.pathname).replace(/\/+$/,'')||'/',seg=p.split('/').filter(Boolean),Q=new URLSearchParams(location.search);
   const h=location.hash.slice(1);
   if(/^shop=/.test(h))return ['shop',h.slice(5)];if(INFO.includes(h))return [h];if(h==='account')return ['account'];
-  const view=Q.get('view');
-  if(p==='/'&&view==='register')return ['register'];
-  if(p==='/'&&['account','login','signin','signup'].includes(view))return ['account'];
   if(p==='/')return null;
   if(seg[0]==='products')return ['products'];
   if(seg[0]==='search'){if(Q.get('q')&&$('#q'))$('#q').value=Q.get('q');return ['search']}
@@ -137,13 +134,8 @@ function okO(o,f,skip){const d=o.shop?.delivery_options||{};
   if(f.ful==='delivery'&&!(o.shop&&d.delivery&&(o.dist==null||!d.delivery_radius_miles||o.dist<=+d.delivery_radius_miles)))return false;
   if(f.min!==''&&o.price<+f.min)return false;if(f.max!==''&&o.price>+f.max)return false;return true}
 function pool(){const live=S.products.filter(p=>p.offers&&p.images?.length);if(live.length)return live;const l=S.products.filter(p=>p.images?.length&&p.listing_id);return l.length?l:S.products.filter(p=>p.images?.length)}
-function cleanCat(c){let s=String(c||'').replace(/^\*/,'').replace(/[-_]+/g,' ').replace(/\bimage\b/ig,'').replace(/\s+/g,' ').trim();
-  if(!s)return '';if(/sale|% off/i.test(s))return 'Offers';
-  const map={'house hold':'Household','tapes adhesives':'Tapes & adhesives','sil candles':'Candles','books notepads':'Notebooks','mailing and packaging':'Packaging','pens pencils':'Pens & pencils'};
-  const k=s.toLowerCase();s=map[k]||s.replace(/\b[a-z]/g,ch=>ch.toUpperCase());
-  if(/toy/i.test(s))return 'Toys';if(/party|candle/i.test(k)&&!/stationery/i.test(k))return 'Party';return s}
 function results(f,skip){const words=f.q.toLowerCase().split(/\s+/).filter(Boolean);
-  return pool().map(p=>{if(skip!=='cat'&&f.cat&&cleanCat(p.category)!==f.cat&&p.category!==f.cat)return null;
+  return pool().map(p=>{if(skip!=='cat'&&f.cat&&p.category!==f.cat)return null;
     const of=offersOf(p).filter(o=>okO(o,f,skip));if(!of.length)return null;
     if(words.length){const hay=(p.name+' '+p.category+' '+(p.brand||'')+' '+of.map(o=>o.shop?.name||'').join(' ')).toLowerCase();if(!words.every(w=>hay.includes(w.replace(/s$/,''))))return null}
     return {...p,offers:p.offers?of:undefined,listing_id:of[0].listing_id,shop_id:of[0].shop_id,stock:of[0].stock,price:Math.min(...of.map(o=>o.price)),
@@ -152,9 +144,9 @@ const SORTS=[['featured','Featured'],['price','Price: low to high'],['price_desc
 const sorters={featured:(a,b)=>(a.dist??1e9)-(b.dist??1e9)||(!!b.stock-!!a.stock),price:(a,b)=>a.price-b.price,price_desc:(a,b)=>b.price-a.price,
   newest:(a,b)=>(b.updated||'').localeCompare(a.updated||''),name:(a,b)=>a.name.localeCompare(b.name,'en-GB',{sensitivity:'base'})};
 const nActive=()=>[PF.cat,PF.shop,PF.min,PF.max,PF.stock,PF.ful].filter(Boolean).length;
-function panel(){const byCat={},byShop={};results(PF,'cat').forEach(p=>{const c=cleanCat(p.category)||'Other';byCat[c]=(byCat[c]||0)+1});
+function panel(){const byCat={},byShop={};results(PF,'cat').forEach(p=>byCat[p.category]=(byCat[p.category]||0)+1);
   results(PF,'shop').forEach(p=>offersOf(p).forEach(o=>{if(o.shop)byShop[o.shop_id]=(byShop[o.shop_id]||0)+1}));
-  const cats=[...new Set(pool().map(p=>cleanCat(p.category)).filter(Boolean))].sort();
+  const cats=[...new Set(pool().map(p=>p.category).filter(Boolean))].sort();
   const shops=S.shops.filter(s=>pool().some(p=>offersOf(p).some(o=>String(o.shop_id)===String(s.id))));
   const rad=(name,val,on,label,count)=>`<label class="pfo ${on?'on':''}"><input type="radio" name="${name}" value="${esc(val)}" ${on?'checked':''} data-pf="${name}"><span>${label}</span>${count!=null?`<em>${count}</em>`:''}</label>`;
   const tot=results({...PF,cat:''},'cat').length;
