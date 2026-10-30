@@ -1,4 +1,5 @@
-/* home.js: shopper homepage. Postcode first, then live shops with their opening hours, categories and products in stock.
+/* home.js: shopper homepage. Guests see what ShopNip is; signed-in customers see their saved area. Then categories,
+   live shops with their opening hours, and products in stock.
    Replaces the homepage built by p5/p6/p7. Uses live listings only, so it never waits for the 4 MB catalogue. */
 (()=>{
 const EMO={'Stationery':'✏️','Party':'🎈','Art & craft':'🎨','Gift wrap':'🎁','Packaging':'📦','Tapes':'🧻','Household':'🏠','Toys':'🧸'};
@@ -6,21 +7,39 @@ const SU=h=>window.SELLER_URL?SELLER_URL(h):'seller.html'+(h?'#'+h:'');
 const live=()=>S.products.filter(p=>!p.demo&&p.listing_id&&p.images?.length);
 const shops=()=>S.shops.filter(s=>!s.demo);
 const promos=()=>window.P5?.promos?.()||[];
+const sids=p=>p.offers?.length?p.offers.map(o=>o.shop_id):[p.shop_id];
 const fmi=d=>d<0.1?'Under 0.1 mi':d.toFixed(1)+' mi';
 const stCls=st=>st.unknown?'unknown':st.open?(st.closingSoon?'soon':'open'):(st.openingSoon?'soon':'closed');
 const readyBy=s=>window.P25?.readyBy?.(s)||'';
 
-function hero(){const art=pick(p=>!p.demo&&!!p.listing_id,4,7),s0=shops()[0];
-  const where=S.pc?`<div class="hm-here">${svg('pin')}<span>Showing shops near <b>${esc(S.pc)}</b></span><button type="button" id="setpc2">Change</button></div>`
-   :`<form class="hm-pc" data-hmpc novalidate><label class="sr" for="hm_pc">Your postcode</label><input id="hm_pc" autocomplete="postal-code" placeholder="Your postcode" maxlength="8"><button class="btn">Find shops</button></form>
-    <div class="hm-pc-x"><button type="button" class="hm-geo" id="geo">${svg('target')}Use my current location</button><span class="hm-err" id="hm_pc_e" role="alert"></span></div>`;
-  const chip=s0?(()=>{const st=shopStatus(s0),rb=readyBy(s0);return `<div class="hm-float"><span class="hm-dot ${stCls(st)}"></span><span><b>${esc(s0.name)}</b><small>${esc(st.label)}${rb?' · '+esc(rb):''}</small></span></div>`})():'';
+const firstName=()=>{const A=P2.A,n=(A.profile?.full_name||A.user?.user_metadata?.full_name||'').trim();return n?n.split(/\s+/)[0]:(A.user?.email||'').split('@')[0]};
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+function listShops(){const feat=new Set(promos().filter(p=>p.type==='featured_shop').map(p=>p.shop_id));
+  return shops().map(s=>({...s,dist:S.me&&s.lat!=null&&s.lng!=null?miles(S.me,s):null,_st:shopStatus(s),_feat:feat.has(s.id)}))
+   .sort(S.me?(a,b)=>(a.dist??1e9)-(b.dist??1e9)||b._feat-a._feat:(a,b)=>b._feat-a._feat||b._st.open-a._st.open)}
+
+/* Until P2 has checked the saved session, a returning customer gets a placeholder rather than a flash of the guest hero. */
+let authChecked=false;const _init=P2.init;P2.init=async function(...a){try{return await _init.apply(this,a)}finally{authChecked=true}};
+const maybeSignedIn=()=>!authChecked&&(P2.MOCK?!!P2.Q.get('as')&&P2.Q.get('as')!=='none':Object.keys(localStorage).some(k=>/^sb-.*-auth-token$/.test(k)));
+
+/* Guests: what ShopNip is and an invitation to create a shopping account. Location is asked for at sign-up, not here. */
+function hero(){if(P2.A.user)return welcome();if(maybeSignedIn())return '<section class="hm-w hm-skel" aria-busy="true"><span class="hm-av"></span><span class="hm-sk"></span></section>';const art=pick(p=>!p.demo&&!!p.listing_id,4,7),ns=shops().length,np=live().length;
   return `<section class="hm-hero"><div class="hm-hero-t"><p class="hm-eye">Independent shops near you</p>
    <h1>Your local shops, <em>online.</em></h1>
-   <p class="hm-lead">Order from independent shops on your high street. Collect in store or get local delivery, and pay the shop when you get your order.</p>
-   ${where}
+   <p class="hm-lead">Order from the independent shops on your high street. Collect in store or get local delivery, and pay the shop when you get your order.</p>
+   <div class="hm-cta"><button type="button" class="btn" data-acc="new">Create a shopping account</button><button type="button" class="hm-btn2" data-t="products">Browse products</button></div>
+   <p class="hm-signin">Already shop with us? <a href="/account" data-acc="login">Sign in</a></p>
    <ul class="hm-trust"><li>${svg('check')}Free click &amp; collect</li><li>${svg('check')}No card payment online</li><li>${svg('check')}Real local shops</li></ul></div>
-   ${art.length>=4?`<div class="hm-art" aria-hidden="true">${art.map(p=>`<span><img src="${esc(p.images[0])}" alt="" data-fbhide></span>`).join('')}${chip}</div>`:''}</section>`}
+   ${art.length>=4?`<div class="hm-art" aria-hidden="true">${art.map(p=>`<span><img src="${esc(p.images[0])}" alt="" data-fbhide></span>`).join('')}
+    ${ns?`<div class="hm-float">${svg('store')}<span><b>${plural(ns,'local shop')}</b><small>${plural(np,'product')} ready to order</small></span></div>`:''}</div>`:''}</section>`}
+
+/* Signed-in customers: no hero. Their saved postcode, what is near them, and quick links. */
+function welcome(){const nm=firstName(),L=listShops(),near=S.me?L.filter(s=>s.dist!=null&&s.dist<=10):[],open=near.filter(s=>s._st.open).length,bn=S.basket.reduce((a,b)=>a+b.qty,0);
+  const where=S.pc?`<p class="hm-w-loc">${svg('pin')}<span>Shopping near <b>${esc(S.pc)}</b></span><a href="/account" data-hmloc>Change in account settings</a></p>`
+   :`<p class="hm-w-loc warn">${svg('pin')}<span>Add your delivery postcode to see shops near you.</span><a href="/account" data-hmloc>Add it in account settings</a></p>`;
+  return `<section class="hm-w"><div class="hm-w-a"><span class="hm-av" aria-hidden="true">${esc((nm||'?')[0].toUpperCase())}</span><div><h1>Hi ${esc(nm)}</h1>${where}</div></div>
+   <div class="hm-w-b">${S.pc?`<div class="hm-w-st"><b>${near.length}</b><small>${near.length===1?'shop':'shops'} within 10 mi</small></div><div class="hm-w-st"><b>${open}</b><small>open now</small></div>`:''}
+    <button type="button" class="hm-btn2" data-t="orders">${svg('orders')}Your orders</button>${bn?`<button type="button" class="btn" data-t="basket">${svg('basket')}Basket (${bn})</button>`:''}</div></section>`}
 
 function cats(){const L=live(),rows=CATS.map(([l,t],i)=>({l,i,n:L.filter(t).length})).sort((a,b)=>!!b.n-!!a.n);
   return `<nav class="hm-cats" aria-label="Shop by category">${rows.map(c=>`<button type="button" class="hm-cat${c.n?'':' none'}" data-cat="${c.i}"><span aria-hidden="true">${EMO[c.l]||'🛍️'}</span><b>${esc(c.l)}</b>${c.n?`<small>${c.n}</small>`:''}</button>`).join('')}
@@ -31,7 +50,7 @@ function banner(){const b=promos().find(x=>x.type==='banner');if(!b)return '';
    <span class="hm-eye">${b.shop_id?'Promoted':'ShopNip'}</span><b>${esc(b.title)}</b>${b.subtitle?`<small>${esc(b.subtitle)}</small>`:''}<span class="hm-bc">${esc(b.cta||'Shop now')}${svg('arrow')}</span></a>`}
 
 const varied=(L,n)=>{const out=CATS.map(([,t])=>L.find(t)).filter((p,i,a)=>p&&a.indexOf(p)===i);return out.concat(L.filter(p=>!out.includes(p))).slice(0,n)};
-function shopCard(s){const L=live().filter(p=>p.offers?.some(o=>o.shop_id===s.id)),st=s._st,d=s.delivery_options||{},rb=readyBy(s);
+function shopCard(s){const L=live().filter(p=>sids(p).includes(s.id)),st=s._st,d=s.delivery_options||{},rb=readyBy(s);
   const fee=+d.delivery_fee?gbp(d.delivery_fee):'free',inRange=s.dist!=null&&s.dist<=(+d.delivery_radius_miles||0);
   const del=!d.delivery?'':!S.me?`Delivery within ${+d.delivery_radius_miles||0} mi · ${fee}`:inRange?`Delivers to you · ${fee}`:'Outside delivery area';
   return `<a class="hm-shop" href="#shop=${esc(s.id)}" data-shop="${esc(s.id)}">
@@ -43,25 +62,27 @@ function shopCard(s){const L=live().filter(p=>p.offers?.some(o=>o.shop_id===s.id
     <ul class="hm-tags">${d.collect!==false?'<li>Click &amp; collect · free</li>':''}${del?`<li class="${S.me&&!inRange?'off':''}">${del}</li>`:''}</ul>
     ${rb&&d.collect!==false?`<p class="hm-rb">${svg('clock')}${esc(rb)}</p>`:''}</div></a>`}
 
-function shopsSec(){const feat=new Set(promos().filter(p=>p.type==='featured_shop').map(p=>p.shop_id));
-  const list=shops().map(s=>({...s,dist:S.me&&s.lat!=null&&s.lng!=null?miles(S.me,s):null,_st:shopStatus(s),_feat:feat.has(s.id)}));
-  if(!list.length)return `<section class="hm-sec" id="shops"><div class="hm-h"><div><h2>Shops near you</h2></div></div>
+let showAll=false;const FIRST=6;
+function shopsSec(){const list=listShops();
+  if(!list.length)return `<section class="hm-sec" id="shops"><div class="hm-h"><div><h2>Local shops</h2></div></div>
    <div class="hm-empty">${svg('store')}<b>No shops are live yet</b><p>Independent shops are joining ShopNip.</p><a href="${SU('signup')}">Run a shop? List it for free</a></div></section>`;
-  list.sort(S.me?(a,b)=>(a.dist??1e9)-(b.dist??1e9)||b._feat-a._feat:(a,b)=>b._feat-a._feat||b._st.open-a._st.open);
-  const near=S.me?list.filter(s=>s.dist!=null&&s.dist<=10).length:0,openN=list.filter(s=>s._st.open).length,shown=S.openOnly?list.filter(s=>s._st.open):list;
-  const title=S.me&&near?`${near} shop${near>1?'s':''} near ${esc(S.pc)}`:`${list.length} local shop${list.length>1?'s':''} on ShopNip`;
-  const sub=S.me?'Nearest first, with today’s opening hours':'Set your postcode to see distances and who delivers to you';
-  const note=S.me&&!near?`<p class="hm-note">No shops within 10 miles of ${esc(S.pc)} yet. ShopNip is starting in Watford, so the shops below are further away. Click &amp; collect still works.</p>`:'';
-  const filt=`<div class="hm-seg" role="group" aria-label="Filter shops"><button type="button" data-openf="all" class="${S.openOnly?'':'on'}">All shops</button><button type="button" data-openf="open" class="${S.openOnly?'on':''}">Open now (${openN})</button></div>`;
-  const body=shown.length?`<div class="hm-shops">${shown.map(shopCard).join('')}</div>`
+  const near=S.me?list.filter(s=>s.dist!=null&&s.dist<=10).length:0,openN=list.filter(s=>s._st.open).length,shown=S.openOnly?list.filter(s=>s._st.open):list,vis=showAll?shown:shown.slice(0,FIRST);
+  const title=!S.me?'Local shops on ShopNip':near?`Shops near ${esc(S.pc)}`:'Nearest shops';
+  const sub=S.me?'Nearest first, with today’s opening hours'
+   :P2.A.user?'Add your postcode in account settings to see distances and who delivers to you'
+   :`${plural(list.length,'independent shop')}. <a href="#" id="setpc2">Set your location</a> to see distances and who delivers to you.`;
+  const note=S.me&&!near?`<p class="hm-note">No shops within 10 miles of ${esc(S.pc)} yet. More independent shops are joining ShopNip; these are the nearest. Click &amp; collect still works.</p>`:'';
+  const filt=`<div class="hm-seg" role="group" aria-label="Filter shops"><button type="button" data-openf="all" class="${S.openOnly?'':'on'}">All shops (${list.length})</button><button type="button" data-openf="open" class="${S.openOnly?'on':''}">Open now (${openN})</button></div>`;
+  const more=shown.length>FIRST?`<button type="button" class="hm-all" data-hmall>${showAll?'Show fewer shops':`Show all ${shown.length} shops`}</button>`:'';
+  const body=shown.length?`<div class="hm-shops">${vis.map(shopCard).join('')}</div>${more}`
    :`<div class="hm-empty">${svg('clock')}<b>No shops are open right now</b><p>You can still browse and order. The shop confirms when it opens.</p><button type="button" class="btn" data-openf="all">Show all shops</button></div>`;
   return `<section class="hm-sec" id="shops"><div class="hm-h"><div><h2>${title}</h2><p>${sub}</p></div></div>${note}${filt}${body}</section>`}
 
 function mixCats(L,n){const by={};L.forEach(p=>(by[p.category]=by[p.category]||[]).push(p));const g=Object.values(by).sort((a,b)=>b.length-a.length),out=[];
   for(let i=0;out.length<n&&g.some(x=>x[i]);i++)g.forEach(x=>{if(x[i]&&out.length<n)out.push(x[i])});return out}
 function prodSec(){const L=live();if(!L.length)return '';const items=mixCats(L.filter(p=>p.stock>0),12);if(!items.length)return '';
-  const one=shops().length===1?shops()[0].name:'';
-  return `<section class="hm-sec"><div class="hm-h"><div><h2>Ready to order</h2><p>In stock ${one?'at '+esc(one):'at shops near you'}</p></div>
+  const from=new Set(L.flatMap(sids).filter(Boolean)).size;
+  return `<section class="hm-sec"><div class="hm-h"><div><h2>Ready to order</h2><p>In stock at ${plural(from,'local shop')}</p></div>
    <a href="/products" class="hm-more" data-t="products">See all ${L.length}${svg('arrow')}</a></div><div class="grid hm-grid">${items.map(pcard).join('')}</div></section>`}
 
 function dealsSec(){const D=live().filter(p=>p.cmp>p.price).sort((a,b)=>b.cmp/b.price-a.cmp/a.price).slice(0,6);if(!D.length)return '';
@@ -85,12 +106,9 @@ const news=()=>`<section class="hm-news"><div><h2>Hear about offers near you</h2
 
 V.home=function(){return `<div class="hm">${hero()}${cats()}${banner()}${shopsSec()}${prodSec()}${dealsSec()}${how()}${sell()}${news()}</div>${foot()}`};
 
-document.addEventListener('submit',async e=>{const f=e.target.closest('[data-hmpc]');if(!f)return;e.preventDefault();e.stopImmediatePropagation();
-  const inp=$('#hm_pc'),er=$('#hm_pc_e'),b=f.querySelector('button'),v=inp.value.trim();
-  if(!v){er.textContent='Enter your postcode, for example WD25 8HL.';inp.focus();return}
-  b.disabled=true;b.textContent='Finding…';
-  try{const r=await lookupPostcode(v);setMe({lat:r.lat,lng:r.lng},r.pc);requestAnimationFrame(()=>document.getElementById('shops')?.scrollIntoView({behavior:'smooth',block:'start'}))}
-  catch(err){er.textContent='We couldn’t find that postcode. Check it and try again.';b.disabled=false;b.textContent='Find shops'}},true);
+addEventListener('click',e=>{const t=e.target.closest('[data-hmloc],[data-hmall]');if(!t)return;e.preventDefault();e.stopImmediatePropagation();
+  if(t.hasAttribute('data-hmloc'))return askPostcode();
+  showAll=!showAll;render();if(!showAll)document.getElementById('shops')?.scrollIntoView({block:'start'})},true);
 
 const css=`.hm{display:grid;gap:40px;padding:20px 0 8px}.hm .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .hm-eye{margin:0 0 10px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy)}
@@ -98,15 +116,20 @@ const css=`.hm{display:grid;gap:40px;padding:20px 0 8px}.hm .sr{position:absolut
 .hm-hero:before{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,#dff3ef 0,rgba(223,243,239,0) 70%);pointer-events:none}
 .hm-hero-t{position:relative}.hm-hero h1{margin:0;font-size:clamp(34px,4.4vw,54px);line-height:1.04;letter-spacing:-.035em;font-weight:800}.hm-hero h1 em{font-style:normal;color:var(--navy)}
 .hm-lead{margin:16px 0 24px;font-size:17px;line-height:1.55;color:#475467;max-width:32em}
-.hm-pc{display:flex;gap:8px;max-width:470px;background:#f2f5f4;border:1px solid #dbe3e1;border-radius:16px;padding:6px;transition:border-color .15s,box-shadow .15s}
-.hm-pc:focus-within{border-color:var(--navy);box-shadow:0 0 0 4px rgba(15,118,110,.14)}
-.hm-pc input{flex:1;min-width:0;width:100%;border:0;background:transparent;font:inherit;font-size:16px;padding:10px 12px;text-transform:uppercase;outline:none;color:var(--txt)}.hm-pc input::placeholder{text-transform:none;color:#8a94a0}
-.hm-pc .btn{white-space:nowrap;align-self:stretch}
-.hm-pc-x{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin-top:8px}
-.hm-geo{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:8px 0;min-height:40px;color:var(--navy);font-weight:700;font-size:14px}.hm-geo svg{width:18px;height:18px}
-.hm-err{color:#b42318;font-size:14px;font-weight:600}
-.hm-here{display:inline-flex;align-items:center;flex-wrap:wrap;gap:10px;background:#effaf7;border:1px solid #cdebe5;color:#134e4a;border-radius:14px;padding:10px 12px;font-size:15px}
-.hm-here svg{width:20px;height:20px;color:var(--navy)}.hm-here button{background:#fff;color:var(--navy);font-weight:700;border-radius:10px;padding:7px 12px;border:1px solid #cdebe5}
+.hm-cta{display:flex;flex-wrap:wrap;gap:10px}.hm-cta .btn{padding:14px 24px;font-size:16px}
+.hm-btn2{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:12px;border:1.5px solid #cfd8d6;background:#fff;color:var(--txt);font-weight:700;font-size:15px}.hm-btn2:hover{border-color:var(--navy);color:var(--navy)}.hm-btn2 svg{width:18px;height:18px}
+.hm-signin{margin:14px 0 0;font-size:14.5px;color:var(--mut)}.hm-signin a{color:var(--navy);font-weight:700}
+.hm-w{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px 24px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px 26px}
+.hm-w-a{display:flex;align-items:center;gap:16px;min-width:0}.hm-av{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;font-weight:800;font-size:24px;display:grid;place-items:center;flex:none}
+.hm-w h1{margin:0;font-size:26px;letter-spacing:-.02em;line-height:1.2}
+.hm-w-loc{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin:4px 0 0;color:#344054;font-size:15px}.hm-w-loc svg{width:18px;height:18px;color:var(--navy)}.hm-w-loc a{color:var(--navy);font-weight:700;font-size:14px}
+.hm-w-loc.warn{color:#7a4b00}.hm-w-loc.warn svg{color:#c2410c}
+.hm-w-b{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.hm-w-st{min-width:88px;padding:8px 14px;border-radius:14px;background:#f2f7f6;text-align:center}.hm-w-st b{display:block;font-size:22px;line-height:1.1}.hm-w-st small{color:var(--mut);font-size:12.5px}
+.hm-w .btn{min-height:48px}.hm-w .btn svg{width:18px;height:18px}
+.hm-float svg{width:22px;height:22px;color:var(--navy)}
+.hm-skel{justify-content:flex-start;min-height:100px}.hm-skel .hm-av{background:#e8eeec}.hm-sk{width:min(260px,50%);height:22px;border-radius:8px;background:#e8eeec}
+.hm-h p a{color:var(--navy);font-weight:700}
+.hm-all{display:block;margin:16px auto 0;min-height:44px;padding:0 22px;border-radius:12px;border:1.5px solid #cfd8d6;background:#fff;font-weight:700;color:var(--txt)}.hm-all:hover{border-color:var(--navy);color:var(--navy)}
 .hm-trust{list-style:none;display:flex;flex-wrap:wrap;gap:8px 18px;margin:24px 0 0;padding:0;font-size:14px;color:#344054;font-weight:600}
 .hm-trust li{display:flex;align-items:center;gap:6px}.hm-trust svg{width:18px;height:18px;color:var(--navy);stroke-width:2.6}
 .hm-art{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:380px;width:100%;justify-self:center;padding-bottom:34px}
@@ -114,7 +137,6 @@ const css=`.hm{display:grid;gap:40px;padding:20px 0 8px}.hm .sr{position:absolut
 .hm-art img{width:76%;height:76%;object-fit:contain}
 .hm-float{position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#fff;border-radius:16px;padding:10px 16px;box-shadow:0 14px 34px rgba(16,32,56,.18);white-space:nowrap}
 .hm-float b{display:block;font-size:14px}.hm-float small{display:block;color:var(--mut);font-size:12.5px}
-.hm-dot{width:10px;height:10px;border-radius:50%;background:#22b35e;flex:none}.hm-dot.closed{background:#e5484d}.hm-dot.soon{background:#e0a100}.hm-dot.unknown{background:#98a2b3}
 .hm-cats{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding:2px;margin-top:-16px}.hm-cats::-webkit-scrollbar{display:none}
 .hm-cat{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 14px 6px 6px;background:#fff;border:1px solid var(--line);border-radius:16px;color:var(--txt);text-align:left;transition:border-color .15s,box-shadow .15s}
 .hm-cat:hover{border-color:var(--navy);box-shadow:0 4px 14px rgba(16,32,56,.08)}.hm-cat>span{width:40px;height:40px;border-radius:12px;background:#f1faf8;display:grid;place-items:center;font-size:22px;flex:none}
@@ -170,6 +192,7 @@ const css=`.hm{display:grid;gap:40px;padding:20px 0 8px}.hm .sr{position:absolut
 @media(max-width:760px){.hm{gap:30px;padding-top:12px}.hm-hero{padding:24px 20px;border-radius:22px}.hm-lead{font-size:15.5px;margin:10px 0 18px}.hm-trust{gap:6px 14px;font-size:13px;margin-top:16px}
  .hm-cats{margin:-14px -16px 0;padding:2px 16px}.hm-h h2{font-size:21px}.hm-h p{font-size:14px}.hm-shops{grid-template-columns:1fr}.hm-grid>:nth-child(n+9){display:none}
  .hm-how{padding:22px 18px}.hm-how ol{gap:10px}.hm-how li{padding:16px 40px 16px 16px;display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:12px}.hm-how li>svg{grid-row:span 2;width:24px;height:24px;margin-top:2px}.hm-how li b{margin:0 0 4px;font-size:16px}.hm-how li p{font-size:14px}.hm-sell{padding:26px 22px}.hm-sell h2{font-size:24px}.hm-news{padding:22px 18px}
+ .hm-cta>*{flex:1 1 100%}.hm-w{padding:18px;border-radius:20px}.hm-w h1{font-size:22px}.hm-av{width:46px;height:46px;font-size:20px}.hm-w-b{width:100%}.hm-w-st{flex:1}.hm-w-b>button{flex:1 1 40%}
  .hm-nwi{flex-wrap:wrap}.hm-nwi #nw_e{flex-basis:100%}.hm-nwi #nw_p{flex:1 1 100px}.hm-banner{padding:20px;margin-top:-14px}.hm-banner b{font-size:20px}}`;
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 if(cur&&cur[0]==='home')render();
