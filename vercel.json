@@ -1,5 +1,8 @@
 {
  "redirects": [
+  {"source":"/signin","destination":"/account?view=signin","permanent":false},
+  {"source":"/login","destination":"/account?view=login","permanent":false},
+  {"source":"/signup","destination":"/account?view=signup","permanent":false},
   {
    "source": "/:path(.*)",
    "has": [

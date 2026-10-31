@@ -1,4 +1,5 @@
-// ShopNip (a NuvonHub product) · Phase 3: basket (one shop), checkout (pay on collection/delivery), orders, owner inbox, realtime, product sheet.
+// ShopNip · Phase 3: basket (one shop), checkout (pay on collection/delivery), orders, owner inbox, realtime, product sheet.
+const mailEv=(id,ev)=>{try{if(typeof sb!=='undefined'&&sb&&id&&sb.functions)sb.functions.invoke('order-email',{body:{order_id:id,event:ev}}).catch(()=>{})}catch(e){}};/* fire-and-forget order email (supabase/functions/order-email); never blocks checkout */
 (function(){
 const {A,DB,M,MOCK,Q,toast}=P2;
 const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','out_for_delivery','completed']};
@@ -12,7 +13,7 @@ const when=t=>new Date(t).toLocaleString('en-GB',{day:'numeric',month:'short',ho
 const D=MOCK?{
   async shop(id){return M.shops.find(s=>s.id===id)},
   async place(a){const lines=a.items.map(i=>{const l=M.listings.find(x=>x.id===i.listing_id);if(!l||!l.active)throw new Error('An item is no longer available');if(l.stock<i.qty)throw new Error(`Only ${l.stock} left of ${l.name}`);return {l,q:i.qty}});
-    lines.forEach(x=>x.l.stock-=x.q);const s=M.shops.find(x=>x.id===a.shop),fee=a.fulfilment==='delivery'?+(s.delivery_options.delivery_fee||0):0,st=lines.reduce((t,x)=>t+x.l.retail_price*x.q,0);
+    lines.forEach(x=>x.l.stock-=x.q);const s=M.shops.find(x=>x.id===a.shop),prior=M.orders.some(o=>o.customer_id===(A.user?.id||'u1')&&!['cancelled','rejected'].includes(o.status)),fee=a.fulfilment==='delivery'&&prior?+(s.delivery_options.delivery_fee||0):0,st=lines.reduce((t,x)=>t+x.l.retail_price*x.q,0);
     const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(1001+M.orders.length),collection_pin:a.fulfilment==='collect'?String(crypto.getRandomValues(new Uint16Array(1))[0]%10000).padStart(4,'0'):null,shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,note:a.note,
       payment_method:a.fulfilment==='delivery'?'pay_on_delivery':'pay_on_collection',status:'placed',subtotal:st,delivery_fee:fee,total:st+fee,created_at:new Date().toISOString(),
       order_items:lines.map(x=>({listing_id:x.l.id,sku:x.l.sku,name:x.l.name,image:x.l.image,unit_price:x.l.retail_price,qty:x.q})),order_events:[{status:'placed',at:new Date().toISOString()}],shops:{name:s.name,phone:s.phone,address:s.address}};
@@ -26,12 +27,12 @@ const D=MOCK?{
   live(){}
 }:{
   async shop(id){return DB.shop(id)},
-  async place(a){const {data,error}=await sb.rpc('place_order',{p_shop:a.shop,p_items:a.items,p_fulfilment:a.fulfilment,p_name:a.name,p_phone:a.phone,p_address:a.address||null,p_postcode:a.postcode||null,p_note:a.note||null,p_lat:a.lat??null,p_lng:a.lng??null});if(error)throw error;
+  async place(a){const {data,error}=await sb.rpc('place_order',{p_shop:a.shop,p_items:a.items,p_fulfilment:a.fulfilment,p_name:a.name,p_phone:a.phone,p_address:a.address||null,p_postcode:a.postcode||null,p_note:a.note||null,p_lat:a.lat??null,p_lng:a.lng??null});if(error)throw error;mailEv(data?.id,'placed');
     if(a.fulfilment==='collect'&&data?.id&&!data.collection_pin){try{const {data:p}=await sb.from('orders').select('collection_pin').eq('id',data.id).maybeSingle();if(p)data.collection_pin=p.collection_pin}catch(e){}}return data},
   async mine(){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*)').eq('customer_id',A.user.id).order('created_at',{ascending:false}).limit(50);if(error)throw error;return data},
   async inbox(){const {data,error}=await sb.from('orders').select('*,order_items(*)').eq('shop_id',A.shop.id).order('created_at',{ascending:false}).limit(100);if(error)throw error;return data},
   async get(id){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*),order_events(status,note,at)').eq('id',id).single();if(error)throw error;data.order_events?.sort((a,b)=>a.at<b.at?-1:1);return data},
-  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error},
+  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error;mailEv(id,st)},
   live(filter,cb){if(O.ch)sb.removeChannel(O.ch);O.ch=sb.channel('orders-'+filter).on('postgres_changes',{event:'*',schema:'public',table:'orders',filter},cb).subscribe()}
 };
 
@@ -46,6 +47,8 @@ function addToBasket(p,qty=1){
   b?b.qty+=qty:S.basket.push({listing_id:p.listing_id,sku:p.sku,name:p.name,image:p.images?.[0]||p.image,price:+p.price,qty,shop_id:p.shop_id,shop_name:shopName,stock:p.stock});
   saveB();toast('Added to basket');return true}
 const findP=(lid,sku)=>S.products.find(p=>lid?p.listing_id===lid:p.sku===sku);
+function bimg(b){let src=b.image;if(!src){const p=S.products.find(x=>(b.listing_id&&x.listing_id===b.listing_id)||(b.sku&&x.sku===b.sku));src=p&&((p.images&&p.images[0])||p.image);if(!src&&S.L){const l=S.L.find(x=>String(x.id)===String(b.listing_id)||x.sku===b.sku);src=l&&l.image}if(src)b.image=src}return src||'icon-192.png'}
+function welcomeOn(){return false;/* first-order delivery waiver not approved yet */if(!A.user||!O.loaded||O.orderErr)return false;return !(O.mine||[]).some(o=>o&&!['cancelled','rejected'].includes(o.status))}
 // capture phase so app.js's old add handler doesn't also run
 document.addEventListener('click',e=>{
   const add=e.target.closest('.add[data-sku]');
@@ -75,33 +78,38 @@ document.addEventListener('click',e=>{const x=e.target.closest('[data-x]');if(!x
 // ---------- views ----------
 V.basket=function(){
   if(!B().length)return `<div class="empty">${svg('basket')}<br><b>Your basket is empty</b><br><small>Add items from a shop near you</small><br><br><button class="btn" data-t="home">Start shopping</button></div>`;
-  const s=B()[0];return `<section class="sec narrow"><div class="sh"><h2>Basket</h2><a href="#" data-o="clear">Clear</a></div>
+  const s=B()[0];return `<section class="sec basket-page"><div class="sh"><h2>Basket</h2><a href="#" data-o="clear">Clear</a></div>
   <div class="bshop">${svg('store')}<div><small>Ordering from</small><b>${esc(s.shop_name)}</b></div><a href="#" data-shop="${esc(s.shop_id)}">View shop</a></div>
-  <div class="lst">${B().map((b,i)=>`<div class="li"><img src="${esc(b.image||'icon-192.png')}" alt=""><div class="lb"><div class="ln">${esc(b.name)}</div><div class="lm"><span>${gbp(b.price)} each</span></div>
+  <div class="lst">${B().map((b,i)=>`<div class="li"><img src="${esc(bimg(b))}" alt="" data-fb><div class="lb"><div class="ln">${esc(b.name)}</div><div class="lm"><span>${gbp(b.price)} each</span></div>
    <div class="lc"><div class="qty sm"><button data-o="dec" data-i="${i}">−</button><span>${b.qty}</span><button data-o="inc" data-i="${i}">+</button></div><b style="margin-left:auto">${gbp(b.price*b.qty)}</b></div></div></div>`).join('')}</div>
   <div class="panel"><div class="line"><span>Subtotal</span><b>${gbp(sub())}</b></div><p class="hint">Delivery fee (if any) is added at checkout. Prices are confirmed by the shop when you order.</p>
   <button class="btn full big" data-o="checkout">Go to checkout</button></div></section>`};
 const CO={f:'collect',shop:null,deliv:null,err:''};
-async function prepCheckout(){CO.shop=await D.shop(bShop());const d=CO.shop?.delivery_options||{};CO.deliv=null;
+async function prepCheckout(){CO.shop=await D.shop(bShop());const d=CO.shop?.delivery_options||{};CO.deliv=null;CO.phoneErr='';
+  if(A.user&&!O.loaded){try{O.mine=await D.mine();O.loaded=true;O.orderErr=false}catch(e){O.orderErr=true}}
   if(d.delivery){if(!S.me)CO.deliv={ok:false,why:'Set your postcode to check delivery'};else if(CO.shop.lat==null)CO.deliv={ok:true};else{const mi=miles(S.me,CO.shop);CO.deliv={ok:mi<=(+d.delivery_radius_miles||0),mi,why:`You're ${mi.toFixed(1)} mi away; ${esc(CO.shop.name)} delivers within ${+d.delivery_radius_miles||0} mi`}}}
   if(d.collect===false)CO.f=CO.deliv?.ok?'delivery':'collect';}
 V.checkout=function(){
   if(!B().length)return V.basket();if(!CO.shop)return '<div class="empty">Loading…</div>';
   if(!A.user)return `<section class="sec narrow"><div class="sh"><h2>Checkout</h2></div><div class="noshops"><div class="ic">${svg('account')}</div><h4>Log in to place your order</h4><p>We need an account so you can track your order and the shop can contact you.</p><button class="btn" data-o="login">Log in or sign up</button></div></section>`;
-  const s=CO.shop,d=s.delivery_options||{},fee=CO.f==='delivery'?+(d.delivery_fee||0):0,u=window.CK?CK.get():{};
-  return `<section class="sec narrow"><div class="sh"><h2>Checkout</h2><a href="#" data-t="basket">Edit basket</a></div>
-  <form class="form" data-form="order">${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}
+  const s=CO.shop,d=s.delivery_options||{},shopFee=+(d.delivery_fee||0),welcome=CO.f==='delivery'&&welcomeOn(),fee=CO.f==='delivery'?(welcome?0:shopFee):0,u=window.CK?CK.get():{};
+  const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
+  const openPhrase=hs&&!hs.unknown&&!hs.open?String(hs.label||'').replace(/^Opens\s+(?:at\s+)?/,''):'';
+  const closed=openPhrase?`<div class="alert hours-wait" role="status">Shop opens ${esc(openPhrase)}; order will be ready after opening.</div>`:'';
+  return `<section class="sec narrow checkout-pad"><div class="sh"><h2>Checkout</h2><a href="#" data-t="basket">Edit basket</a></div>
+  <form class="form" data-form="order">${closed}${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}
   <div class="panel"><h3 class="ft">How do you want it?</h3>
    <label class="opt ${d.collect===false?'dis':''}"><input type="radio" name="ful" value="collect" ${CO.f==='collect'?'checked':''} ${d.collect===false?'disabled':''}>${svg('bag')}<span><b>Click &amp; collect</b><small>${d.collect===false?'Not offered':`Free · ${esc(s.address||s.postcode||'')}`}</small></span></label>
-   <label class="opt ${!d.delivery||!CO.deliv?.ok?'dis':''}"><input type="radio" name="ful" value="delivery" ${CO.f==='delivery'?'checked':''} ${!d.delivery||!CO.deliv?.ok?'disabled':''}>${svg('bolt')}<span><b>Local delivery${d.delivery?' · '+gbp(d.delivery_fee||0):''}</b><small>${!d.delivery?'This shop doesn’t deliver':CO.deliv?.ok?`Within ${+d.delivery_radius_miles||0} mi${CO.deliv.mi!=null?' · you’re '+CO.deliv.mi.toFixed(1)+' mi away':''}`:CO.deliv?.why||''}</small></span></label>
+   <label class="opt ${!d.delivery||!CO.deliv?.ok?'dis':''}"><input type="radio" name="ful" value="delivery" ${CO.f==='delivery'?'checked':''} ${!d.delivery||!CO.deliv?.ok?'disabled':''}>${svg('bolt')}<span><b>Local delivery${d.delivery?(welcomeOn()?' · Free on your first order':' · '+gbp(shopFee)):''}</b><small>${!d.delivery?'This shop doesn’t deliver':CO.deliv?.ok?`Within ${+d.delivery_radius_miles||0} mi${CO.deliv.mi!=null?' · you’re '+CO.deliv.mi.toFixed(1)+' mi away':''}`:CO.deliv?.why||''}</small></span></label>
    ${d.delivery&&!S.me?'<a href="#" id="setpc2" class="hint">Set your postcode</a>':''}</div>
   <div class="panel"><h3 class="ft">Your details</h3>
-   ${fld('c_name','Name','required autocomplete="name"',u.name||A.profile?.full_name||'')}${fld('c_phone','Mobile number','required type="tel" autocomplete="tel"',u.phone||'')}
+   ${fld('c_name','Name','required autocomplete="name"',u.name||A.profile?.full_name||'')}${fld('c_phone','Mobile number <span class="req" title="required">*</span>','required type="tel" inputmode="tel" autocomplete="tel" aria-required="true" aria-describedby="phone_err"',u.phone||'')}
+   <p class="${CO.phoneErr?'field-err':'hint'}" id="phone_err">${CO.phoneErr?esc(CO.phoneErr):'Required, so the shop can reach you about this order.'}</p>
    ${CO.f==='delivery'?fld('c_addr','Delivery address','required autocomplete="street-address"',u.addr||'')+fld('c_pc','Postcode','required autocomplete="postal-code" style="text-transform:uppercase"',S.pc||''):''}
    <label class="fl"><span>Note for the shop (optional)</span><textarea id="c_note" rows="2" maxlength="500" placeholder="e.g. I'll collect after 5pm"></textarea></label></div>
   <div class="panel"><h3 class="ft">Payment</h3><div class="opt on">${svg('tag')}<span><b>${CO.f==='delivery'?'Pay on delivery':'Pay on collection'}</b><small>Pay the shop by card or cash. No payment is taken now.</small></span></div></div>
   <div class="panel"><h3 class="ft">Summary · ${esc(s.name)}</h3>${B().map(b=>`<div class="line"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)}</span></div>`).join('')}
-   <div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:''}<div class="line tot"><b>Total to pay ${CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(sub()+fee)}</b></div></div>
+   <div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${welcome?(shopFee?`<div class="line"><span>Delivery</span><span><s>${gbp(shopFee)}</s></span></div>`:'')+`<div class="line"><span>Free delivery on your first order</span><b>Free</b></div>`:(fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:'')}<div class="line tot"><b>Total to pay ${CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(sub()+fee)}</b></div></div>
   <button class="btn full big" id="placebtn">Place order · ${gbp(sub()+fee)}</button><p class="hint c">The shop will confirm your order. You can cancel until it’s accepted.</p></form></section>`};
 const fld=(id,l,a,v)=>`<label class="fl"><span>${l}</span><input id="${id}" ${a} value="${esc(v)}"></label>`;
 /* click & collect code: order number + PIN the customer quotes at the shop */
@@ -186,7 +194,8 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
 document.addEventListener('change',e=>{if(e.target.name==='ful'){CO.f=e.target.value;render()}});
 document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')return;e.preventDefault();e.stopImmediatePropagation();const btn=$('#placebtn'),v=id=>($('#'+id)?.value||'').trim();CO.err='';
   const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:v('c_pc').toUpperCase(),note:v('c_note')};
-  if(!/^[0-9+\s()-]{10,16}$/.test(a.phone)){CO.err='Please enter a valid UK phone number.';return render()}
+  CO.phoneErr='';if(!a.phone){CO.phoneErr='Mobile number is required.';CO.err=CO.phoneErr;return render()}
+  if(!/^[0-9+\s()-]{10,16}$/.test(a.phone)){CO.phoneErr='Enter a valid UK mobile number, for example 07700 900123.';CO.err=CO.phoneErr;return render()}
   btn.disabled=true;btn.textContent='Placing order…';
   try{const r=await placeOrder(a);scrollTo(0,0);route('placed',r)}
   catch(err){CO.err=err.message||String(err);render()}},true);
@@ -195,7 +204,7 @@ async function placeOrder(a){if(a.fulfilment==='delivery'){const g=await lookupP
   window.CK&&CK.set({name:a.name,phone:a.phone,addr:a.address});
   const r=await D.place(a);O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
 
-window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),after:null,async init(){
+window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
       M.orders.push({id:'o'+n,order_number:'NB-'+(1000+n),collection_pin:f==='collect'?String(4800+n*7):null,shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,

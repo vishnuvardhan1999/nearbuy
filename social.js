@@ -110,7 +110,7 @@ function shopExtra(s){
     return `<div class="eodcard"><b>${esc(o.title)}</b><span>${esc(price)}</span>${o.detail?`<p>${esc(o.detail)}</p>`:''}<small>Until ${esc(new Date(o.valid_until).toLocaleString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}))} UK time</small></div>`}).join('');
   const revs=list.map(r=>`<article class="rev"><header><b>${esc(stars(r.rating))} ${r.rating}</b><span>${esc(r.author||'Shopper')}</span></header><p>${esc(r.body)}</p>${r.customer_id!==uid()?`<button type="button" class="revrep" data-revrep="${esc(r.shop_id)}" data-revwho="${esc(r.customer_id)}">Report</button>`:''}</article>`).join('')||'<p class="hint">No reviews yet.</p>';
   const form=own?'<p class="hint">You can’t review your own shop.</p>':!uid()?'<p class="hint"><a href="#" data-t="account">Sign in</a> to rate this shop.</p>':
-    `<form class="revform" data-revform="${esc(s.id)}"><div class="revstars" role="radiogroup" aria-label="Rating">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="rating" value="${n}" ${(mine?mine.rating:5)===n?'checked':''}>${n}</label>`).join('')}</div>
+    `<form class="revform" data-revform="${esc(s.id)}"><div class="revstars" role="radiogroup" aria-label="Rating">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="rating" value="${n}" ${mine&&mine.rating===n?'checked':''}>${n}</label>`).join('')}</div>
      <textarea name="body" maxlength="400" required minlength="2" placeholder="How was this shop?">${esc(mine?mine.body:'')}</textarea>
      <button class="btn" type="submit">${mine?'Update your review':'Publish review'}</button></form>`;
   return `<section class="sec social" id="shop-social"><div class="sh"><h2>${a.n?esc(a.avg.toFixed(1))+' · '+a.n+' review'+(a.n>1?'s':''):'Reviews'}</h2>
@@ -176,6 +176,7 @@ async function toggleFollow(shopId){
 }
 async function saveReview(shopId,rating,body){
   const id=uid();if(!id)throw new Error('Sign in to leave a review');
+  if(!(+rating>=1&&+rating<=5))throw new Error('Choose a star rating.');
   const text=String(body||'').trim();
   if(live()&&db()){const {error}=await db().rpc('save_shop_review',{p_shop:shopId,p_rating:rating,p_body:text});if(error)throw error}
   const row={shop_id:shopId,customer_id:id,author:'You',rating,body:text,hidden:false,reports:0,updated_at:new Date().toISOString(),created_at:new Date().toISOString()};
@@ -228,7 +229,7 @@ root.document.addEventListener('click',async e=>{
 });
 function NBRerender(){return root.NBSeller&&root.NBSeller.rerender}
 root.document.addEventListener('submit',async e=>{
-  const f=e.target.closest('[data-revform]');if(f){e.preventDefault();e.stopPropagation();const rating=+(f.querySelector('input[name=rating]:checked')||{}).value||0;const body=f.querySelector('textarea').value;try{await saveReview(f.dataset.revform,rating,body);root.toast&&root.toast('Review saved');paint();root.render&&root.render()}catch(err){root.toast&&root.toast(err.message||'Could not save review')}return}
+  const f=e.target.closest('[data-revform]');if(f){e.preventDefault();e.stopPropagation();const rating=+(f.querySelector('input[name=rating]:checked')||{}).value||0;const body=f.querySelector('textarea').value;try{await saveReview(f.dataset.revform,rating,body);root.toast&&root.toast('Review saved');paint();root.render&&root.render()}catch(err){root.toast&&root.toast(err.message||'Could not save review');let er=f.querySelector('.field-err');if(!er){er=document.createElement('p');er.className='field-err';f.appendChild(er)}er.textContent=err.message||'Could not save review'}return}
   if(e.target.id==='eodf'){e.preventDefault();const F=new FormData(e.target);try{await postOffer({title:F.get('title'),detail:F.get('detail'),price:F.get('price'),discount:F.get('discount'),until:F.get('until')});root.NBSeller&&root.NBSeller.toast('Offer posted. Followers are notified.');NBRerender()&&root.NBSeller.rerender()}catch(err){root.NBSeller&&root.NBSeller.toast(err.message||'Could not post offer')}return}
   const rf=e.target.closest('[data-rate]');if(rf){e.preventDefault();e.stopPropagation();const rating=+(rf.querySelector('input[name=stars]:checked')||{}).value||0;const err=rf.querySelector('.rateerr');
     if(rating<1){if(err)err.textContent='Choose a star rating.';return}

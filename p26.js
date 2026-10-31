@@ -5,13 +5,14 @@ const CFG=window.APP_CONFIG||{};
 const PH=t=>`<span class="ph">[${t}]</span>`;
 const MAIL=()=>CFG.CONTACT_EMAIL?`<a href="mailto:${esc(CFG.CONTACT_EMAIL)}">${esc(CFG.CONTACT_EMAIL)}</a>`:PH('contact email to be added');
 const CONTACT=()=>`through the <a href="/contact">Contact page</a> on www.shopnip.co.uk (email: ${MAIL()})`;
-const OP='ShopNip is a product of NuvonHub Private Limited (India)';
+const OP='ShopNip is a trading name and product of Suman Bros (Wholesale) Limited';
+const COINFO='Suman Bros (Wholesale) Limited is registered in England &amp; Wales, company number 01802958. Registered address: Crown House, Otterspool Way, Watford WD25 8HL, United Kingdom. VAT number: GB 923 290 828';
 const UPD='Last updated 25 October 2026';
 const LINKS=k=>`<nav class="lglinks" aria-label="Legal pages">${[['terms','Terms of Use'],['privacy','Privacy Policy'],['seller-terms','Seller Terms'],['cookies','Cookie Notice']].map(([h,l])=>`<a href="/${h}"${h===k?' aria-current="page"':''}>${l}</a>`).join('')}</nav>`;
 const page=(k,title,intro,body)=>`<article class="info legal"><div class="ih"><div class="tag">Legal</div><h1>${title}</h1><p>${intro}</p></div>
  <div class="draft" role="note"><b>Draft, pending legal review.</b> This page has not yet been checked by a lawyer and may change.</div>
  <p class="lupd">${UPD}</p>${LINKS(k)}${body}
- <p class="lop">${OP}. Company details: ${PH('registered company number and address to be added')}.</p></article>${foot()}`;
+ <p class="lop">${OP}. ${COINFO}.</p></article>${foot()}`;
 
 V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shopper.',`
 <h2>1. Who we are</h2><p>${OP} ("ShopNip", "we", "us"). You can reach us ${CONTACT()}.</p>
@@ -26,7 +27,7 @@ V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shoppe
 <h2>10. Law</h2><p>These terms are governed by the law of England and Wales. If you live elsewhere in the UK, you can also bring a claim in your local courts.</p>`);
 
 V.privacy=()=>page('privacy','Privacy Policy','What personal data ShopNip collects, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018).',`
-<h2>1. Who is responsible</h2><p>${OP} is the controller of the personal data described here. Contact us about privacy ${CONTACT()}. ${PH('UK representative details, if required, to be added')}</p>
+<h2>1. Who is responsible</h2><p>${OP} is the controller of the personal data described here. Contact us about privacy ${CONTACT()}.</p>
 <h2>2. What we collect</h2><ul>
 <li><b>Account details</b>: your email address, name and password (the password is stored securely by our provider; we can't see it).</li>
 <li><b>Contact details</b>: your phone number, so the shop can reach you about an order.</li>
@@ -62,10 +63,10 @@ V['seller-terms']=()=>page('seller-terms','Seller Terms','The rules for shops th
 <h2>4. Orders and fulfilment</h2><ul><li>Accept or decline new orders promptly. Once you accept an order, you must fulfil it at the price shown.</li><li>Have click &amp; collect orders ready by the time shown to the customer, and keep order status up to date (accepted, ready, completed).</li><li>If you offer delivery, deliver only within the area and for the fee you set, in a reasonable time.</li><li>You are the seller. You are responsible for the goods, for refunds and returns, and for your obligations to customers under consumer law.</li></ul>
 <h2>5. Click &amp; collect PIN checks</h2><p>Each order has a collection PIN. <b>Before handing over an order, ask for the PIN and check it matches</b> the one shown in your order inbox. If the PIN doesn't match, don't hand the order over. ShopNip is not responsible for orders handed over without a matching PIN.</p>
 <h2>6. Payment</h2><p>For now, <b>customers pay you directly, at the shop or on delivery</b>. ShopNip does not take payments or hold money for you. You are responsible for taking payment, giving receipts and handling refunds.</p>
-<h2>7. Fees</h2><p><b>ShopNip is free for shops during the pilot.</b> We may introduce fees later. If we do, we will give you at least ${PH('notice period to be confirmed, e.g. 30 days')} written notice before they start. You can leave before any new fees apply.</p>
+<h2>7. Fees</h2><p><b>Your first 50 product listings are free.</b> If we introduce fees for further listings, we will give you notice first.</p>
 <h2>8. Customer data</h2><p>You receive customer details (name, phone, and address for delivery) only to fulfil their order. Use them only for that order, keep them secure, and don't use them for marketing unless the customer has agreed separately. You are responsible for your own compliance with UK data protection law.</p>
 <h2>9. Suspension and removal</h2><p>We may hide listings, or suspend or remove a shop, if it breaks these terms, receives repeated complaints, gives inaccurate information, or puts customers at risk. Where we reasonably can, we will tell you why and give you a chance to fix things first. You can close your shop at any time by contacting us.</p>
-<h2>10. Our responsibility</h2><p>ShopNip is provided during a pilot and may change. We aren't liable for lost sales or profits caused by the site being unavailable. Nothing in these terms limits liability that can't be limited by law.</p>
+<h2>10. Our responsibility</h2><p>ShopNip may change over time. We aren't liable for lost sales or profits caused by the site being unavailable. Nothing in these terms limits liability that can't be limited by law.</p>
 <h2>11. Changes and law</h2><p>We may update these terms and will tell you about important changes. The law of England and Wales applies.</p>`);
 
 V.cookies=()=>{const rows=[

@@ -1,4 +1,4 @@
-# ShopNip, a NuvonHub product. Public storefront: all crawlers welcome.
+# ShopNip. Public storefront: all crawlers welcome.
 User-agent: *
 Allow: /
 

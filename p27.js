@@ -1,4 +1,4 @@
-// ShopNip (a NuvonHub product) · p27: seller tools in seller.html (loaded after seller.js).
+// ShopNip · p27: seller tools in seller.html (loaded after seller.js).
 // Invoice auto-fill · Plan & fees (partner tier) · Smart re-order · Insights · Promote (branding, poster/QR, share) · Counter mode.
 // Data: shop_listings (supplier, low_stock_threshold, reorder_qty from migration 019), shops.brand_color (019),
 // wholesale_partners / shop_partner_links / listing_fee_settings + RPCs shop_fee_tier, request_partner_link (017).
@@ -217,7 +217,7 @@ PAGES.plan=()=>{loadTier();const t=U.tier;
   if(!t)return `<div class="p27"><div class="ph"><div><h2>Plan &amp; fees</h2></div></div><div class="card"><div class="empty">${svg('crown')}<b>${U.tierErr?esc(U.tierErr):'Loading your plan…'}</b></div></div></div>`;
   const P=U.partners||[],best=P.reduce((m,p)=>Math.min(m,+p.partner_fee),Infinity),isP=t.tier==='partner';
   return `<div class="p27"><div class="ph"><div><h2>Plan &amp; fees</h2><p>Your monthly listing fee depends on where you buy your stock.</p></div></div>
-  <div class="bnr info">${svg('check')}<div><b>No fees are charged during the pilot.</b>The amounts below show the plan you’re on. Nothing is taken from your account.</div></div>
+  <div class="bnr info">${svg('check')}<div><b>Your first 50 products are free to list.</b>The amounts below show the plan you’re on. Nothing is taken from your account.</div></div>
   ${saveStrip(false)}
   <div class="p27tier" style="margin-bottom:16px"><div class="p27t ${!isP?'on':''}">${!isP?'<span class="cur">Your plan</span>':''}<h4>Standard</h4><div class="pr">${feeTxt(t.standard_fee)}<small> /month</small></div><p class="mut">For any independent shop, whoever you buy from.</p></div>
    <div class="p27t ${isP?'on':''}">${isP?'<span class="cur">Your plan</span>':''}<h4>Partner</h4><div class="pr">${P.length?(isP?feeTxt(t.fee):'from '+feeTxt(best)):'–'}<small> /month</small></div><p class="mut">When your shop buys from a ShopNip partner wholesaler and the link is verified.${isP?` Linked to <b>${esc(t.partner_name||'')}</b>.`:''}</p></div></div>

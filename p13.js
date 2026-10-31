@@ -1,4 +1,4 @@
-// ShopNip (a NuvonHub product) · Phase 13: guided order chat. Rule-based (no AI API, no payments).
+// ShopNip · Phase 13: guided order chat. Rule-based (no AI API, no payments).
 // Builds the normal basket via P3.add and places the order via P3.place (same path as checkout), so it lands in the seller's inbox.
 (function(){
 if(!window.P3||!window.P2)return;const A=P2.A,toast=P2.toast;
@@ -45,17 +45,18 @@ function search(t){const w=t.toLowerCase().split(/\s+/).filter(x=>x.length>1).ma
   bot(`Here's what I found:<div class="cb-ps">${r.map(l=>`<div class="cb-p"><img src="${esc(l.image||'icon-192.png')}" alt=""><div><span>${esc(l.name)}</span><b>${gbp(l.retail_price)}</b>${l.stock===0?'<small>Out of stock</small>':''}</div><button type="button" data-c="add" data-id="${esc(l.id)}" ${l.stock===0?'disabled':''} aria-label="Add ${esc(l.name)}">Add</button></div>`).join('')}</div>`)}
 function add(id){const l=C.L.find(x=>x.id===id);if(!l)return;if(P3.add(toP(l),1)){const b=items().find(x=>x.listing_id===id);bot(`Added <b>${esc(l.name)}</b>${b&&b.qty>1?' (now '+b.qty+')':''}. Basket total ${gbp(P3.subtotal())}.`);
   quick([['Done, next step','done','pri'],['Search again','more']],'Search more products…')}}
-function askFul(){C.step='ful';const d=C.shop.delivery_options||{},o=[];
+async function askFul(){C.step='ful';const info=window.P3&&P3.orders&&P3.orders();if(A.user&&info&&!info.loaded&&info.load){try{await info.load()}catch(e){}}
+  const d=C.shop.delivery_options||{},o=[],free=window.P3&&P3.welcome&&P3.welcome();
   if(d.collect!==false)o.push(['Click &amp; collect · free','collect','pri']);
-  if(d.delivery)o.push([`Local delivery · ${gbp(d.delivery_fee||0)}`,'delivery']);
+  if(d.delivery)o.push([`Local delivery · ${free?'Free on your first order':gbp(d.delivery_fee||0)}`,'delivery']);
   bot('How would you like to get it?');quick(o)}
 function ask(k){C.step=k;const v=C.d[k==='addr'?'addr':k];
   const Q={name:'What name should the shop put on the order?',phone:'And your mobile number, so the shop can reach you?',addr:'What is the delivery address?',pc:'And the postcode?',note:'Any note for the shop? (optional)'};
   bot(Q[k]);quick(k==='note'?[['No note','-']]:v?[[esc('Use '+v),'=']]:[],k==='phone'?'e.g. 07700 900123':'Type here…')}
 const NEXT={name:'phone',phone:'addr',addr:'pc',pc:'note'};
 function nextAfter(k){let n=NEXT[k];if(C.f!=='delivery'&&(n==='addr'))n='note';n?ask(n):confirmStep()}
-function confirmStep(){C.step='confirm';const d=C.shop.delivery_options||{},fee=C.f==='delivery'?+(d.delivery_fee||0):0,s=P3.subtotal();
-  bot(`<div class="cb-sum"><b>${esc(C.shop.name)}</b><br>${bsum()}<hr>${fee?`Delivery <b>${gbp(fee)}</b><br>`:''}Total <b>${gbp(s+fee)}</b> · pay ${C.f==='delivery'?'on delivery':'on collection'}<hr>
+function confirmStep(){C.step='confirm';const d=C.shop.delivery_options||{},shopFee=+(d.delivery_fee||0),free=C.f==='delivery'&&window.P3&&P3.welcome&&P3.welcome(),fee=C.f==='delivery'?(free?0:shopFee):0,s=P3.subtotal();
+  bot(`<div class="cb-sum"><b>${esc(C.shop.name)}</b><br>${bsum()}<hr>${free?`Delivery <s>${gbp(shopFee)}</s><br>Free delivery on your first order <b>Free</b><br>`:(fee?`Delivery <b>${gbp(fee)}</b><br>`:'')}Total <b>${gbp(s+fee)}</b> · pay ${C.f==='delivery'?'on delivery':'on collection'}<hr>
    ${C.f==='delivery'?'Deliver to '+esc(C.d.addr+', '+C.d.pc):'Click &amp; collect · '+esc(C.shop.address||'')}<br>${esc(C.d.name)} · ${esc(C.d.phone)}${C.d.note?'<br>“'+esc(C.d.note)+'”':''}</div>Shall I place this order?`);
   quick([['Place order · '+gbp(s+fee),'place','pri'],['Edit items','edit'],['Start over','restart']])}
 async function place(){if(!A.user){window.CK&&CK.set({name:C.d.name,phone:C.d.phone,addr:C.d.addr||''});

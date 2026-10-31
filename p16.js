@@ -25,7 +25,12 @@ const css=`.hx{display:inline-flex;align-items:center;gap:10px}
 .si .alt:hover{background:#f8fafc}
 .si .fine{font-size:12px;color:#94a3b8;margin:14px 0 0;text-align:center}
 .si .sel{text-align:center;margin-top:18px;font-size:13px;color:#64748b}.si .sel a{color:#0f172a;font-weight:700}
-.si .form{padding:0;border:0;box-shadow:none;background:none}`;
+.si .form{padding:0;border:0;box-shadow:none;background:none}
+.rsw{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#eceff3;border-radius:14px;padding:4px;margin:0 0 14px}
+.rsw>*{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:11px;font-weight:700;font-size:14.5px;color:#475467;text-decoration:none}
+.rsw .on{background:#ff6b4a;color:#fff;box-shadow:0 2px 8px rgba(255,107,74,.3)}.rsw a:hover{color:#0f172a;background:rgba(255,255,255,.6)}
+.si .ak{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#c2410c;background:#fff1ec;border-radius:99px;padding:4px 10px;margin-bottom:12px}
+.si .hint2{display:block;margin-top:6px;font-size:12.5px;color:#64748b}.si #f_pc::placeholder{text-transform:none}`;
 document.head.insertAdjacentHTML('beforeend',`<style id="p16css">${css}</style>`);
 const ic='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
 const first=()=>{const n=(A.profile?.full_name||'').trim();return n?n.split(/\s+/)[0]:(A.user?.email||'').split('@')[0]};
@@ -54,18 +59,18 @@ V.account=function(...a){if(A.user&&A.authPage&&(LIVE||P.MOCK))return `<section 
   <button class="btn full" data-acc="cont">Continue as ${esc(first())}</button>
   <div class="or">Not you?</div><button class="alt" data-acc="switch">Sign out and use a different account</button></div></section>`;
   if(A.user||!(LIVE||P.MOCK))return _acc.apply(this,a);const su=A.tab==='signup';
-  const sel=window.SELLER_URL?SELLER_URL('login'):'seller.html#login';
-  return `<section class="si"><div class="card"><div class="mk">S</div><h2>${su?'Create your account':'Sign in'}</h2>
-  <p class="lead">${su?'Shop local, track orders and check out faster.':'Welcome back. Sign in to check out and track your orders.'}</p>
+  const sel=window.SELLER_URL?SELLER_URL(su?'signup':'login'):'seller.html#'+(su?'signup':'login');
+  return `<section class="si">
+  <div class="card"><span class="ak">Shopping account</span><h2>${su?'Create your shopping account':'Sign in to shop'}</h2>
+  <p class="lead">${su?'Order from independent shops near you, track your orders and keep your delivery postcode saved.':'Welcome back. Sign in to order from local shops and track your orders.'}</p>
   <form class="form" data-form="${su?'signup':'login'}">${A.msg?`<div class="alert">${esc(A.msg)}</div>`:''}
-  ${su?fld('f_name','Your name','autocomplete="off" value="" required'):''}${fld('f_email','Email','type="email" autocomplete="'+(su?'off':'email')+'" value="" required')}
+  ${su?fld('f_name','Your name','autocomplete="name" value="" required'):''}${fld('f_email','Email','type="email" autocomplete="'+(su?'off':'email')+'" value="" required')}
   ${fld('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required'+(su?' placeholder="At least 8 characters"':''))}
-  <button class="btn full">${su?'Create your ShopNip account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
+  ${su?`<label class="fl"><span>Your postcode</span><input id="f_pc" autocomplete="postal-code" required maxlength="8" placeholder="e.g. WD18 0AA" value="${esc(S.pc||'')}" style="text-transform:uppercase"><small class="hint2">We show you shops near this postcode. Change it any time in your account settings.</small></label>`:''}
+  <button class="btn full">${su?'Create shopping account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
   <div class="or">${su?'Already have an account?':'New to ShopNip?'}</div>
-  <button class="alt" data-acc="${su?'login':'new'}">${su?'Sign in instead':'Create your ShopNip account'}</button>
-  <p class="fine">By continuing you agree to shop with local independents on ShopNip.</p></div>
-  <p class="sel">Are you a shop? <a href="${sel}">Seller login</a></p></section>`};
+  <button class="alt" data-acc="${su?'login':'new'}">${su?'Sign in instead':'Create a shopping account'}</button></div></section>`};
 /* refresh header whenever views re-render (login, logout, signup all route) */
 const _r=window.route;window.route=route=function(...a){const r=_r.apply(this,a);paint();return r};
-paint();
+paint();addEventListener('nb:auth',paint);
 })();
