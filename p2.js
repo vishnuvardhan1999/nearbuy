@@ -127,7 +127,7 @@ V.register=function(){
    <div class="panel"><h3 class="ft">Wholesale account</h3>
     ${field('s_trade','Trade account email','type="email" required placeholder="The email you order wholesale with"',s.bluepark_customer_email)}
     <p class="hint">Products you buy wholesale with this email are added to your shop automatically after they ship.</p>
-    <label class="fl"><span>What products would you like listed in your shop? <small>(optional)</small></span><textarea id="s_want" rows="3" maxlength="2000" placeholder="e.g. balloons, greeting cards, exercise books, parcel tape">${esc(s.requested_products||'')}</textarea></label></div>
+    <label class="fl"><span>What products would you like listed in your shop? <small>(optional)</small></span><textarea id="s_want" rows="3" maxlength="2000" placeholder="e.g. balloons, greeting cards, exercise books, parcel tape">${esc(s.requested_products||(()=>{try{return localStorage.nb_want||''}catch(_){return ''}})())}</textarea></label></div>
    <div class="panel"><h3 class="ft">Photos</h3><div class="two">
     <label class="up"><input type="file" id="s_logo" accept="image/*" hidden><span class="upi" id="pv_logo">${s.logo_url?`<img src="${esc(s.logo_url)}">`:svg('plus')}</span><b>Logo</b><small>Square, 400px+</small></label>
     <label class="up"><input type="file" id="s_cover" accept="image/*" hidden><span class="upi wide" id="pv_cover">${s.cover_url?`<img src="${esc(s.cover_url)}">`:svg('plus')}</span><b>Cover photo</b><small>Shop front, 1200×600</small></label></div></div>
