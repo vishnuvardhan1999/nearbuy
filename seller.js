@@ -26,7 +26,7 @@ const svg=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[n]||''}</svg>`;
 const toast=m=>{let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t)}t.textContent=m;t.className='on';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',2600)};
 const keep=()=>MOCK?'mock=1'+(Q.get('as')?'&as='+encodeURIComponent(Q.get('as')):''):'';
 const idx=q=>'index.html?'+[keep(),q].filter(Boolean).join('&');
-const regURL=()=>'/register'+(keep()?'?'+keep():'');
+const regURL=()=>'#register';
 const home=()=>'/'+(MOCK?'?'+keep():'');
 const when=t=>new Date(t).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const ago=t=>{const m=Math.round((Date.now()-Date.parse(t))/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
@@ -50,6 +50,7 @@ const API=MOCK?{
   async signOut(){M.user=null;localStorage.nb_mock_out='1'},async myShop(){return Q.get('shop')==='none'?null:M.shops.find(s=>s.owner_id==='u1')||null},
   async listings(){return M.L.filter(l=>l.shop_id===D.shop.id)},async orders(){return M.O.filter(o=>o.shop_id===D.shop.id)},
   async updListing(id,ch){Object.assign(M.L.find(l=>l.id===id)||{},ch)},async addListing(l){l.id='l'+Math.random().toString(36).slice(2,8);l.updated_at=new Date().toISOString();M.L.unshift(l);return l},
+  async createShop(r){const x={...r,id:'s'+Date.now(),owner_id:'u1',status:'pending'};M.shops.push(x);return x},
   async saveShop(s){const x=M.shops.find(z=>z.id===s.id);Object.assign(x,s);if(s.bluepark_customer_email&&s._tradeChanged)x.status='pending';return x},async upload(f){return URL.createObjectURL(f)},
   async status(id,st,note,cancel){const o=M.O.find(x=>x.id===id);if(DEAD.includes(st))o.order_items.forEach(i=>{const l=M.L.find(x=>x.id===i.listing_id);if(l)l.stock+=i.qty});o.status=st;if(note)o.reject_reason=note;if(st==='cancelled'){if(!cancel||!cancel.reason)throw new Error('Choose a cancellation reason');window.CancelBox&&CancelBox.apply(o,cancel,'seller')}o.order_events.push({status:st,at:new Date().toISOString(),note})},
   live(){}
@@ -59,6 +60,7 @@ const API=MOCK?{
   // Seller accounts are always role 'owner' (same metadata p2.js used for “Sell on ShopNip”). The confirmation link returns to seller.html.
   async signUp(email,password,full_name){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'owner',full_name},emailRedirectTo:location.origin+'/seller.html'}});if(error)throw error;return data},
   async signIn(email,password){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;return data},
+  async createShop(r){const {data,error}=await sb.from('shops').insert({...r,owner_id:D.user.id}).select().single();if(error)throw error;try{await sb.rpc('backfill_shop_listings',{p_shop:data.id})}catch(_){}return data},
   async myShop(){const {data,error}=await sb.from('shops').select('*').eq('owner_id',D.user.id).maybeSingle();if(error)throw error;return data},
   async listings(){const out=[];for(let f=0;;f+=1000){const {data,error}=await sb.from('shop_listings').select('*').eq('shop_id',D.shop.id).order('updated_at',{ascending:false}).range(f,f+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out},
   async orders(){const {data,error}=await sb.from('orders').select('*,order_items(*),order_events(status,note,at)').eq('shop_id',D.shop.id).order('created_at',{ascending:false}).limit(200);if(error)throw error;data.forEach(o=>o.order_events?.sort((a,b)=>a.at<b.at?-1:1));return data},
@@ -107,15 +109,15 @@ const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?
 const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
 // after login / email confirmation: dashboard if there is a shop, otherwise shop registration
 // p29: new seller sign-ups (Become a seller) go to shop registration; signing in without a shop shows a friendly choice, not a redirect
-function landSeller(su){if(D.shop){location.hash='overview';return true}if(D.user){if(su){location.href=regURL();return true}return 'onboard'}return false}
+function landSeller(su){if(D.shop){location.hash='overview';return true}if(D.user){if(su){location.hash='register';return true}return 'onboard'}return false}
 function onboard(){const RG=regURL();
-  return `<div class="gate"><div class="card" style="max-width:560px"><a class="brand" href="/seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>
+  return `<div class="gate"><div class="card" style="max-width:560px"><a class="brand" href="${home()}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>
    <style>.onb{list-style:none;padding:0;margin:14px 0;display:grid;gap:8px;text-align:left}.onb li{background:#f4fbf9;border-radius:12px;padding:10px 12px}.onb b{display:block}.onb span{color:#64748b;font-size:13px}</style>
    <h2>Register your shop</h2>
    <p>You’re signed in as ${esc(D.user.email||'')}. This account can shop on ShopNip, and it doesn’t have a shop yet. Registering takes about three minutes. We review every shop before it goes live.</p>
    <ol class="onb"><li><b>1. Your shop</b><span>Name, address, phone and opening hours.</span></li><li><b>2. Collection or delivery</b><span>Click &amp; collect, local delivery, or both. You set the fee.</span></li><li><b>3. Wholesale email</b><span>Products you buy are listed for you after they ship.</span></li></ol>
    <div class="btns"><a class="btn coral lg" href="${RG}">Register your shop</a><a class="btn ghost lg" href="/">Back to shopping</a><a class="btn ghost" href="#" data-a="logout">Sign out</a></div></div></div>`}
-function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>`;
+function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="${home()}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>`;
   const shopper='/account'+(su?'?view=signup'+(MOCK?'&'+keep():''):(MOCK?'?'+keep():''));
   return `<div class="gate sauth"><div class="card">${brand}
    <span class="ak">Seller account</span><h2>${su?'Create your seller account':'Seller sign in'}</h2>
@@ -129,7 +131,25 @@ function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="s
     <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a>, <a href="/seller-terms" target="_blank" rel="noopener">Seller Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>':''}</form>
    <div class="alt">${su?'Already selling on ShopNip? <a href="#login">Seller sign in</a>':'New to ShopNip? <a href="#signup">Create a seller account</a>'}</div>
 </div></div>`}
+// in-page shop registration (#register): no cross-page hop to index.html
+function regView(){const want=(()=>{try{return localStorage.nb_want||''}catch(_){return ''}})(),HP=window.HoursPicker;
+  return `<div class="gate sauth"><div class="card" style="max-width:600px"><a class="brand" href="${home()}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>
+   <span class="ak">Seller account</span><h2>Register your shop</h2><p>Signed in as <b>${esc(D.user.email||'')}</b>. We review every shop before it goes live, usually within a day.</p>
+   ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
+   <form id="regf" class="af">
+    <label><span>Shop name</span><input name="name" required maxlength="80" placeholder="e.g. Corner News &amp; Stationers"></label>
+    <label><span>Street address</span><input name="address" required autocomplete="street-address"></label>
+    <label><span>Postcode</span><input name="postcode" required autocomplete="postal-code" style="text-transform:uppercase"></label>
+    <label><span>Phone</span><input name="phone" type="tel" autocomplete="tel"></label>
+    <div class="fl"><span>Opening hours</span>${HP?HP.html('r_hours',''):'<input name="opening_hours" placeholder="Mon–Sat 9am–6pm">'}</div>
+    <label><span><input type="checkbox" name="collect" checked> Click &amp; collect</span></label>
+    <label><span><input type="checkbox" name="delivery"> Local delivery</span></label>
+    <label><span>Trade account email (the email you order wholesale with)</span><input name="trade" type="email" required></label>
+    <label><span>What products would you like listed in your shop? <small>(optional)</small></span><textarea name="want" rows="3" maxlength="2000" placeholder="e.g. balloons, greeting cards, exercise books, parcel tape">${esc(want)}</textarea></label>
+    <button class="btn coral lg" type="submit">Submit for approval</button><p class="agree">By registering you agree to the <a href="/seller-terms" target="_blank" rel="noopener">Seller Terms</a>.</p></form>
+   <div class="alt">Wrong account? <a href="#" data-a="relogin">Sign out and use another seller account</a></div></div></div>`}
 function render(){if(fromAuth()&&D.user){const su=/type=signup/.test(location.hash);history.replaceState(null,'',location.pathname+location.search);const land=landSeller(su);if(land==='onboard'){document.body.className='auth';document.title='Register your shop · ShopNip for sellers';$('#app').innerHTML=onboard();return}if(land)return}
+  if(location.hash==='#register'){if(!D.user){location.hash='signup';return}if(D.shop){location.hash='overview';return}document.body.className='auth';document.title='Register your shop · ShopNip for sellers';$('#app').innerHTML=regView();return}
   const am=AUTH();if(am){if(D.user&&!D.ui.busy){const land=landSeller(am==='signup');if(land==='onboard'){document.body.className='auth';document.title='Register your shop · ShopNip for sellers';$('#app').innerHTML=onboard();return}if(land)return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller sign in')+' · ShopNip for sellers';$('#app').innerHTML=authView(am);return}
   const p=page();if(!p){document.body.className='land';document.title='Sell on ShopNip · Put your shop online';$('#app').innerHTML=landing();return}
   document.body.className='dash';$('#app').innerHTML=dash(p);document.title=(TITLE[p]||'Dashboard')+' · ShopNip Seller'}
@@ -154,16 +174,16 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
   const SU='#signup',LI='#login',RG=regURL();
   const primary=has?`<a class="btn coral lg" href="#dash">Open seller dashboard ${svg('arrow')}</a>`:signed?`<a class="btn coral lg" href="${RG}">Register your shop ${svg('arrow')}</a>`:`<a class="btn coral lg" href="${SU}">Start selling free ${svg('arrow')}</a>`;
   const second=signed?'':`<a class="btn line lg" href="${SU}">Create a seller account</a>`;
-  const card=signed?`<div class="hcard"><span class="ak">Seller account</span><h2>Welcome back</h2><p>Signed in as <b>${esc(D.user.email||'')}</b></p><a class="btn coral lg full" href="${has?'#dash':RG}">${has?'Go to your dashboard':'Register your shop'} ${svg('arrow')}</a><div class="alt">Not your seller account? <a href="#" data-a="logout">Sign out and use another</a></div></div>`
+  const card=signed?`<div class="hcard"><span class="ak">Seller account</span><h2>Welcome back</h2><p>Signed in as <b>${esc(D.user.email||'')}</b></p><a class="btn coral lg full" href="${has?'#dash':RG}">${has?'Go to your dashboard':'Register your shop'} ${svg('arrow')}</a>${has?'':'<div class="alt">Already registered? <a class="btn line lg full" href="#" data-a="relogin">Seller sign in</a></div>'}</div>`
    :`<div class="hcard"><span class="ak">Seller account</span><h2>Seller sign in</h2><p>Manage your shop, products and orders.</p>
    ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
    <form id="heroauth" data-authf data-mode="login" class="af"><label><span>Email</span><input name="email" type="email" autocomplete="email" required></label>
     <label><span>Password</span><input name="pw" type="password" minlength="8" autocomplete="current-password" required></label>
     <button class="btn lg full" type="submit">Sign in</button></form>
    <div class="alt">New to ShopNip? <a href="${SU}">Create a seller account</a></div></div>`;
-  return `<header class="lnav"><div class="wrap"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" aria-label="ShopNip for sellers"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Sellers</small></a>
+  return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="ShopNip for sellers"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Sellers</small></a>
    <nav aria-label="Seller page"><a href="#benefits" data-jump="benefits">Benefits</a><a href="#how" data-jump="how">How it works</a><a href="#fees" data-jump="fees">Fees</a><a href="#faq" data-jump="faq">FAQ</a></nav><span class="sp"></span>
-   ${has?`<a class="btn white sm" href="#dash">Seller dashboard</a>`:signed?`<a class="btn white sm" href="${RG}">Register shop</a>`:`<a class="btn white sm" href="${LI}">Sign in</a>`}</div></header>
+   ${has?`<a class="btn white sm" href="#dash">Seller dashboard</a>`:signed?`<a class="btn line sm" href="#" data-a="relogin">Seller sign in</a> <a class="btn white sm" href="${RG}">Register shop</a>`:`<a class="btn white sm" href="${LI}">Seller sign in</a>`}</div></header>
   <section class="lhero"><div class="wrap"><div><span class="eyebrow"><i></i>For local shop owners · First 50 products free to list</span>
     <h1>Your shop, online in minutes. <em>Your products, already listed.</em></h1>
     <p class="lead">ShopNip puts independent shops in front of local customers. Products you buy wholesale are listed for you with photos, so you just set your prices and start taking click &amp; collect and delivery orders.</p>
@@ -188,7 +208,7 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
 const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};
 const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','tag'],['settings','cog']];
 const newCount=()=>D.O.filter(o=>o.status==='placed').length;
-function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span></a>`;
+function gate(){const brand=`<a class="brand" href="${home()}"><span class="mark">S</span><span>Shop<b>Nip</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller sign in</h2><p>Sign in with your shop owner account to manage orders, products and your shop.</p>
    <div class="btns"><a class="btn lg" href="#login">Sign in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on ShopNip</a></div></div></div>`;
   return onboard()}
@@ -196,7 +216,7 @@ function dash(p){
   if(!D.user)return gate();
   if(!D.shop)return onboard();
   const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`;
-  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
+  const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="${home()}" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
    <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
    <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="#" data-a="logout">${svg('out')}Sign out</a><small>ShopNip · Suman Bros (Wholesale) Limited</small></div></aside>`;
@@ -330,6 +350,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
   if(d.a==='menu'){e.preventDefault();$('#side')?.classList.toggle('on');document.body.classList.toggle('sbo');return}
   if(t.closest('.side a'))document.body.classList.remove('sbo');
   if(d.a==='close'){D.ui.drawer=null;D.ui.cat=false;rerender();return}
+  if(d.a==='relogin'){e.preventDefault();try{await API.signOut()}catch(_){}D.user=null;D.shop=null;D.ui.amsg='';if(location.hash==='#login')render();else location.hash='login';return}
   if(d.a==='logout'){e.preventDefault();await API.signOut();if(MOCK)location.href='seller.html'+location.search;else{D.user=null;location.hash='';render()}return}
   if(d.a==='notif'){Notification.requestPermission().then(rerender);return}
   if(d.a==='sim'){const L=D.L.filter(l=>l.active),n=1000+D.O.length+1,it=[L[n%L.length],L[(n*3)%L.length]],sub=it[0].retail_price*2+it[1].retail_price,ts=new Date().toISOString();
@@ -355,6 +376,13 @@ document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'|
     if(su&&!r.session){D.ui.busy=false;D.ui.aok=true;D.ui.amsg='Check your email and tap the link to confirm. It brings you back here to register your shop.';location.hash='login';render();return}
     await load();D.ui.busy=false;toast(su?'Seller account created':'Signed in');landSeller(su)}
    catch(er){D.ui.busy=false;D.ui.aok=false;D.ui.amsg=er.message||'Something went wrong';render()}return}
+  if(f.id==='regf'){e.preventDefault();const F=new FormData(f),b=f.querySelector('button[type=submit]');b.disabled=true;b.textContent='Submitting…';
+   try{const pc=(F.get('postcode')||'').trim();const j=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\s+/g,''))).then(r=>r.json()).catch(()=>({}));if(!j.result)throw new Error('We could not find that UK postcode.');
+    const del=!!F.get('delivery'),col=!!F.get('collect');if(!col&&!del)throw new Error('Choose click & collect, delivery or both.');
+    const hrs=f.querySelector('[name=r_hours],#r_hours');const r={name:F.get('name').trim(),address:F.get('address').trim(),postcode:j.result.postcode,lat:j.result.latitude,lng:j.result.longitude,phone:(F.get('phone')||'').trim(),opening_hours:(hrs?hrs.value:(F.get('opening_hours')||'')).trim(),bluepark_customer_email:F.get('trade').trim().toLowerCase(),requested_products:(F.get('want')||'').trim()||null,delivery_options:{collect:col,delivery:del,delivery_radius_miles:del?3:0,delivery_fee:del?2.5:0}};
+    let x;try{x=await API.createShop(r)}catch(er){if(!/requested_products/.test(er.message||''))throw er;delete r.requested_products;x=await API.createShop(r)}
+    try{delete localStorage.nb_want}catch(_){}D.ui.amsg='';await load().catch(()=>{});if(!D.shop)D.shop=x;toast('Shop submitted for approval');location.hash='overview'}
+   catch(er){b.disabled=false;b.textContent='Submit for approval';D.ui.aok=false;D.ui.amsg=er.message||'Could not register';render()}return}
   if(f.id==='setf'){e.preventDefault();const F=new FormData(f),s=D.shop,pcI=f.postcode;
    const r={id:s.id,name:F.get('name').trim(),phone:F.get('phone').trim(),address:F.get('address').trim(),postcode:F.get('postcode').trim().toUpperCase(),opening_hours:F.get('opening_hours').trim(),bluepark_customer_email:F.get('bluepark_customer_email').trim().toLowerCase(),
     delivery_options:{...(s.delivery_options||{}),collect:!!F.get('collect'),delivery:!!F.get('delivery'),delivery_radius_miles:+F.get('delivery_radius_miles')||0,delivery_fee:+F.get('delivery_fee')||0}};
