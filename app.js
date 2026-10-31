@@ -1,9 +1,9 @@
-// ShopNip (a NuvonHub product) – homepage v2. Supabase when config.js is filled in; catalogue falls back to products.json.
+// ShopNip – homepage v2. Supabase when config.js is filled in; catalogue falls back to products.json.
 // Shops are ONLY real registered shops (shops.active=true). Sample shops appear only with ?demo=1.
 const CFG=window.APP_CONFIG||{};
 const LIVE=!!(CFG.SUPABASE_URL&&/^https:\/\//.test(CFG.SUPABASE_URL)&&CFG.SUPABASE_KEY&&!/YOUR_/.test(CFG.SUPABASE_KEY));
 const DEMO=new URLSearchParams(location.search).get('demo')==='1';
-const sb=LIVE&&window.supabase?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY):null;
+const sb=LIVE&&window.supabase?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}}):null;
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const gbp=n=>'£'+Number(n).toFixed(2);
 const I={home:'<path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -25,19 +25,30 @@ async function lookupPostcode(pc){const r=await fetch('https://api.postcodes.io/
 async function reversePc(lat,lng){try{const j=await (await fetch(`https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1`)).json();return j.result?.[0]?.postcode||'Current location'}catch{return 'Current location'}}
 function setMe(me,pc){S.me=me;S.pc=pc;localStorage.nb_me=JSON.stringify(me);localStorage.nb_pc=pc;$('#pc').textContent=pc;if(window.P4)P4.regroup();render()}
 
+/* Homepage sub-category tiles: subcats.json lists every in-stock wholesale item per sub-category (per single item, retail price).
+   Items not yet listed by the wholesaler's own shop are shown as that shop's offers (stock 20) until migrations/009 adds them as real listings. */
+async function subcatRows(){try{if(!window.SUBC){const J=await (await fetch('subcats.json')).json(),tag={};Object.entries(J.subs).forEach(([n,a])=>a.forEach(k=>(tag[k]=tag[k]||[]).push(n)));window.SUBC=J;window.SUBTAG=tag}
+  if(!S.L||!S.L.length||S.L.some(x=>x.cat_only))return;S.L.forEach(x=>{const it=SUBC.items[x.sku];if(it){x.category=SUBC.cat[x.sku]||x.category;x.name=it.name;x.retail_price=it.retail_price;x.trade_price=it.trade_price}});/* pack-or-single rule from subcats.json; migrations/009 applies the same to the database */const cnt={};S.L.forEach(x=>cnt[x.shop_id]=(cnt[x.shop_id]||0)+1);
+  const ws=S.shops.find(s=>/suman\s*bros/i.test(s.name||'')),sid=ws?ws.id:Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0],have=new Set(S.L.filter(x=>x.shop_id===sid).map(x=>x.sku));
+  Object.entries(SUBC.items).forEach(([k,p])=>{if(!have.has(k))S.L.push({id:'cat:'+k,shop_id:sid,sku:k,name:p.name,image:p.image,category:SUBC.cat[k]||p.category,trade_price:p.trade_price,retail_price:p.retail_price,stock:20,updated_at:'',cat_only:true})})}catch(e){console.warn('subcats',e)}}
 async function load(){
   if(S.pc)$('#pc').textContent=S.pc;
+  /* restore the saved login (and the account's postcode) before anything renders */
+  if(document.readyState==='loading')await new Promise(r=>addEventListener('DOMContentLoaded',r,{once:true}));
+  if(sb&&window.P2&&!P2.MOCK){try{await P2.refresh()}catch(e){console.warn(e)}window.LOC&&LOC.apply();dispatchEvent(new Event('nb:auth'))}
   $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
   if(sb){try{
     const [l,s]=await Promise.all([
       sb.from('shop_listings').select('id,retail_price,shop_id,sku,name,image,category,trade_price,stock,updated_at').eq('active',true).gt('retail_price',0).limit(2000),
       sb.from('shops').select('id,name,postcode,lat,lng,delivery_options,logo_url,cover_url,opening_hours').eq('active',true).eq('status','approved').limit(500)]);
     if(s.error)throw s.error; S.shops=s.data||[];
-    if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};S.L=l.data.filter(x=>ok.has(x.shop_id));S.L.filter(x=>x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={listing_id:x.id,stock:x.stock,sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
+    if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};S.L=l.data.filter(x=>ok.has(x.shop_id));await subcatRows();S.L.filter(x=>x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={listing_id:x.id,stock:x.stock,sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
   }catch(e){console.warn('Supabase unavailable',e)}}
   if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
-  if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
-  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();if(window.P5)await P5.init();if(window.Social)await Social.boot();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
+  if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}));await subcatRows();if(window.SUBC){S.products.forEach(p=>{const it=SUBC.items[p.sku];if(it){p.category=SUBC.cat[p.sku]||p.category;p.name=it.name;p.price=it.retail_price}});const have=new Set(S.products.map(p=>p.sku));Object.entries(SUBC.items).forEach(([k,p])=>{if(!have.has(k))S.products.push({sku:k,name:p.name,images:[p.image],category:SUBC.cat[k]||p.category,trade_price:p.trade_price,price:p.retail_price,demo:true})})}}
+  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();if(window.P5)await P5.init();if(window.Social)await Social.boot();
+  NB_BOOTED=true;document.body.classList.add('nb-ready');const view=document.getElementById('view');if(view)view.removeAttribute('aria-busy');saveB();
+  const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
 }
 // ---------- curation ----------
 const has=p=>p.images&&p.images.length;
@@ -91,11 +102,11 @@ function home(){
    <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}No setup fee</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
   
   ${foot()}`}
-function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark dk"></span><span class="word" style="color:var(--navy)">Shop<b>Nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
-   <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
-   <div><h5>Sellers</h5><a href="#sell">Sell on ShopNip</a><a href="#" id="register4">Register your shop</a><a href="#how">How it works</a></div>
-   <div><h5>ShopNip</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a></div><div><h5>Legal</h5><a href="/terms">Terms of Use</a><a href="/privacy">Privacy Policy</a><a href="/seller-terms">Seller Terms</a><a href="/cookies">Cookie Notice</a></div></div>
-   <div class="fb"><span>© ${new Date().getFullYear()} ShopNip</span><span>ShopNip is a product of NuvonHub Private Limited (India)</span></div></footer>`}
+function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="/" data-go="/"><span class="mark dk"></span><span class="word" style="color:var(--navy)">Shop<b>Nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
+   <div><h5>Shop</h5><a href="/products" data-go="/products">All products</a><a href="/collection/best-sellers" data-go="/collection/best-sellers">Best sellers</a><a href="/collection/party-time" data-go="/collection/party-time">Party</a></div>
+   <div><h5>Sellers</h5><a href="/seller.html#login">Seller sign in</a><a href="/seller.html">Become a seller</a><a href="/how" data-go="/how">How it works</a></div>
+   <div><h5>ShopNip</h5><a href="/about" data-go="/about">About</a><a href="/faq" data-go="/faq">FAQ</a><a href="/contact" data-go="/contact">Contact</a></div><div><h5>Legal</h5><a href="/terms">Terms of Use</a><a href="/privacy">Privacy Policy</a><a href="/seller-terms">Seller Terms</a><a href="/cookies">Cookie Notice</a></div></div>
+   <div class="fb"><span>© ${new Date().getFullYear()} ShopNip</span><span>ShopNip is a trading name of Suman Bros (Wholesale) Limited · Registered in England &amp; Wales, company no. 01802958 · Crown House, Otterspool Way, Watford WD25 8HL</span></div></footer>`}
 function list(title,items){return `<section class="sec"><div class="sh"><h2>${esc(title)}</h2><span class="note" style="margin:0">${items.length} items</span></div>${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:`<div class="empty">${svg('search')}<br>No matches yet</div>`}</section>`}
 const V={home,
  search(q=$('#q').value.trim()){const t=q.toLowerCase();return list(q?`Results for “${q}”`:'All products',S.products.filter(p=>has(p)&&(!t||(p.name+' '+p.category).toLowerCase().includes(t))).slice(0,60))},
@@ -107,9 +118,9 @@ const V={home,
  orders(){return `<div class="empty">${svg('orders')}<br>${LIVE?'Sign in to see your orders':'Your orders will appear here'}</div>`},
  account(){return `<section class="sec"><div class="sh"><h2>Account</h2></div><div class="panel"><div class="line"><span>Postcode</span><a href="#" id="setpc2">${esc(S.pc||'Set')}</a></div>
   <button class="btn full" id="register">Register your shop</button></div></section>`}};
-let cur=['home'];
+let cur=['home'],NB_BOOTED=false;
 function route(t,...a){cur=[t,...a];document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===(V[t]&&['cat','sec'].includes(t)?'search':t)));if(!V[t]){t="home";a=[];cur=[t]}$("#view").innerHTML=V[t](...a);if(t==='home')carousel();scrollTo(0,0)}
-function render(){const y=scrollY;$('#view').innerHTML=V[cur[0]](...cur.slice(1));if(cur[0]==='home')carousel();scrollTo(0,y)}
+function render(){if(!NB_BOOTED)return;const y=scrollY;$('#view').innerHTML=V[cur[0]](...cur.slice(1));if(cur[0]==='home')carousel();scrollTo(0,y)}
 function carousel(){const s=$('#slides'),d=[...document.querySelectorAll('#dots i')];if(!s)return;
  s.addEventListener('scroll',()=>{const i=Math.round(s.scrollLeft/s.clientWidth);d.forEach((e,k)=>e.classList.toggle('on',k===i))},{passive:true});
  clearInterval(window._ct);window._ct=setInterval(()=>{if(!document.body.contains(s)||innerWidth>=768)return;const i=(Math.round(s.scrollLeft/s.clientWidth)+1)%3;s.scrollTo({left:i*s.clientWidth,behavior:'smooth'})},5000)}

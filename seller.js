@@ -1,12 +1,13 @@
-// ShopNip (a NuvonHub product) · Phase 6: "Become a seller" landing + seller dashboard (seller.html).
+// ShopNip · Phase 6: "Become a seller" landing + seller dashboard (seller.html).
 // Uses the same Supabase tables, RPCs and RLS as p2/p3/p5 (shops, shop_listings, orders, order_items, order_events,
 // update_order_status). Seller login/sign-up live here (#login, #signup); shop registration stays in index.html (p2.js).
 // ?mock=1 runs everything on in-memory data (mock shop "Suman Bros");&as=none shows the signed-out gate.
 (()=>{
 const CFG=window.APP_CONFIG||{},Q=new URLSearchParams(location.search),MOCK=Q.get('mock')==='1';
 const LIVE=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY&&!/YOUR_/.test(CFG.SUPABASE_KEY));
-const sb=!MOCK&&LIVE&&window.supabase?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY):null;
-const MAIL=CFG.CONTACT_EMAIL||'hello@nuvonhub.com';
+const sb=!MOCK&&LIVE&&window.supabase?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}}):null;
+const mailEv=(id,ev)=>{try{if(typeof sb!=='undefined'&&sb&&id&&sb.functions)sb.functions.invoke('order-email',{body:{order_id:id,event:ev}}).catch(()=>{})}catch(e){}};/* fire-and-forget order email (supabase/functions/order-email); never blocks checkout */
+const MAIL=CFG.CONTACT_EMAIL||'hello@shopnip.co.uk';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const gbp=n=>'£'+(+n||0).toFixed(2),gbp0=n=>'£'+Math.round(+n||0).toLocaleString('en-GB');
@@ -25,7 +26,7 @@ const svg=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${I[n]||''}</svg>`;
 const toast=m=>{let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t)}t.textContent=m;t.className='on';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',2600)};
 const keep=()=>MOCK?'mock=1'+(Q.get('as')?'&as='+encodeURIComponent(Q.get('as')):''):'';
 const idx=q=>'index.html?'+[keep(),q].filter(Boolean).join('&');
-const home=()=>'index.html'+(MOCK?'?'+keep():'');
+const home=()=>'/'+(MOCK?'?'+keep():'');
 const when=t=>new Date(t).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const ago=t=>{const m=Math.round((Date.now()-Date.parse(t))/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
 const pct=(r,t)=>r>0&&t!=null?Math.round((r-t)/r*100):null;
@@ -65,7 +66,7 @@ const API=MOCK?{
   async saveShop(s){const id=s.id,r={...s};delete r.id;delete r._tradeChanged;const {data,error}=await sb.from('shops').update(r).eq('id',id).select().single();if(error)throw error;return data},
   async upload(f,kind){const ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=`${D.user.id}/${kind}-${Date.now()}.${ext}`;
     const {error}=await sb.storage.from('shop-media').upload(path,f,{upsert:true,contentType:f.type});if(error)throw error;return sb.storage.from('shop-media').getPublicUrl(path).data.publicUrl},
-  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error},
+  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error;mailEv(id,st)},
   live(shopId,cb){if(D.ch)sb.removeChannel(D.ch);D.ch=sb.channel('seller-orders-'+shopId).on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:'shop_id=eq.'+shopId},cb).subscribe()}
 };
 async function catalog(){if(!D.cat)D.cat=await fetch('products.json').then(r=>r.json()).catch(()=>[]);return D.cat}
@@ -105,10 +106,19 @@ const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?
 const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
 // after login / email confirmation: dashboard if there is a shop, otherwise shop registration
 // p29: new seller sign-ups (Become a seller) go to shop registration; signing in without a shop shows a friendly choice, not a redirect
-function landSeller(su){if(D.shop){location.hash='overview';return true}if(D.user){if(su){location.href=idx('view=register&seller=1');return true}location.hash='dash';return true}return false}
+function landSeller(su){if(D.shop){location.hash='overview';return true}if(D.user){if(su){location.href='/'+idx('view=register&seller=1');return true}return 'onboard'}return false}
+function onboard(){const RG='/'+idx('view=register&seller=1');
+  return `<div class="gate"><div class="card" style="max-width:560px"><a class="brand" href="/seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>
+   <style>.onb{list-style:none;padding:0;margin:14px 0;display:grid;gap:8px;text-align:left}.onb li{background:#f4fbf9;border-radius:12px;padding:10px 12px}.onb b{display:block}.onb span{color:#64748b;font-size:13px}</style>
+   <h2>Register your shop</h2>
+   <p>You’re signed in as ${esc(D.user.email||'')}. This account can shop on ShopNip, and it doesn’t have a shop yet. Registering takes about three minutes. We review every shop before it goes live.</p>
+   <ol class="onb"><li><b>1. Your shop</b><span>Name, address, phone and opening hours.</span></li><li><b>2. Collection or delivery</b><span>Click &amp; collect, local delivery, or both. You set the fee.</span></li><li><b>3. Wholesale email</b><span>Products you buy are listed for you after they ship.</span></li></ol>
+   <div class="btns"><a class="btn coral lg" href="${RG}">Register your shop</a><a class="btn ghost lg" href="/">Back to shopping</a><a class="btn ghost" href="#" data-a="logout">Sign out</a></div></div></div>`}
 function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>`;
-  return `<div class="gate sauth"><div class="card">${brand}<h2>${su?'Create your seller account':'Seller sign in'}</h2>
-   <p>${su?'Put your shop on ShopNip. Free during the pilot. Every shop is reviewed before it goes live.':'For shop owners: manage your shop, orders and products. Same email and password as your shopping account.'}</p>
+  const shopper='/account'+(su?'?view=signup'+(MOCK?'&'+keep():''):(MOCK?'?'+keep():''));
+  return `<div class="gate sauth"><div class="card">${brand}
+   <span class="ak">Seller account</span><h2>${su?'Create your seller account':'Seller sign in'}</h2>
+   <p>${su?'Put your shop on ShopNip. First 50 products free to list. Every shop is reviewed before it goes live.':'Manage your shop, products and incoming orders. Already shop with us? Use the same email and password.'}</p>
    ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
    <form id="authf" data-mode="${mode}" class="af">
     ${su?`<label><span>Your name</span><input name="name" autocomplete="name" required></label>`:''}
@@ -117,8 +127,8 @@ function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="s
     <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a>, <a href="/seller-terms" target="_blank" rel="noopener">Seller Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>':''}</form>
    <div class="alt">${su?'Already selling on ShopNip? <a href="#login">Seller sign in</a>':'New to ShopNip? <a href="#signup">Create a seller account</a>'}</div>
    <div class="xl">Shopping? <a href="${idx('view=account')}">Go to customer sign in</a></div></div></div>`}
-function render(){if(fromAuth()&&D.user){const su=/type=signup/.test(location.hash);history.replaceState(null,'',location.pathname+location.search);if(landSeller(su))return}
-  const am=AUTH();if(am){if(D.user&&!D.ui.busy){if(landSeller(am==='signup'))return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller sign in')+' · ShopNip for sellers';$('#app').innerHTML=authView(am);return}
+function render(){if(fromAuth()&&D.user){const su=/type=signup/.test(location.hash);history.replaceState(null,'',location.pathname+location.search);const land=landSeller(su);if(land==='onboard'){document.body.className='auth';document.title='Register your shop · ShopNip for sellers';$('#app').innerHTML=onboard();return}if(land)return}
+  const am=AUTH();if(am){if(D.user&&!D.ui.busy){const land=landSeller(am==='signup');if(land==='onboard'){document.body.className='auth';document.title='Register your shop · ShopNip for sellers';$('#app').innerHTML=onboard();return}if(land)return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller sign in')+' · ShopNip for sellers';$('#app').innerHTML=authView(am);return}
   const p=page();if(!p){document.body.className='land';document.title='Sell on ShopNip · Put your shop online';$('#app').innerHTML=landing();return}
   document.body.className='dash';$('#app').innerHTML=dash(p);document.title=(TITLE[p]||'Dashboard')+' · ShopNip Seller'}
 // =================== LANDING ===================
@@ -130,42 +140,47 @@ const BEN=[['sync','Listed from your wholesale orders','Products you buy wholesa
  ['pound','Paid in store','Customers pay you on collection or delivery, so the money goes straight to you. Online payments come later.']];
 const HOW=[['Create your account','Sign up in under a minute with your email on the seller sign-up page.'],['Register your shop','Add your address, opening hours, delivery options and the email you order wholesale with.'],
  ['We approve and list you','We check every shop, usually within a working day. Your wholesale products appear automatically.'],['Set prices, take orders','Fine-tune prices and stock in your seller dashboard, then start receiving local orders.']];
-const FAQ=[['How much does it cost?','Nothing during the pilot: no setup fee, no monthly fee and no commission. After the pilot we plan to introduce optional paid plans. We will give you plenty of notice and you can leave at any time.'],
+const FAQ=[['How much does it cost?','Your first 50 products are free to list: no setup fee, no monthly fee and no commission.'],
  ['How do my products get on ShopNip?','When you register, you tell us the email you use for your wholesale account. Products you order with that account are added to your shop automatically after they ship, with photos and descriptions. You can also add any catalogue product by hand.'],
  ['Do I need to take photos?','No. Every catalogue product already has professional photos and a description. You just set your retail price, an optional “was” price and your stock.'],
  ['How do customers pay?','For now customers pay you directly on collection or on delivery, by card or cash. ShopNip does not take online payments yet, so there are no payment processing fees.'],
  ['Do I have to offer delivery?','No. Offer click & collect only, local delivery only, or both. If you deliver, you choose the radius in miles and the fee.'],
  ['How quickly should I respond to orders?','Your dashboard alerts you as soon as an order arrives. We recommend accepting or rejecting within 30 minutes during opening hours.'],
- ['Can I leave at any time?','Yes. There is no contract during the pilot. Switch products off, or ask us to close your shop, whenever you like.'],
- ['Who runs ShopNip?','ShopNip is a NuvonHub product, built to help independent shops sell online without the cost of their own website.']];
+ ['Can I leave at any time?','Yes. There is no contract. Switch products off, or ask us to close your shop, whenever you like.'],
+ ['Who runs ShopNip?','ShopNip is a product of Suman Bros (Wholesale) Limited, a Watford wholesaler, built to help independent shops sell online without the cost of their own website.']];
 function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>p.images?.length),sample=[cat[120],cat[640],cat[1180],cat[1730]].filter(Boolean);
-  const SU='#signup',LI='#login',RG=idx('view=register&seller=1');
+  const SU='#signup',LI='#login',RG='/'+idx('view=register&seller=1');
   const primary=has?`<a class="btn coral lg" href="#dash">Open seller dashboard ${svg('arrow')}</a>`:signed?`<a class="btn coral lg" href="${RG}">Register your shop ${svg('arrow')}</a>`:`<a class="btn coral lg" href="${SU}">Start selling free ${svg('arrow')}</a>`;
-  const second=signed?`<a class="btn line lg" href="${home()}">Back to shopping</a>`:`<a class="btn line lg" href="${LI}">Sign in</a>`;
-  return `<header class="lnav"><div class="wrap"><a class="brand" href="${home()}" aria-label="ShopNip home"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Sellers</small></a>
+  const second=signed?'':`<a class="btn line lg" href="${SU}">Create a seller account</a>`;
+  const card=signed?`<div class="hcard"><span class="ak">Seller account</span><h2>Welcome back</h2><p>Signed in as <b>${esc(D.user.email||'')}</b></p><a class="btn coral lg full" href="${has?'#dash':RG}">${has?'Go to your dashboard':'Register your shop'} ${svg('arrow')}</a></div>`
+   :`<div class="hcard"><span class="ak">Seller account</span><h2>Seller sign in</h2><p>Manage your shop, products and orders.</p>
+   ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
+   <form id="heroauth" data-authf data-mode="login" class="af"><label><span>Email</span><input name="email" type="email" autocomplete="email" required></label>
+    <label><span>Password</span><input name="pw" type="password" minlength="8" autocomplete="current-password" required></label>
+    <button class="btn lg full" type="submit">Sign in</button></form>
+   <div class="alt">New to ShopNip? <a href="${SU}">Create a seller account</a></div></div>`;
+  return `<header class="lnav"><div class="wrap"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" aria-label="ShopNip for sellers"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Sellers</small></a>
    <nav aria-label="Seller page"><a href="#benefits" data-jump="benefits">Benefits</a><a href="#how" data-jump="how">How it works</a><a href="#fees" data-jump="fees">Fees</a><a href="#faq" data-jump="faq">FAQ</a></nav><span class="sp"></span>
-   <a class="shopl" href="${home()}">Shop on ShopNip</a>${has?`<a class="btn white sm" href="#dash">Seller dashboard</a>`:signed?`<a class="btn white sm" href="${RG}">Register shop</a>`:`<a class="btn white sm" href="${LI}">Sign in</a>`}</div></header>
-  <section class="lhero"><div class="wrap"><div><span class="eyebrow"><i></i>For local shop owners · Free pilot</span>
+   ${has?`<a class="btn white sm" href="#dash">Seller dashboard</a>`:signed?`<a class="btn white sm" href="${RG}">Register shop</a>`:`<a class="btn white sm" href="${LI}">Sign in</a>`}</div></header>
+  <section class="lhero"><div class="wrap"><div><span class="eyebrow"><i></i>For local shop owners · First 50 products free to list</span>
     <h1>Your shop, online in minutes. <em>Your products, already listed.</em></h1>
     <p class="lead">ShopNip puts independent shops in front of local customers. Products you buy wholesale are listed for you with photos, so you just set your prices and start taking click &amp; collect and delivery orders.</p>
     <div class="ctas">${primary}${second}</div>
     <div class="proof"><span>${svg('check')}No setup fee</span><span>${svg('check')}No photo uploads</span><span>${svg('check')}Paid in store</span></div></div>
-   <div class="mock" aria-hidden="true"><div class="float">${svg('bell')}New order · NB-1012</div><div class="mh"><span class="dots"><i></i><i></i><i></i></span><b>Seller dashboard</b><small>Today</small></div>
-    <div class="mk"><div><small>Orders today</small><b>8</b></div><div><small>This week</small><b>£412</b></div><div><small>Live products</small><b>236</b></div></div>
-    ${(sample.length?sample:[{},{},{},{}]).map((p,i)=>`<div class="mrow"><img src="${esc(p.images?.[0]||'icon-192.png')}" alt=""><span>${esc(p.name||'Product')}</span>${i<2?'<span class="auto">Auto-listed</span>':''}<b>${gbp((+p.trade_price||1)*1.6)}</b></div>`).join('')}</div></div></section>
+   ${card}</div></section>
   <section class="lsec alt" id="benefits"><div class="wrap"><span class="kick">Why sell on ShopNip</span><h2>Everything a local shop needs to sell online</h2><p class="sub">No website to build, no catalogue to type up, no photos to take. ShopNip does the heavy lifting so you can serve customers.</p>
    <div class="ben">${BEN.map(([i,t,p])=>`<div><span class="ic">${svg(i)}</span><h3>${t}</h3><p>${p}</p></div>`).join('')}</div></div></section>
   <section class="lsec" id="how"><div class="wrap"><span class="kick">How it works</span><h2>Live in four simple steps</h2><p class="sub">Most shops are set up in about ten minutes, then approved within a working day.</p>
    <div class="steps">${HOW.map(([t,p])=>`<div><h3>${t}</h3><p>${p}</p></div>`).join('')}</div></div></section>
-  <section class="lsec alt" id="fees"><div class="wrap"><span class="kick">Fees</span><h2>Free while we grow together</h2><p class="sub">Join during the pilot and pay nothing.</p>
-   <div class="fees"><div class="plan hot"><span class="badge">Available now</span><h3>Pilot</h3><div class="pr">£0 <small>/ month</small></div><small>No commission during the pilot</small>
+  <section class="lsec alt" id="fees"><div class="wrap"><span class="kick">Fees</span><h2>Start free</h2><p class="sub">First 50 products are free to list.</p>
+   <div class="fees"><div class="plan hot"><span class="badge">Available now</span><h3>Starter</h3><div class="pr">£0 <small>/ month</small></div><small>First 50 products free to list</small>
      <ul><li>${svg('check')}Your own shop page</li><li>${svg('check')}Products auto-listed from wholesale orders</li><li>${svg('check')}Click &amp; collect and local delivery</li><li>${svg('check')}Seller dashboard with order alerts</li></ul></div></div>
-   <p class="fnote">Pilot shops will get at least 30 days’ notice before any fees apply.</p></div></section>
+   <p class="fnote">If we introduce fees for further listings, we will give you notice first.</p></div></section>
   <section class="lsec" id="faq"><div class="wrap"><span class="kick">FAQs</span><h2>Questions from shop owners</h2><p class="sub">Can’t find your answer? Email <a href="mailto:${esc(MAIL)}">${esc(MAIL)}</a>.</p>
    <div class="faq">${FAQ.map(([q,a],i)=>`<details ${i?'':'open'}><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></div></section>
-  <section class="lsec" style="padding-top:0"><div class="wrap"><div class="lcta"><div><h2>Ready to bring your shop online?</h2><p>Join the free pilot today. It takes about ten minutes.</p></div>
+  <section class="lsec" style="padding-top:0"><div class="wrap"><div class="lcta"><div><h2>Ready to bring your shop online?</h2><p>Your first 50 products are free to list. It takes about ten minutes.</p></div>
    <div class="ctas">${has?`<a class="btn white lg" href="#dash">Open seller dashboard</a>`:signed?`<a class="btn white lg" href="${RG}">Register your shop</a>`:`<a class="btn coral lg" href="${SU}">Sign up free</a><a class="btn line lg" href="${LI}">Sign in</a>`}</div></div></div></section>
-  <footer class="lfoot"><div class="wrap"><div><a href="/about">About</a><a href="/faq">Customer FAQ</a><a href="/seller-terms">Seller Terms</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/cookies">Cookies</a><a href="/contact">Contact</a></div><span>© ${new Date().getFullYear()} ShopNip · ShopNip is a product of NuvonHub Private Limited (India)</span></div></footer>
+  <footer class="lfoot"><div class="wrap"><div><a href="/about">About</a><a href="/faq">Customer FAQ</a><a href="/seller-terms">Seller Terms</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/cookies">Cookies</a><a href="/contact">Contact</a></div><span>© ${new Date().getFullYear()} ShopNip · ShopNip is a trading name of Suman Bros (Wholesale) Limited, company no. 01802958, Crown House, Otterspool Way, Watford WD25 8HL</span></div></footer>
   <div class="stick">${has?`<a class="btn coral" href="#dash">Seller dashboard</a>`:signed?`<a class="btn coral" href="${RG}">Register your shop</a>`:`<a class="btn ghost" href="${LI}">Sign in</a><a class="btn coral" href="${SU}">Start selling</a>`}</div>`}
 // =================== DASHBOARD ===================
 const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};
@@ -174,19 +189,19 @@ const newCount=()=>D.O.filter(o=>o.status==='placed').length;
 function gate(){const brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller sign in</h2><p>Sign in with your shop owner account to manage orders, products and your shop.</p>
    <div class="btns"><a class="btn lg" href="#login">Sign in</a><a class="btn ghost lg" href="#signup">Create a seller account</a><a href="seller.html${MOCK?'?'+keep():''}" style="font-size:13px;color:var(--mut);margin-top:6px">Learn about selling on ShopNip</a></div></div></div>`;
-  return `<div class="gate"><div class="card">${brand}<h2>You don’t have a shop yet</h2><p>You’re signed in as ${esc(D.user.email)}. This account works for shopping on ShopNip. Want to sell too? Registering your shop takes about three minutes.</p>
-   <div class="btns"><a class="btn coral lg" href="${idx('view=register&seller=1')}">Register your shop</a><a class="btn ghost lg" href="${home()}">Go shopping</a><a class="btn ghost" href="#" data-a="logout">Sign out</a></div></div></div>`}
+  return onboard()}
 function dash(p){
-  if(!D.user||!D.shop)return gate();
+  if(!D.user)return gate();
+  if(!D.shop)return onboard();
   const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`;
   const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="seller.html${MOCK?'?'+keep():''}" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
    <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
-   <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="${home()}">${svg('bag')}Switch to shopping</a><a href="#" data-a="logout">${svg('out')}Sign out</a><small>ShopNip, a NuvonHub product</small></div></aside>`;
+   <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="#" data-a="logout">${svg('out')}Sign out</a><small>ShopNip · Suman Bros (Wholesale) Limited</small></div></aside>`;
   const tb=`<header class="tb"><div class="in"><button class="ib menu-b" data-a="menu" aria-label="Menu">${svg('menu')}</button><h1>${TITLE[p]}</h1>
-   ${s?`<a class="ib" href="#orders" aria-label="${n} new orders">${svg('bell')}${n?'<span class="dot"></span>':''}</a>`:''}<a class="btn ghost sm p29sw" href="${home()}" style="margin-left:auto;white-space:nowrap">Switch to shopping</a><span class="av">${esc((D.user.email||'?')[0].toUpperCase())}</span><div class="who"><b>${esc(s?.name||'')}</b><small>${esc(D.user.email)}</small></div></div></header>`;
+   ${s?`<a class="ib" href="#orders" aria-label="${n} new orders">${svg('bell')}${n?'<span class="dot"></span>':''}</a>`:''}<span class="av">${esc((D.user.email||'?')[0].toUpperCase())}</span><div class="who"><b>${esc(s?.name||'')}</b><small>${esc(D.user.email)}</small></div></div></header>`;
   const bn=s?`<nav class="bnav" aria-label="Dashboard sections">${[['overview','grid','Overview'],['orders','orders','Orders'],['products','box','Products'],['settings','cog','Settings']].map(([k,i,l])=>`<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`).join('')}<a href="#" data-a="menu" class="${['deals','payouts'].includes(p)?'on':''}">${svg('dots')}More</a></nav>`:'';
-  return `<div class="dl">${side}<div class="main">${tb}<div class="pg">${statusBanner(p)}${(PAGES[p]||PAGES.overview)()}</div><footer class="dfoot">ShopNip, a NuvonHub product</footer></div>${bn}${drawer()}${catModal()}</div>`}
+  return `<div class="dl">${side}<div class="main">${tb}<div class="pg">${statusBanner(p)}${(PAGES[p]||PAGES.overview)()}</div><footer class="dfoot">ShopNip · a trading name of Suman Bros (Wholesale) Limited</footer></div>${bn}${drawer()}${catModal()}</div>`}
 function statusBanner(p){const s=D.shop;if(!s)return '';
   if(s.status==='pending')return `<div class="bnr">${svg('clock')}<div><b>Your shop is awaiting approval</b>We review new shops within a working day. You can set prices and stock now; customers will see your shop once it’s approved.</div></div>`;
   if(s.status==='rejected'||s.status==='suspended')return `<div class="bnr bad">${svg('alert')}<div><b>Your shop is ${statusLabel(s.status).toLowerCase()}</b>Customers can’t see your shop. Contact <a href="mailto:${esc(MAIL)}">${esc(MAIL)}</a>.</div></div>`;return ''}
@@ -275,7 +290,7 @@ PAGES.deals=()=>{const on=D.L.filter(l=>+l.compare_at_price>+l.retail_price),can
   return `<div class="ph"><div><h2>Deals</h2><p>Show a “was” price and customers see a saving badge on your product. Deals appear in “Deals near you”.</p></div></div>
   <div class="card"><div class="chd"><h3>Live deals · ${on.length}</h3></div>${on.length?`<div class="dealg">${on.map(l=>`<div class="dealc"><img src="${esc(l.image||'icon-192.png')}" alt=""><div><b>${esc(l.name)}</b><div><s class="mut">${gbp(l.compare_at_price)}</s> <b class="cor">${gbp(l.retail_price)}</b> <span class="save">Save ${pct(+l.compare_at_price,+l.retail_price)}%</span></div></div><button class="btn ghost sm" data-end="${esc(l.id)}">End deal</button></div>`).join('')}</div>`:`<div class="empty">${svg('tag')}<b>No deals running</b>Start one below, or set a “was” price on the Products page.</div>`}</div>
   <div class="card"><div class="chd"><h3>Start a deal</h3><span class="mut" style="font-size:13px">10% off, showing your current price as the “was” price</span></div><div class="dealg">${cand.map(l=>`<div class="dealc"><img src="${esc(l.image||'icon-192.png')}" alt=""><div><b>${esc(l.name)}</b><div class="mut">${gbp(l.retail_price)} → <b class="cor">${gbp(Math.round(l.retail_price*90)/100)}</b></div></div><button class="btn sm" data-deal="${esc(l.id)}">Start</button></div>`).join('')||'<p class="mut cb">No live products to discount.</p>'}</div></div>
-  <div class="card prm"><div class="cb"><span class="ic">${svg('mega')}</span><div><b>Want a featured spot or homepage banner?</b><p class="mut">Sponsored placements are managed by the ShopNip team during the pilot.</p></div><a class="btn ghost sm" href="mailto:${esc(MAIL)}?subject=${encodeURIComponent('Featured spot for '+(D.shop?.name||'my shop'))}">Ask the team</a></div></div>`};
+  <div class="card prm"><div class="cb"><span class="ic">${svg('mega')}</span><div><b>Want a featured spot or homepage banner?</b><p class="mut">Sponsored placements are managed by the ShopNip team.</p></div><a class="btn ghost sm" href="mailto:${esc(MAIL)}?subject=${encodeURIComponent('Featured spot for '+(D.shop?.name||'my shop'))}">Ask the team</a></div></div>`};
 PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
   return `<div class="ph"><div><h2>Shop settings</h2><p>How customers find and contact your shop.</p></div></div>
   <form id="setf" class="fgrid"><div class="card fs"><div class="chd"><h3>Shop details</h3></div><div class="cb">
@@ -333,7 +348,7 @@ document.addEventListener('input',e=>{const t=e.target;if(t.id==='oq'){D.ui.oq=t
 document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.f){saveField(t);return}
   if(t.name==='postcode'&&t.form?.id==='setf'){const pc=t.value.trim();try{const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc)).then(r=>r.json());if(r.result){t.dataset.lat=r.result.latitude;t.dataset.lng=r.result.longitude;t.value=r.result.postcode;$('#pcok').textContent='Location found ✓'}else $('#pcok').textContent='Postcode not found'}catch{}}
   if(t.dataset.up&&t.files[0]){const f=t.files[0];if(f.size>5e6)return toast('Image must be under 5MB');try{toast('Uploading…');const url=await API.upload(f,t.dataset.up),k=t.dataset.up+'_url';const s=await API.saveShop({id:D.shop.id,[k]:url});D.shop={...D.shop,...s,[k]:url};toast('Image updated');rerender()}catch(er){toast(er.message||'Upload failed')}}});
-document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'){e.preventDefault();const F=new FormData(f),su=f.dataset.mode==='signup',b=f.querySelector('button');b.disabled=true;b.textContent='Please wait…';D.ui.busy=true;D.ui.amsg='';
+document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'||f.hasAttribute('data-authf')){e.preventDefault();const F=new FormData(f),su=f.dataset.mode==='signup',b=f.querySelector('button');b.disabled=true;b.textContent='Please wait…';D.ui.busy=true;D.ui.amsg='';
    try{const email=F.get('email').trim(),pw=F.get('pw');const r=su?await API.signUp(email,pw,(F.get('name')||'').trim()):await API.signIn(email,pw);
     if(su&&!r.session){D.ui.busy=false;D.ui.aok=true;D.ui.amsg='Check your email and tap the link to confirm. It brings you back here to register your shop.';location.hash='login';render();return}
     await load();D.ui.busy=false;toast(su?'Seller account created':'Signed in');landSeller(su)}

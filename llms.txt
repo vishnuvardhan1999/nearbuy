@@ -1,6 +1,6 @@
 # ShopNip
 
-> ShopNip is a local-shops marketplace for Watford and nearby, built by NuvonHub. Browse stationery, party, gift-wrap, art & craft, packaging and household essentials from independent local shops, order online, then collect in store (click & collect) or get local delivery. You pay the shop directly.
+> ShopNip is a local-shops marketplace for Watford and nearby, run by Suman Bros (Wholesale) Limited. Browse stationery, party, gift-wrap, art & craft, packaging and household essentials from independent local shops, order online, then collect in store (click & collect) or get local delivery. You pay the shop directly.
 
 - Website: https://www.shopnip.co.uk
 - All products: https://www.shopnip.co.uk/products
@@ -8,13 +8,13 @@
 - How it works: https://www.shopnip.co.uk/how
 - FAQ: https://www.shopnip.co.uk/faq
 - Sell on ShopNip (for shop owners): https://www.shopnip.co.uk/sell and https://www.shopnip.co.uk/seller.html
-- Contact: hello@nuvonhub.com
-- Parent company: NuvonHub (https://www.nuvonhub.com)
+- Contact: hello@shopnip.co.uk
+- Operator: ShopNip is a trading name of Suman Bros (Wholesale) Limited, company no. 01802958, Crown House, Otterspool Way, Watford WD25 8HL
 - Sitemap: https://www.shopnip.co.uk/sitemap.xml
 
 ## Brand
 - Name is written "ShopNip" (one word, capital S and capital N).
-- ShopNip is a NuvonHub product. It is a marketplace: products are sold by independent, approved local shops, not by ShopNip itself.
+- ShopNip is a product of Suman Bros (Wholesale) Limited. It is a marketplace: products are sold by independent, approved local shops, not by ShopNip itself.
 
 ## How ordering works
 1. Set your postcode to see approved independent shops near you (currently Watford, Hertfordshire, UK).
@@ -25,7 +25,7 @@
 6. You can cancel until the shop accepts the order; after that, contact the shop.
 
 ## For shop owners
-- Independent shops can register for free during the pilot, list products, set opening hours, delivery options and prices, and manage orders from a seller dashboard.
+- Independent shops can register and list their first 50 products free, list products, set opening hours, delivery options and prices, and manage orders from a seller dashboard.
 - Seller terms: https://www.shopnip.co.uk/seller-terms
 
 ## Policies

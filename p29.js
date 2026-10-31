@@ -18,22 +18,16 @@ function words(root){if(!root)return;const tw=document.createTreeWalker(root,Nod
 function set(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html}
 function fix(){
   /* header: secondary "For shops" link (seller sign in), primary "Sign in" for shoppers */
-  const sk=document.querySelector('header .sellk');if(sk){sk.classList.add('p29');sk.href=SU('');sk.removeAttribute('data-sell');sk.setAttribute('aria-label','Become a seller');set(sk,'<span>Become a seller</span>')}
+  const sk=document.querySelector('header .sellk');if(sk){sk.classList.add('p29');sk.href=SU('');sk.removeAttribute('data-sell');sk.setAttribute('aria-label','Seller account');set(sk,'<span>Seller account</span>')}
   const b=document.querySelector('.acw .acb');
   if(b&&b.dataset.acc==='signin'){b.classList.add('p29out');b.setAttribute('aria-label','Sign in to shop');set(b.querySelector('.t'),'<b>Sign in</b>')}
   if(b&&b.dataset.acc==='menu'){b.classList.remove('p29out');const d=document.querySelector('.acm a.acd');if(d){d.classList.add('p29sw');if(d.textContent!=='Switch to seller dashboard')d.textContent='Switch to seller dashboard'}}
-  /* customer sign-in / sign-up page */
-  const si=document.querySelector('#view .si');if(si&&si.querySelector('form[data-form]')){const su=si.querySelector('form[data-form=signup]'),h=si.querySelector('h2'),l=si.querySelector('.lead');
-    if(h)set(h,su?'Create your shopping account':'Sign in to shop');
-    if(l)set(l,su?'Order from local shops and track your orders. Want to sell? Use “Become a seller”.':'Browse, order and see your order history. Shop owners can sign in here too to shop as a customer.');
-    const alt=si.querySelector('.alt');if(alt&&alt.dataset.acc==='login')set(alt,'Sign in instead');
-    set(si.querySelector('.sel'),`Have a shop? <a href="${SU('login')}">Go to seller sign in</a>`)}
   /* customer account page */
   const v=document.getElementById('view');
   if(v){v.querySelectorAll('.shopc a.btn').forEach(a=>{a.classList.add('p29sw');if(a.textContent!=='Switch to seller dashboard')a.textContent='Switch to seller dashboard'});
     if(A.user&&!(A.shop||A.profile?.role==='owner'))v.querySelectorAll('p.foot').forEach(p=>{if(/Own a shop/.test(p.textContent))p.remove()})}
   /* footer: separate seller entry points */
-  document.querySelectorAll('#register4').forEach(r=>{const c=r.parentElement;c.innerHTML=`<h5>For shops</h5><a href="${SU('login')}">Seller sign in</a><a href="${SU('')}">Become a seller</a><a href="#how">How it works</a>`});
+  document.querySelectorAll('#register4').forEach(r=>{const c=r.parentElement;c.innerHTML=`<h5>For shops</h5><a href="${SU('login')}">Seller sign in</a><a href="${SU('')}">Become a seller</a><a href="/how" data-go="/how">How it works</a>`});
   words(document.body)}
 let q=0;const go=()=>{if(q)return;q=requestAnimationFrame(()=>{q=0;mo.disconnect();try{fix()}finally{mo.observe(document.body,{childList:true,subtree:true,characterData:true})}})};
 const mo=new MutationObserver(go);fix();mo.observe(document.body,{childList:true,subtree:true,characterData:true});

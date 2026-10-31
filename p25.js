@@ -1,4 +1,4 @@
-// ShopNip (a NuvonHub product) · p25: real URLs (History API), All products page with filters, accurate "Use my location",
+// ShopNip · p25: real URLs (History API), All products page with filters, accurate "Use my location",
 // UI/UX polish (price-first cards, "Ready today by", checkout postcode, toast position, mobile nav/category targets, shorter ticker).
 (()=>{const {MOCK,toast}=P2;
 const KEEP=['mock','demo','as','rich','multi','promos','status','dup','shop','open'];               // dev/test params carried across navigation
@@ -83,7 +83,7 @@ const DEF='Order from independent shops near you. Click & collect or local deliv
 function meta(){const [t,a]=cur,p=location.pathname,T=x=>x+' · ShopNip';
   const sheet=$('#sheet');if(sheet?.classList.contains('on')&&sheet._p&&p.startsWith('/product/')){const q=sheet._p;return setMeta(T(q.name),`${q.name} for ${gbp(q.price)} from a local shop. Click & collect or local delivery on ShopNip.`,p)}
   const names={about:'About',how:'How it works',sell:'Sell on ShopNip',faq:'FAQ',contact:'Contact',terms:'Terms of Use',privacy:'Privacy Policy','seller-terms':'Seller Terms',cookies:'Cookie Notice',basket:'Your basket',checkout:'Checkout',orders:'Your orders',account:'Your account',register:'Register your shop',order:'Order details'};
-  if(t==='home')return setMeta('ShopNip · Your local shops, online | Click & collect or delivery','ShopNip, a NuvonHub product: order stationery, party, gift and craft essentials from independent shops near you. Click & collect or local delivery, pay at the shop.','/');
+  if(t==='home')return setMeta('ShopNip · Your local shops, online | Click & collect or delivery','ShopNip: order stationery, party, gift and craft essentials from independent shops near you. Click & collect or local delivery, pay at the shop.','/');
   if(t==='products')return setMeta(T(PF.cat?PF.cat:'All products'),`Browse ${PF.cat||'every product'} from independent shops near you. Filter by shop, price, stock and click & collect or delivery.`,'/products');
   if(t==='search'){const q=$('#q')?.value.trim();return setMeta(T(q?`Search: ${q}`:'Search'),DEF,'/search')}
   if(t==='cat'&&CATS[a])return setMeta(T(CATS[a][0]),`Shop ${CATS[a][0].toLowerCase()} from independent shops near you. ${DEF}`,p);
@@ -135,27 +135,35 @@ function okO(o,f,skip){const d=o.shop?.delivery_options||{};
   if(f.ful==='delivery'&&!(o.shop&&d.delivery&&(o.dist==null||!d.delivery_radius_miles||o.dist<=+d.delivery_radius_miles)))return false;
   if(f.min!==''&&o.price<+f.min)return false;if(f.max!==''&&o.price>+f.max)return false;return true}
 function pool(){const live=S.products.filter(p=>p.offers&&p.images?.length);if(live.length)return live;const l=S.products.filter(p=>p.images?.length&&p.listing_id);return l.length?l:S.products.filter(p=>p.images?.length)}
-function results(f,skip){const words=f.q.toLowerCase().split(/\s+/).filter(Boolean);
-  return pool().map(p=>{if(skip!=='cat'&&f.cat&&p.category!==f.cat)return null;
+/* Category tree (department > homepage tile > fine sub-category) from subcats.json; legacy catalogue categories are not listed. */
+let DOF=null;const deptOf=()=>{if(!DOF&&window.SUBC?.tree){DOF={};SUBC.tree.forEach(([d,ts])=>ts.forEach(([t])=>DOF[t]=d))}return DOF||{}};
+const catKeys=p=>{const t=window.SUBC?.tile?.[p.sku];return t?[p.category,t,deptOf()[t]]:[window.canonCat?canonCat(p.category):p.category]};
+const catOf=p=>window.canonCat?canonCat(p.category):p.category;
+const inCat=(p,c)=>catKeys(p).includes(c);
+function results(f,skip){const sub=(window.SUBCATS||[]).find(c=>c.l.toLowerCase()===f.q.trim().toLowerCase()),words=sub?[]:f.q.toLowerCase().split(/\s+/).filter(Boolean);
+  return pool().map(p=>{if(skip!=='cat'&&f.cat&&!inCat(p,f.cat))return null;
     const of=offersOf(p).filter(o=>okO(o,f,skip));if(!of.length)return null;
-    if(words.length){const hay=(p.name+' '+p.category+' '+(p.brand||'')+' '+of.map(o=>o.shop?.name||'').join(' ')).toLowerCase();if(!words.every(w=>hay.includes(w.replace(/s$/,''))))return null}
+    if(sub&&!sub.t(p))return null;if(words.length){const hay=(p.name+' '+p.category+' '+(p.brand||'')+' '+of.map(o=>o.shop?.name||'').join(' ')).toLowerCase();if(!words.every(w=>hay.includes(w.replace(/s$/,''))))return null}
     return {...p,offers:p.offers?of:undefined,listing_id:of[0].listing_id,shop_id:of[0].shop_id,stock:of[0].stock,price:Math.min(...of.map(o=>o.price)),
       dist:of.reduce((m,o)=>o.dist!=null&&(m==null||o.dist<m)?o.dist:m,null),updated:of.map(o=>o.updated||'').sort().pop()}}).filter(Boolean)}
 const SORTS=[['featured','Featured'],['price','Price: low to high'],['price_desc','Price: high to low'],['newest','Newest'],['name','Name: A–Z']];
 const sorters={featured:(a,b)=>(a.dist??1e9)-(b.dist??1e9)||(!!b.stock-!!a.stock),price:(a,b)=>a.price-b.price,price_desc:(a,b)=>b.price-a.price,
   newest:(a,b)=>(b.updated||'').localeCompare(a.updated||''),name:(a,b)=>a.name.localeCompare(b.name,'en-GB',{sensitivity:'base'})};
 const nActive=()=>[PF.cat,PF.shop,PF.min,PF.max,PF.stock,PF.ful].filter(Boolean).length;
-function panel(){const byCat={},byShop={};results(PF,'cat').forEach(p=>byCat[p.category]=(byCat[p.category]||0)+1);
+function catList(cats,byCat,rad){const T=window.SUBC?.tree;if(!T)return cats.map(c=>rad('cat',c,PF.cat===c,esc(c),byCat[c]||0)).join('');
+  const row=(c,lv)=>byCat[c]?`<div class="pfcl pfcl${lv}">${rad('cat',c,PF.cat===c,esc(c),byCat[c])}</div>`:'';
+  return T.map(([d,ts])=>byCat[d]?row(d,0)+ts.map(([t,fs])=>{const one=fs.length===1;return row(t,1)+(one?'':fs.map(f=>f===t?'':row(f,2)).join(''))}).join(''):'').join('')}
+function panel(){const byCat={},byShop={};results(PF,'cat').forEach(p=>new Set(catKeys(p)).forEach(k=>byCat[k]=(byCat[k]||0)+1));
   results(PF,'shop').forEach(p=>offersOf(p).forEach(o=>{if(o.shop)byShop[o.shop_id]=(byShop[o.shop_id]||0)+1}));
-  const cats=[...new Set(pool().map(p=>p.category).filter(Boolean))].sort();
+  const cats=[...new Set(pool().map(p=>catOf(p)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'en-GB'));
   const shops=S.shops.filter(s=>pool().some(p=>offersOf(p).some(o=>String(o.shop_id)===String(s.id))));
   const rad=(name,val,on,label,count)=>`<label class="pfo ${on?'on':''}"><input type="radio" name="${name}" value="${esc(val)}" ${on?'checked':''} data-pf="${name}"><span>${label}</span>${count!=null?`<em>${count}</em>`:''}</label>`;
   const tot=results({...PF,cat:''},'cat').length;
   return `<div class="pfh"><b>Filters</b><button class="pfx" data-pfclose aria-label="Close filters">✕</button></div>
-  <div class="pfs"><h5>Category</h5><div class="pfl">${rad('cat','',!PF.cat,'All categories',tot)}${cats.map(c=>rad('cat',c,PF.cat===c,esc(c),byCat[c]||0)).join('')}</div></div>
+  <div class="pfs"><h5>Category</h5><div class="pfl">${rad('cat','',!PF.cat,'All categories',tot)}${catList(cats,byCat,rad)}</div></div>
   ${shops.length>1||PF.shop?`<div class="pfs"><h5>Shop</h5><div class="pfl">${rad('shop','',!PF.shop,'All shops')}${shops.map(s=>rad('shop',String(s.id),PF.shop===String(s.id),esc(s.name),byShop[s.id]||0)).join('')}</div></div>`:''}
   <div class="pfs"><h5>Price</h5><div class="pfp"><label>£<input data-pfn="min" inputmode="decimal" placeholder="Min" value="${esc(PF.min)}" aria-label="Minimum price"></label><i>to</i><label>£<input data-pfn="max" inputmode="decimal" placeholder="Max" value="${esc(PF.max)}" aria-label="Maximum price"></label></div>
-   <div class="pfq">${[[0,5],[5,10],[10,20],[20,'']].map(([a,b])=>`<button data-pfr="${a}-${b}" class="${String(PF.min)===String(a||'')&&String(PF.max)===String(b)?'on':''}">${b===''?'£'+a+'+':a?`£${a}–£${b}`:'Under £'+b}</button>`).join('')}</div></div>
+   <div class="pfq">${[[0,2],[2,5],[5,10],[10,'']].map(([a,b])=>`<button data-pfr="${a}-${b}" class="${String(PF.min)===String(a||'')&&String(PF.max)===String(b)?'on':''}">${b===''?'£'+a+'+':a?`£${a}–£${b}`:'Under £'+b}</button>`).join('')}</div></div>
   <div class="pfs"><h5>Availability</h5><label class="pfc"><input type="checkbox" data-pfb="stock" ${PF.stock?'checked':''}><span>In stock only</span></label></div>
   <div class="pfs"><h5>How you get it</h5><div class="pfl">${rad('ful','',!PF.ful,'Any')}${rad('ful','collect',PF.ful==='collect',svg('bag')+'Click &amp; collect')}${rad('ful','delivery',PF.ful==='delivery',svg('bolt')+'Local delivery')}</div>
    ${PF.ful==='delivery'&&!S.me?'<p class="pfn">Set your postcode to see which shops deliver to you. <a href="#" id="setpc2">Set postcode</a></p>':''}</div>
@@ -165,12 +173,20 @@ function chips(){const c=[];const shop=S.shops.find(s=>String(s.id)===PF.shop);
   if(PF.min!==''||PF.max!=='')c.push(['price',PF.min!==''&&PF.max!==''?`£${PF.min}–£${PF.max}`:PF.min!==''?`From £${PF.min}`:`Up to £${PF.max}`]);
   if(PF.stock)c.push(['stock','In stock']);if(PF.ful)c.push(['ful',PF.ful==='collect'?'Click & collect':'Delivery']);if(PF.q)c.push(['q',`“${PF.q}”`]);
   return c.length?`<div class="pchips">${c.map(([k,l])=>`<button data-pfrm="${k}">${esc(l)}<i aria-hidden="true">✕</i><span class="vh">Remove filter</span></button>`).join('')}<button class="pclr" data-pfclear>Clear all</button></div>`:''}
+function emptyHTML(){
+  const subs=[];(window.DEPTS||[]).forEach(d=>d.s.forEach(([n,img])=>{if(subs.length<8&&n!==PF.q&&!subs.some(x=>x[0]===n)){try{if(results({...PF,q:n,cat:'',shop:'',min:'',max:'',stock:'',ful:''}).length)subs.push([n,img])}catch(e){}}}));
+  const pop=pool().slice(0,4);
+  return `<div class="empty nx-empty">${svg('search')}<br><b>Nothing listed here yet</b><br><span class="note">Shops haven’t listed anything${PF.q?' for “'+esc(PF.q)+'”':' that matches these filters'} yet. Try one of these instead.</span>${nActive()||PF.q?'<br><button class="btn ghost" data-pfclear style="margin-top:12px">Clear filters</button>':''}</div>
+  ${subs.length?`<h2 class="nx-h">Popular categories</h2><div class="nx-cats">${subs.map(([n,img])=>`<a href="/products?q=${encodeURIComponent(n)}" data-go="/products?q=${encodeURIComponent(n)}" class="nx-cat"><img loading="lazy" src="${esc(img)}" alt="" onerror="this.style.visibility='hidden'"><span>${esc(n)}</span></a>`).join('')}</div>`:''}
+  ${pop.length?`<h2 class="nx-h">Popular products</h2><div class="grid">${pop.map(pcard).join('')}</div>`:''}`}
 function grid(){const r=results(PF).sort(sorters[PF.sort]||sorters.featured),tot=pool().length;
   const head=`<b>${r.length}</b> ${r.length===1?'product':'products'}${r.length!==tot?` <span>of ${tot}</span>`:''}`;
   const body=r.length?`<div class="grid">${r.slice(0,PN).map(pcard).join('')}</div>${r.length>PN?`<div class="pmore"><button class="btn ghost" data-pmore>Show more (${r.length-PN} left)</button></div>`:''}`
-    :`<div class="empty">${svg('search')}<br><b>No products match</b><br><span class="note">Try removing a filter or searching for something else.</span>${nActive()||PF.q?'<br><button class="btn" data-pfclear style="margin-top:12px">Clear filters</button>':''}</div>`;
+    :emptyHTML();
   return {head,body,n:r.length}}
-V.products=function(){const g=grid(),n=nActive();
+V.products=function(){const qMiss=PF.q&&!results({...PF0,q:PF.q,sort:'featured'}).length;
+  if(qMiss)return `<section class="sec pp"><div class="pph"><h1>Search</h1><p class="note">From independent shops near you${S.pc?' · '+esc(S.pc):''}</p></div><div class="empty">${svg('search')}<br><b>No products found for “${esc(PF.q)}”</b><br><span class="note">Try a different word, or browse everything.</span><br><a class="btn" href="/products" data-go="/products" style="margin-top:14px">Browse all products</a></div></section>${foot()}`;
+  const g=grid(),n=nActive();
   return `<section class="sec pp"><div class="pph"><h1>${esc(PF.cat||'All products')}</h1><p class="note">From independent shops near you${S.pc?' · '+esc(S.pc):''}</p></div>
   <div class="ppw"><aside class="pfil" id="pfil" aria-label="Filters">${panel()}</aside><div class="pfbg" data-pfclose></div>
   <div class="ppm"><div class="ptool"><label class="psrch">${svg('search')}<input id="pq" type="search" placeholder="Search within results" value="${esc(PF.q)}" aria-label="Search within results" autocomplete="off"></label>
