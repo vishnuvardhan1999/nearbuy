@@ -20,7 +20,8 @@ const D=MOCK?{
   async mine(){return M.orders.filter(o=>o.customer_id==='u1')},
   async inbox(){return M.orders.filter(o=>o.shop_id===A.shop?.id)},
   async get(id){return M.orders.find(o=>o.id===id)},
-  async status(id,st,note){const o=M.orders.find(x=>x.id===id);if(['rejected','cancelled'].includes(st))o.order_items.forEach(i=>{const l=M.listings.find(x=>x.id===i.listing_id);if(l)l.stock+=i.qty});
+  async status(id,st,note,cancel){const o=M.orders.find(x=>x.id===id);if(['rejected','cancelled'].includes(st))o.order_items.forEach(i=>{const l=M.listings.find(x=>x.id===i.listing_id);if(l)l.stock+=i.qty});
+    if(st==='cancelled'){if(!cancel||!cancel.reason)throw new Error('Choose a cancellation reason');window.CancelBox.apply(o,cancel,cancel.role||'customer')}
     o.status=st;o.reject_reason=note||o.reject_reason;o.order_events.push({status:st,at:new Date().toISOString(),note})},
   live(){}
 }:{
@@ -30,7 +31,7 @@ const D=MOCK?{
   async mine(){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*)').eq('customer_id',A.user.id).order('created_at',{ascending:false}).limit(50);if(error)throw error;return data},
   async inbox(){const {data,error}=await sb.from('orders').select('*,order_items(*)').eq('shop_id',A.shop.id).order('created_at',{ascending:false}).limit(100);if(error)throw error;return data},
   async get(id){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*),order_events(status,note,at)').eq('id',id).single();if(error)throw error;data.order_events?.sort((a,b)=>a.at<b.at?-1:1);return data},
-  async status(id,st,note){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null});if(error)throw error},
+  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error},
   live(filter,cb){if(O.ch)sb.removeChannel(O.ch);O.ch=sb.channel('orders-'+filter).on('postgres_changes',{event:'*',schema:'public',table:'orders',filter},cb).subscribe()}
 };
 
@@ -107,8 +108,10 @@ const fld=(id,l,a,v)=>`<label class="fl"><span>${l}</span><input id="${id}" ${a}
 const ccode=(o,big)=>o&&o.fulfilment!=='delivery'&&o.collection_pin?`<div class="ccode${big?' big':''}"><small>Show or say this at the shop</small><b>${esc(o.order_number)} · PIN ${esc(o.collection_pin)}</b><span>Bring this when you collect</span></div>`:'';
 if(!document.getElementById('ccss')){const st=document.createElement('style');st.id='ccss';st.textContent=`.ccode{margin:12px 0;padding:12px 14px;border:2px dashed #1f6f66;border-radius:14px;background:#effaf7;text-align:center}.ccode small{display:block;color:#475569;font-size:12px}.ccode b{display:block;font-size:20px;letter-spacing:.04em;color:#0f3d3a;margin:2px 0}.ccode span{font-size:12px;color:#64748b}.ccode.big b{font-size:28px}.ocard .ccode{margin:8px 0 0;padding:8px}.ocard .ccode b{font-size:16px}`;document.head.appendChild(st)}
 window.P3CODE=ccode;
-V.placed=function(r){return `<section class="sec narrow"><div class="done-c"><div class="tick">${svg('check')}</div><h2>Order placed!</h2><p>Your order number is</p><div class="ono">${esc(r.order_number)}</div>${ccode({...r,fulfilment:O.lastF},true)}
+V.placed=function(r){const rate=window.Social?Social.rateHTML(O.lastShopId,O.lastShop||'this shop',r.id,'placed'):'';
+  return `<section class="sec narrow"><div class="done-c"><div class="tick">${svg('check')}</div><h2>Order placed!</h2><p>Your order number is</p><div class="ono">${esc(r.order_number)}</div>${ccode({...r,fulfilment:O.lastF},true)}
   <p class="hint">${esc(O.lastShop||'The shop')} has been notified and will confirm shortly. Total ${gbp(r.total)}, to pay ${O.lastF==='delivery'?'on delivery':'on collection'}.</p>
+  ${rate}
   <button class="btn full big" data-o="open" data-id="${esc(r.id)}">Track order</button><button class="btn ghost full" data-t="home" style="margin-top:8px">Keep shopping</button></div></section>`};
 const chip=s=>`<span class="ost ${s}">${LBL[s]||s}</span>`;
 V.orders=function(){
@@ -126,13 +129,13 @@ function odetail(o,owner){const it=o.order_items||[];
   return `<div class="panel">${timeline(o)}</div>
   <div class="panel"><h3 class="ft">${o.fulfilment==='delivery'?'Delivery to':'Collect from'}</h3><p class="hint" style="font-size:14px;color:var(--txt)">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+' '+(o.delivery_postcode||'')):esc((o.shops?.name||'')+', '+(o.shops?.address||A.shop?.address||''))}</p>
    ${owner?`<div class="line"><span>Customer</span><span>${esc(o.customer_name)}</span></div><div class="line"><span>Phone</span><a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a></div>`:o.shops?.phone?`<div class="line"><span>Shop phone</span><a href="tel:${esc(o.shops.phone)}">${esc(o.shops.phone)}</a></div>`:''}
-   ${o.note?`<div class="line"><span>Note</span><span>${esc(o.note)}</span></div>`:''}</div>
+   ${o.note?`<div class="line"><span>Note</span><span>${esc(o.note)}</span></div>`:''}${window.CancelBox?CancelBox.html(o):''}</div>
   <div class="panel"><h3 class="ft">Items</h3>${it.map(i=>`<div class="oi"><img src="${esc(i.image||'icon-192.png')}" alt=""><span>${i.qty} × ${esc(i.name)}</span><b>${gbp(i.unit_price*i.qty)}</b></div>`).join('')}
    <div class="line"><span>Subtotal</span><span>${gbp(o.subtotal??o.total)}</span></div>${+o.delivery_fee?`<div class="line"><span>Delivery</span><span>${gbp(o.delivery_fee)}</span></div>`:''}
    <div class="line tot"><b>Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</b><b>${gbp(o.total)}</b></div></div>`}
 V.order=function(id){const o=O.cur;if(!o||o.id!==id){D.get(id).then(x=>{O.cur=x;render()}).catch(e=>toast(e.message));return '<div class="empty">Loading…</div>'}
   return `<section class="sec narrow"><div class="sh"><h2>${esc(o.order_number)}</h2><a href="#" data-t="orders">All orders</a></div><div class="oc-m" style="margin-top:-8px">${esc(o.shops?.name||'')} · ${when(o.created_at)}</div>
-  ${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o,true)}${odetail(o,false)}${o.status==='placed'?`<button class="btn ghost full" data-o="cancel" data-id="${esc(o.id)}">Cancel order</button>`:''}</section>`};
+  ${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o,true)}${odetail(o,false)}${o.status==='completed'&&window.Social?Social.rateHTML(o.shop_id,o.shops?.name||'this shop',o.id,'done'):''}${o.status==='placed'?`<button class="btn ghost full" data-o="cancel" data-id="${esc(o.id)}">Cancel order</button>`:''}</section>`};
 // owner inbox
 const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready to collect']],delivery:[['out_for_delivery','Out for delivery']]},ready:[['completed','Collected · complete']],out_for_delivery:[['completed','Delivered · complete']]};
 const nexts=o=>{const n=NEXT[o.status];return !n?[]:Array.isArray(n)?n:n[o.fulfilment]};
@@ -144,7 +147,7 @@ V.inbox=function(){if(!A.shop)return V.myshop();if(!O.iloaded){loadInbox();retur
   <div class="seg"><button data-o="fil" data-v="open" class="${O.fil==='open'?'on':''}">Open (${open.length})</button><button data-o="fil" data-v="done" class="${O.fil==='done'?'on':''}">Past (${O.inbox.length-open.length})</button></div>
   <div class="lst" style="margin-top:12px">${L.map(o=>`<div class="ocard ${o.status==='placed'?'new':''} ${O.newIds.has(o.id)?'flash':''}">
    <div class="oc-h"><b>${esc(o.order_number)} · ${esc(o.customer_name)}</b>${chip(o.status)}</div>
-   <div class="oc-m">${when(o.created_at)} · ${o.fulfilment==='delivery'?'Delivery':'Collect'} · ${o.order_items.reduce((a,i)=>a+i.qty,0)} items · <b>${gbp(o.total)}</b></div>
+   <div class="oc-m">${when(o.created_at)} · ${o.fulfilment==='delivery'?'Delivery':'Collect'} · ${o.order_items.reduce((a,i)=>a+i.qty,0)} items · <b>${gbp(o.total)}</b></div>${o.cancel_reason&&window.CancelBox?`<div class="oc-n">${CancelBox.html(o)}</div>`:''}
    <div class="oc-i">${o.order_items.map(i=>`${i.qty}× ${esc(i.name.slice(0,48))}`).join('<br>')}</div>${o.note?`<div class="oc-n">“${esc(o.note)}”</div>`:''}
    <div class="acts">${nexts(o).map(([s,l])=>`<button class="btn ${s==='rejected'?'ghost':''}" data-o="st" data-id="${esc(o.id)}" data-v="${s}">${l}</button>`).join('')}
    ${['accepted','ready','out_for_delivery'].includes(o.status)?`<button class="btn ghost" data-o="st" data-id="${esc(o.id)}" data-v="cancelled">Cancel</button>`:''}<a class="btn ghost" href="tel:${esc(o.customer_phone)}">Call</a></div></div>`).join('')||'<div class="empty">No orders here yet</div>'}</div></section>`};
@@ -169,11 +172,12 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
   if(a==='checkout'){CO.err='';await prepCheckout();return route('checkout')}
   if(a==='login'){P3.after=B().length?'checkout':'orders';P2.A.tab='login';return route('account')}
   if(a==='open'){O.cur=null;return route('order',el.dataset.id)}
-  if(a==='cancel'){if(!confirm('Cancel this order?'))return;try{await D.status(el.dataset.id,'cancelled');O.cur=await D.get(el.dataset.id);O.loaded=false;toast('Order cancelled');render()}catch(err){toast(err.message)}return}
+  if(a==='cancel'){const pack=window.CancelBox?await CancelBox.ask('customer'):null;if(!pack)return;pack.role='customer';try{await D.status(el.dataset.id,'cancelled',pack.note,pack);O.cur=await D.get(el.dataset.id);O.loaded=false;toast('Order cancelled');render()}catch(err){toast(err.message)}return}
   if(a==='inbox'){$('#nbanner')?.classList.remove('on');O.iloaded=false;route('inbox');return}
   if(a==='fil'){O.fil=el.dataset.v;return render()}
-  if(a==='st'){const st=el.dataset.v;let note=null;if(st==='rejected'||st==='cancelled'){note=prompt(st==='rejected'?'Reason for rejecting (shown to the customer)':'Reason for cancelling','');if(note===null)return}
-    el.disabled=true;try{await D.status(el.dataset.id,st,note);O.inbox=await D.inbox();badge();toast(LBL[st]);render()}catch(err){toast(err.message);el.disabled=false}return}
+  if(a==='st'){const st=el.dataset.v;let note=null,pack=null;if(st==='rejected'){note=prompt('Reason for rejecting (shown to the customer)','Sorry, we can’t fulfil this order right now');if(note===null)return}
+    if(st==='cancelled'){pack=window.CancelBox?await CancelBox.ask('seller'):null;if(!pack)return;pack.role='seller';note=pack.note}
+    el.disabled=true;try{await D.status(el.dataset.id,st,note,pack);O.inbox=await D.inbox();badge();toast(LBL[st]);render()}catch(err){toast(err.message);el.disabled=false}return}
   if(a==='notif'){const r=await Notification.requestPermission();toast(r==='granted'?'Alerts on while ShopNip is open':'Alerts blocked in browser settings');return render()}
   if(a==='sim'){const l=M.listings.filter(x=>x.active&&x.stock>1).slice(0,2);const id='o'+(M.orders.length+1);
     M.orders.unshift({id,order_number:'NB-'+(1001+M.orders.length),shop_id:A.shop.id,customer_id:'u9',customer_name:'Tom Reed',customer_phone:'07700 900456',fulfilment:'delivery',delivery_address:'4 Mill Lane',delivery_postcode:'LE1 6AB',status:'placed',subtotal:l.reduce((t,x)=>t+x.retail_price,0),delivery_fee:2.5,total:l.reduce((t,x)=>t+x.retail_price,0)+2.5,payment_method:'pay_on_delivery',created_at:new Date().toISOString(),order_items:l.map(x=>({listing_id:x.id,name:x.name,image:x.image,unit_price:x.retail_price,qty:1})),order_events:[{status:'placed',at:new Date().toISOString()}]});
@@ -189,7 +193,7 @@ document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')
 // shared order-creation path (checkout form + p13 chat): geocode delivery postcode, place via RPC/mock, clear basket
 async function placeOrder(a){if(a.fulfilment==='delivery'){const g=await lookupPostcode(a.postcode).catch(()=>{throw new Error('We could not find that postcode.')});a.lat=g.lat;a.lng=g.lng;a.postcode=g.pc}
   window.CK&&CK.set({name:a.name,phone:a.phone,addr:a.address});
-  const r=await D.place(a);O.lastShop=B()[0]?.shop_name;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
+  const r=await D.place(a);O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
 
 window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
@@ -213,5 +217,5 @@ window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>a
   if(v==='sheet'){window.P2_START='home';}if(v==='sheet')setTimeout(()=>sheet(S.products.find(p=>p.listing_id)),300);
 }};
 V.orderdetail=()=>V.order(O.cur.id);
-V.placedmock=()=>{O.lastShop=M.shops[0].name;O.lastF='collect';return V.placed({id:'o3',order_number:'NB-1003',total:M.orders.find(o=>o.id==='o3').total})};
+V.placedmock=()=>{O.lastShop=M.shops[0].name;O.lastShopId=M.shops[0].id;O.lastF='collect';return V.placed({id:'o3',order_number:'NB-1003',total:M.orders.find(o=>o.id==='o3').total})};
 })();
