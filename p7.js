@@ -20,6 +20,15 @@ function mix(groups,fb,n=4,off=0){const used={t:new Set(),i:new Set()},out=[];
   if(out.length<n&&fb)out.push(...uniq(CAT().filter(fb),n-out.length,used));return out}
 const kw=(...w)=>p=>{const n=p.name.toLowerCase();return w.some(k=>n.includes(k))};
 const img=p=>`<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fbhide>`;
+function hrefOf(l){l=String(l||'').trim();
+  if(!l||l==='#'||l==='#search')return '/products';
+  if(l.startsWith('q:'))return '/search?q='+encodeURIComponent(l.slice(2));
+  if(l.startsWith('max:'))return '/products?max='+encodeURIComponent(l.slice(4));
+  if(l.startsWith('sec:')){const names=['best-sellers','back-to-school','art-and-craft-picks','party-time'];return '/collection/'+(names[+l.slice(4)]||'best-sellers')}
+  if(l.startsWith('#shop='))return '/shop/'+encodeURIComponent(l.slice(6));
+  if(l.startsWith('#'))return '/'+l.slice(1);
+  if(l.startsWith('/'))return l;
+  return '/products'}
 // ---------- promo strip ----------
 function dealsPool(){let L=uniq(S.products.filter(p=>p.cmp>p.price&&!p.demo&&p.images?.length),4).map(p=>({p,d:Math.round((1-p.price/p.cmp)*100),real:true}));return L}
 function cards(){const promos=(window.P5?.promos?.()||[]).filter(x=>x.type==='banner'&&['hero','strip'].includes(x.placement||'hero'));
@@ -38,7 +47,7 @@ function cards(){const promos=(window.P5?.promos?.()||[]).filter(x=>x.type==='ba
   return [house[0],...fromPromo,...house.slice(1).filter(c=>!c.badge||c.grid.length)].slice(0,9)}
 function card(c){const body=c.grid?`<div class="pg2">${c.grid.map(x=>{const p=x.p||x;return `<span>${img(p)}${c.badge?`<em>-${x.d}%</em>`:''}</span>`}).join('')}</div>`
    :c.life?`<div class="plife">${img(c.life)}</div>`:c.bg?`<div class="pbg" style="background-image:url('${esc(c.bg)}')"></div>`:`<div class="phero">${(c.hero||[]).map((p,i)=>`<span class="h${i}">${img(p)}</span>`).join('')}</div>`;
-  return `<a href="#" class="pcard ${c.c}" data-plink="${esc(c.link)}"><span class="pk">${esc(c.k)}</span><b class="pt">${esc(c.t)}</b>${c.s?`<small class="ps">${esc(c.s)}</small>`:''}${body}<span class="pcta">${esc(c.cta)} ${svg('arrow')}</span>${c.note?`<i class="pnote">${esc(c.note)}</i>`:''}</a>`}
+  return `<a href="${hrefOf(c.link)}" class="pcard ${c.c}" data-plink="${esc(c.link)}"><span class="pk">${esc(c.k)}</span><b class="pt">${esc(c.t)}</b>${c.s?`<small class="ps">${esc(c.s)}</small>`:''}${body}<span class="pcta">${esc(c.cta)} ${svg('arrow')}</span>${c.note?`<i class="pnote">${esc(c.note)}</i>`:''}</a>`}
 const strip=()=>`<section class="pstrip" aria-label="Offers"><div class="psr" id="psr">${cards().map(card).join('')}</div>
   <button type="button" class="psa prev" data-psgo="-1" aria-label="Scroll offers left"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="psa next" data-psgo="1" aria-label="Scroll offers right"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></section>`;
 // ---------- tile grid ----------
@@ -52,8 +61,8 @@ const TILES=[
  ['Tapes & glue','q:tape',[['tape'],['glue','super glue'],['glue stick'],['double sided tape']],p=>p.category==='Tapes & Adhesives'],
  ['Toys & games','q:toy',[['toy set'],['water pistol','water gun'],['football'],['chess set','draughts set'],['play clay']],p=>/toys/i.test(p.category)]];
 const grid=()=>`<section class="tgrid">${TILES.map(([t,l,g,f],i)=>{const ps=mix(g,f,4,i);if(ps.length<4)return '';
-  return `<div class="tcard"><a href="#" class="th" data-plink="${esc(l)}"><h3>${esc(t)}</h3>${svg('arrow')}</a><div class="t4">${ps.map(p=>`<a href="#" data-plink="q:${esc(p.name.split(/[,–(]| - /)[0].trim().slice(0,30))}"><span>${img(p)}</span><small>${nm(p)}</small></a>`).join('')}</div>
-   <a href="#" class="tm" data-plink="${esc(l)}">See more</a></div>`}).join('')}</section>`;
+  return `<div class="tcard"><a href="${hrefOf(l)}" class="th" data-plink="${esc(l)}"><h3>${esc(t)}</h3>${svg('arrow')}</a><div class="t4">${ps.map(p=>{const qq='q:'+p.name.split(/[,–(]| - /)[0].trim().slice(0,30);return `<a href="${hrefOf(qq)}" data-plink="${esc(qq)}"><span>${img(p)}</span><small>${nm(p)}</small></a>`}).join('')}</div>
+   <a href="${hrefOf(l)}" class="tm" data-plink="${esc(l)}">See more</a></div>`}).join('')}</section>`;
 // ---------- install over p5's home ----------
 const _home=V.home;
 V.home=function(...a){let h=_home.apply(this,a);
@@ -102,7 +111,7 @@ function about(){const ns=realShops().length,np=realProducts().length;
     <p>ShopNip is a local marketplace for the independent shops around you. Order from the newsagent, card shop or craft store down the road, then collect it or have it delivered locally. We’re starting with a pilot in Watford, helping local shops get found, get orders and keep the high street thriving.</p>${stats}</div>
    <div class="abv">${vals.map(([i,t,s],k)=>`<div class="rv" style="--d:${k*80}ms"><span>${svg(i)}</span><b>${t}</b><p>${s}</p></div>`).join('')}</div>
    <div class="abhow rv"><h3>How it works</h3><ol>${steps.map(([i,t,s],k)=>`<li><span class="abn">${k+1}</span>${svg(i)}<b>${t}</b><small>${s}</small></li>`).join('')}</ol></div>
-   <div class="abcta rv"><button class="abb pri" data-plink="#search">Start shopping ${svg('arrow')}</button><a class="abb sec" href="seller.html">Become a seller ${svg('arrow')}</a></div>
+   <div class="abcta rv"><button class="abb pri" data-plink="#search">Start shopping ${svg('arrow')}</button><a class="abb sec" href="/seller.html">Become a seller ${svg('arrow')}</a></div>
   </div><i class="abo a1"></i><i class="abo a2"></i></section>`}
 const _h=V.home;
 V.home=function(...a){let h=_h.apply(this,a);

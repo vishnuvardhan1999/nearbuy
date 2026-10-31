@@ -135,8 +135,9 @@ function okO(o,f,skip){const d=o.shop?.delivery_options||{};
   if(f.ful==='delivery'&&!(o.shop&&d.delivery&&(o.dist==null||!d.delivery_radius_miles||o.dist<=+d.delivery_radius_miles)))return false;
   if(f.min!==''&&o.price<+f.min)return false;if(f.max!==''&&o.price>+f.max)return false;return true}
 function pool(){const live=S.products.filter(p=>p.offers&&p.images?.length);if(live.length)return live;const l=S.products.filter(p=>p.images?.length&&p.listing_id);return l.length?l:S.products.filter(p=>p.images?.length)}
+const catOf=p=>window.canonCat?canonCat(p.category):p.category;
 function results(f,skip){const words=f.q.toLowerCase().split(/\s+/).filter(Boolean);
-  return pool().map(p=>{if(skip!=='cat'&&f.cat&&p.category!==f.cat)return null;
+  return pool().map(p=>{if(skip!=='cat'&&f.cat&&catOf(p)!==f.cat)return null;
     const of=offersOf(p).filter(o=>okO(o,f,skip));if(!of.length)return null;
     if(words.length){const hay=(p.name+' '+p.category+' '+(p.brand||'')+' '+of.map(o=>o.shop?.name||'').join(' ')).toLowerCase();if(!words.every(w=>hay.includes(w.replace(/s$/,''))))return null}
     return {...p,offers:p.offers?of:undefined,listing_id:of[0].listing_id,shop_id:of[0].shop_id,stock:of[0].stock,price:Math.min(...of.map(o=>o.price)),
@@ -145,9 +146,9 @@ const SORTS=[['featured','Featured'],['price','Price: low to high'],['price_desc
 const sorters={featured:(a,b)=>(a.dist??1e9)-(b.dist??1e9)||(!!b.stock-!!a.stock),price:(a,b)=>a.price-b.price,price_desc:(a,b)=>b.price-a.price,
   newest:(a,b)=>(b.updated||'').localeCompare(a.updated||''),name:(a,b)=>a.name.localeCompare(b.name,'en-GB',{sensitivity:'base'})};
 const nActive=()=>[PF.cat,PF.shop,PF.min,PF.max,PF.stock,PF.ful].filter(Boolean).length;
-function panel(){const byCat={},byShop={};results(PF,'cat').forEach(p=>byCat[p.category]=(byCat[p.category]||0)+1);
+function panel(){const byCat={},byShop={};results(PF,'cat').forEach(p=>{const c=catOf(p)||'Other';byCat[c]=(byCat[c]||0)+1});
   results(PF,'shop').forEach(p=>offersOf(p).forEach(o=>{if(o.shop)byShop[o.shop_id]=(byShop[o.shop_id]||0)+1}));
-  const cats=[...new Set(pool().map(p=>p.category).filter(Boolean))].sort();
+  const cats=[...new Set(pool().map(p=>catOf(p)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'en-GB'));
   const shops=S.shops.filter(s=>pool().some(p=>offersOf(p).some(o=>String(o.shop_id)===String(s.id))));
   const rad=(name,val,on,label,count)=>`<label class="pfo ${on?'on':''}"><input type="radio" name="${name}" value="${esc(val)}" ${on?'checked':''} data-pf="${name}"><span>${label}</span>${count!=null?`<em>${count}</em>`:''}</label>`;
   const tot=results({...PF,cat:''},'cat').length;
@@ -155,7 +156,7 @@ function panel(){const byCat={},byShop={};results(PF,'cat').forEach(p=>byCat[p.c
   <div class="pfs"><h5>Category</h5><div class="pfl">${rad('cat','',!PF.cat,'All categories',tot)}${cats.map(c=>rad('cat',c,PF.cat===c,esc(c),byCat[c]||0)).join('')}</div></div>
   ${shops.length>1||PF.shop?`<div class="pfs"><h5>Shop</h5><div class="pfl">${rad('shop','',!PF.shop,'All shops')}${shops.map(s=>rad('shop',String(s.id),PF.shop===String(s.id),esc(s.name),byShop[s.id]||0)).join('')}</div></div>`:''}
   <div class="pfs"><h5>Price</h5><div class="pfp"><label>£<input data-pfn="min" inputmode="decimal" placeholder="Min" value="${esc(PF.min)}" aria-label="Minimum price"></label><i>to</i><label>£<input data-pfn="max" inputmode="decimal" placeholder="Max" value="${esc(PF.max)}" aria-label="Maximum price"></label></div>
-   <div class="pfq">${[[0,5],[5,10],[10,20],[20,'']].map(([a,b])=>`<button data-pfr="${a}-${b}" class="${String(PF.min)===String(a||'')&&String(PF.max)===String(b)?'on':''}">${b===''?'£'+a+'+':a?`£${a}–£${b}`:'Under £'+b}</button>`).join('')}</div></div>
+   <div class="pfq">${[[0,2],[2,5],[5,10],[10,'']].map(([a,b])=>`<button data-pfr="${a}-${b}" class="${String(PF.min)===String(a||'')&&String(PF.max)===String(b)?'on':''}">${b===''?'£'+a+'+':a?`£${a}–£${b}`:'Under £'+b}</button>`).join('')}</div></div>
   <div class="pfs"><h5>Availability</h5><label class="pfc"><input type="checkbox" data-pfb="stock" ${PF.stock?'checked':''}><span>In stock only</span></label></div>
   <div class="pfs"><h5>How you get it</h5><div class="pfl">${rad('ful','',!PF.ful,'Any')}${rad('ful','collect',PF.ful==='collect',svg('bag')+'Click &amp; collect')}${rad('ful','delivery',PF.ful==='delivery',svg('bolt')+'Local delivery')}</div>
    ${PF.ful==='delivery'&&!S.me?'<p class="pfn">Set your postcode to see which shops deliver to you. <a href="#" id="setpc2">Set postcode</a></p>':''}</div>
@@ -170,7 +171,9 @@ function grid(){const r=results(PF).sort(sorters[PF.sort]||sorters.featured),tot
   const body=r.length?`<div class="grid">${r.slice(0,PN).map(pcard).join('')}</div>${r.length>PN?`<div class="pmore"><button class="btn ghost" data-pmore>Show more (${r.length-PN} left)</button></div>`:''}`
     :`<div class="empty">${svg('search')}<br><b>No products match</b><br><span class="note">Try removing a filter or searching for something else.</span>${nActive()||PF.q?'<br><button class="btn" data-pfclear style="margin-top:12px">Clear filters</button>':''}</div>`;
   return {head,body,n:r.length}}
-V.products=function(){const g=grid(),n=nActive();
+V.products=function(){const qMiss=PF.q&&!results({...PF0,q:PF.q,sort:'featured'}).length;
+  if(qMiss)return `<section class="sec pp"><div class="pph"><h1>Search</h1><p class="note">From independent shops near you${S.pc?' · '+esc(S.pc):''}</p></div><div class="empty">${svg('search')}<br><b>No products found for “${esc(PF.q)}”</b><br><span class="note">Try a different word, or browse everything.</span><br><a class="btn" href="/products" data-go="/products" style="margin-top:14px">Browse all products</a></div></section>${foot()}`;
+  const g=grid(),n=nActive();
   return `<section class="sec pp"><div class="pph"><h1>${esc(PF.cat||'All products')}</h1><p class="note">From independent shops near you${S.pc?' · '+esc(S.pc):''}</p></div>
   <div class="ppw"><aside class="pfil" id="pfil" aria-label="Filters">${panel()}</aside><div class="pfbg" data-pfclose></div>
   <div class="ppm"><div class="ptool"><label class="psrch">${svg('search')}<input id="pq" type="search" placeholder="Search within results" value="${esc(PF.q)}" aria-label="Search within results" autocomplete="off"></label>

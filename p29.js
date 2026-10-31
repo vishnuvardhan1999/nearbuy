@@ -33,7 +33,7 @@ function fix(){
   if(v){v.querySelectorAll('.shopc a.btn').forEach(a=>{a.classList.add('p29sw');if(a.textContent!=='Switch to seller dashboard')a.textContent='Switch to seller dashboard'});
     if(A.user&&!(A.shop||A.profile?.role==='owner'))v.querySelectorAll('p.foot').forEach(p=>{if(/Own a shop/.test(p.textContent))p.remove()})}
   /* footer: separate seller entry points */
-  document.querySelectorAll('#register4').forEach(r=>{const c=r.parentElement;c.innerHTML=`<h5>For shops</h5><a href="${SU('login')}">Seller sign in</a><a href="${SU('')}">Become a seller</a><a href="#how">How it works</a>`});
+  document.querySelectorAll('#register4').forEach(r=>{const c=r.parentElement;c.innerHTML=`<h5>For shops</h5><a href="${SU('login')}">Seller sign in</a><a href="${SU('')}">Become a seller</a><a href="/how" data-go="/how">How it works</a>`});
   words(document.body)}
 let q=0;const go=()=>{if(q)return;q=requestAnimationFrame(()=>{q=0;mo.disconnect();try{fix()}finally{mo.observe(document.body,{childList:true,subtree:true,characterData:true})}})};
 const mo=new MutationObserver(go);fix();mo.observe(document.body,{childList:true,subtree:true,characterData:true});

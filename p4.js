@@ -76,12 +76,13 @@ function okOffer(o){const d=o.shop.delivery_options||{};
   if(F.min!==''&&o.price<+F.min)return false;if(F.max!==''&&o.price>+F.max)return false;return true}
 V.search=function(){const q=$('#q').value.trim(),t=q.toLowerCase().split(/\s+/).filter(Boolean);
   const live=S.products.filter(p=>p.offers);
-  let res=live.filter(p=>(!t.length||match(p,t))&&(!F.cat||p.category===F.cat)).map(p=>{const of=p.offers.filter(okOffer);if(!of.length)return null;
+  const catOf=p=>window.canonCat?canonCat(p.category):p.category;
+  let res=live.filter(p=>(!t.length||match(p,t))&&(!F.cat||catOf(p)===F.cat)).map(p=>{const of=p.offers.filter(okOffer);if(!of.length)return null;
     return {...p,offers:of,listing_id:of[0].listing_id,shop_id:of[0].shop_id,stock:of[0].stock,price:Math.min(...of.map(o=>o.price)),dist:of.reduce((m,o)=>o.dist!=null&&(m==null||o.dist<m)?o.dist:m,null)}}).filter(Boolean);
   const so={nearest:(a,b)=>(a.dist??1e9)-(b.dist??1e9)||a.price-b.price,price:(a,b)=>a.price-b.price,price_desc:(a,b)=>b.price-a.price,newest:(a,b)=>(b.updated||'')<(a.updated||'')?-1:1}[F.sort];res.sort(so);
   const have=new Set(live.map(p=>p.sku));
   const soon=[];
-  const cats=[...new Set([...live,...CAT].map(p=>p.category).filter(Boolean))].sort();
+  const cats=[...new Set([...live,...CAT].map(p=>catOf(p)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'en-GB'));
   const nf=[F.cat,F.min,F.max,F.dist,F.stock,F.ful].filter(Boolean).length;
   const rec=REC();
   const chips=`${rec.length?`<div class="sgrp"><div class="sl"><span>Recent</span><a href="#" data-fclr="rec">Clear</a></div><div class="qchips">${rec.map(r=>`<button data-fq="${esc(r)}">${svg('search')}${esc(r)}</button>`).join('')}</div></div>`:''}
@@ -93,6 +94,8 @@ V.search=function(){const q=$('#q').value.trim(),t=q.toLowerCase().split(/\s+/).
     <button data-ff="stock" class="${F.stock?'on':''}">In stock</button><button data-ff="collect" class="${F.ful==='collect'?'on':''}">${svg('bag')}Collect</button><button data-ff="delivery" class="${F.ful==='delivery'?'on':''}">${svg('bolt')}Delivery</button></div>
    <div class="frow price"><span>Price</span><label class="pf2">£<input data-fs="min" inputmode="decimal" placeholder="Min" value="${esc(F.min)}"></label><i>–</i><label class="pf2">£<input data-fs="max" inputmode="decimal" placeholder="Max" value="${esc(F.max)}"></label>${nf?`<a href="#" data-fclr="all">Clear ${nf} filter${nf>1?'s':''}</a>`:''}</div>
    ${F.dist&&!S.me?'<p class="note" style="margin:6px 0 0">Set your postcode to filter by distance. <a href="#" id="setpc2">Set postcode</a></p>':''}</div>`;
+  const qHits=!q||live.some(p=>match(p,t));
+  if(q&&!qHits)return `<section class="sec ssearch"><div class="sh"><h2>Search</h2></div><div class="empty">${svg('search')}<br><b>No products found for “${esc(q)}”</b><br><span class="note">Try a different word, or browse all products.</span><br><a class="btn" href="/products" data-go="/products" style="margin-top:14px">Browse all products</a></div></section>`;
   const body=res.length?`<div class="grid">${res.slice(0,60).map(card).join('')}</div>`:live.length?`<div class="empty">${svg('search')}<br>No shop near you matches${nf?' these filters':''} yet</div>`:'';
   return `<section class="sec ssearch"><div class="sh"><h2>${q?`Results for “${esc(q)}”`:'Search'}</h2><span class="note" style="margin:0">${res.length} at shops${soon.length?` · ${soon.length} not stocked nearby`:''}</span></div>
    ${q?'':chips}${fil}${body}

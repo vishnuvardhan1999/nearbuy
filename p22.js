@@ -31,7 +31,7 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 const v=document.getElementById('view');if(v){v.setAttribute('tabindex','-1');v.setAttribute('role','main');document.body.insertAdjacentHTML('afterbegin','<a class="skip" href="#view">Skip to content</a>');document.querySelector('a.skip')?.addEventListener('click',e=>{e.preventDefault();document.getElementById('view').focus()})}
 /* step indicator: Basket → Details → Confirmed */
 const steps=n=>`<ol class="stp" aria-label="Checkout progress">${['Basket','Your details','Confirmed'].map((t,i)=>`<li class="${i===n?'on':i<n?'ok':''}"${i===n?' aria-current="step"':''}><b>${i<n?'✓':i+1}</b>${t}</li>`).join('')}</ol>`;
-const wrap=(k,n,test)=>{const f=V[k];if(!f)return;V[k]=function(...a){const h=f.apply(this,a);return typeof h==='string'&&test(h)?h.replace(/(<section class="sec narrow[^"]*">)/,'$1'+steps(n)):h}};
+const wrap=(k,n,test)=>{const f=V[k];if(!f)return;V[k]=function(...a){const h=f.apply(this,a);return typeof h==='string'&&test(h)?h.replace(/(<section class="sec (?:narrow|basket-page)[^"]*">)/,'$1'+steps(n)):h}};
 wrap('basket',0,h=>h.includes('data-o="checkout"'));wrap('checkout',1,h=>h.includes('data-form="order"'));wrap('placed',2,()=>true);
 const _pl=V.placed;V.placed=function(...a){const h=_pl.apply(this,a);return h.includes('class="ccode')?h.replace(/<p>Your order number is<\/p><div class="ono">[^<]*<\/div>/,''):h};
 /* skeletons instead of plain "Loading…" text */
