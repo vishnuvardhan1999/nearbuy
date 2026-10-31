@@ -169,5 +169,6 @@ const NIGHT='Every day 8pm-2am';
   assert.strictEqual(g[0].today,true);
   assert.strictEqual(g[1].label,'Sat–Sun');
   assert.strictEqual(g[1].hours,'Closed');
+  assert.strictEqual(H.weekSummary(H.parse('Mon-Fri 10am-6pm, Sat closed, Sun 10am-2pm').w),'Mon–Fri 10am–6pm · Sat Closed · Sun 10am–2pm');
 }
 console.log('all opening-hours checks passed');
