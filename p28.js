@@ -11,7 +11,7 @@ const css=document.createElement('style');css.textContent=`
 .p28bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#ecfdf9;border:1px solid #99f6e4;color:#134e4a;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14px}.p28bar b{flex:1;min-width:180px}
 .p28btn{border:0;border-radius:12px;padding:10px 16px;font:inherit;font-weight:700;background:#0f766e;color:#fff;cursor:pointer}.p28btn.ghost{background:#fff;color:#14202e;border:1px solid #e7e9ee}
 #p28inst{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:60;max-width:460px;margin:0 auto;background:#0b3b38;color:#fff;border-radius:18px;padding:14px;display:flex;gap:12px;align-items:center;box-shadow:0 14px 40px rgba(0,0,0,.25)}
-#p28inst img{width:44px;height:44px;border-radius:12px}#p28inst div{flex:1;font-size:13.5px;line-height:1.35}#p28inst b{display:block;font-size:15px}#p28inst .p28btn{background:#ff6b4a}#p28inst .x{background:none;border:0;color:#fff;opacity:.7;font-size:22px;cursor:pointer;padding:4px}
+#p28inst img{width:44px;height:44px;border-radius:12px}#p28inst div{flex:1;font-size:13.5px;line-height:1.35}#p28inst b{display:block;font-size:15px}#p28inst .p28btn{background:#ff6b4a}#p28inst .x,#p28inst .notnow{background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;border-radius:10px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;padding:8px 12px}
 @media(min-width:900px){#p28inst{bottom:20px;left:auto;right:20px}}
 #p28al{position:fixed;top:10px;left:10px;right:10px;z-index:80;max-width:480px;margin:0 auto;background:#fff;border:2px solid #0f766e;border-radius:16px;padding:14px;box-shadow:0 14px 40px rgba(0,0,0,.2);display:flex;gap:12px;align-items:center}
 #p28al div{flex:1}#p28al b{display:block}
@@ -51,8 +51,8 @@ V.shop=function(id){const h=_shop(id);brandOf(id);const c=BC[id];if(!c||!/^#[0-9
 let bip=null;const dismissed=()=>+(localStorage.nb_inst_x||0)>Date.now();
 const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone;
 const iOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent);
-function instBar(ios){if(dismissed()||standalone()||document.getElementById('p28inst'))return;const d=document.createElement('div');d.id='p28inst';d.setAttribute('role','dialog');d.setAttribute('aria-label','Install ShopNip');
-  d.innerHTML=`<img src="/icon-192.png" alt=""><div><b>Get the ShopNip app</b>${ios?'Tap Share, then “Add to Home Screen”.':'Install for faster ordering and order-ready alerts.'}</div>${ios?'':'<button class="p28btn" data-p28="inst">Install</button>'}<button class="x" data-p28="instx" aria-label="Not now">×</button>`;document.body.appendChild(d)}
+function instBar(ios){if(dismissed()||standalone()||document.getElementById('p28inst')||document.body.dataset.page==='checkout'||(typeof cur!=='undefined'&&cur&&cur[0]==='checkout'))return;const d=document.createElement('div');d.id='p28inst';d.setAttribute('role','dialog');d.setAttribute('aria-label','Install ShopNip');
+  d.innerHTML=`<img src="/icon-192.png" alt=""><div><b>Get the ShopNip app</b>${ios?'Tap Share, then “Add to Home Screen”.':'Install for faster ordering and order-ready alerts.'}</div>${ios?'':'<button class="p28btn" data-p28="inst">Install</button>'}<button class="notnow" data-p28="instx" type="button">Not now</button>`;document.body.appendChild(d);document.body.classList.add('nb-inst')}
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e;setTimeout(()=>instBar(false),4000)});
 if(iOS&&!standalone())setTimeout(()=>{if(+(localStorage.nb_visits||0)>=2)instBar(true)},5000);
 localStorage.nb_visits=(+(localStorage.nb_visits||0))+1;
@@ -103,7 +103,7 @@ V.partner=function(){
 // ---------- events ----------
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-p28]');if(!t)return;const k=t.dataset.p28;
   if(k==='inst'){e.preventDefault();document.getElementById('p28inst')?.remove();if(bip){bip.prompt();try{await bip.userChoice}catch{}bip=null}return}
-  if(k==='instx'){document.getElementById('p28inst')?.remove();localStorage.nb_inst_x=Date.now()+14*864e5;return}
+  if(k==='instx'){e.preventDefault();document.getElementById('p28inst')?.remove();document.body.classList.remove('nb-inst');localStorage.nb_inst_x=Date.now()+180*864e5;return}
   if(k==='notif'){e.preventDefault();try{const p=await Notification.requestPermission();toast(p==='granted'?'Alerts on. We’ll tell you when your order is ready':'Alerts are off. We’ll show them here while ShopNip is open')}catch{}render();return}
   if(k==='copy'){e.preventDefault();try{await navigator.clipboard.writeText(t.dataset.v);toast('Copied')}catch{toast('Could not copy')}return}
   if(k==='alx'){document.getElementById('p28al')?.remove()}});

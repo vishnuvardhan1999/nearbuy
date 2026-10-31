@@ -2,14 +2,15 @@
 (()=>{if(typeof V==="undefined"||!V.shop||!window.P2)return;const A=P2.A;const orig=V.shop;
 const F={cats:[],min:'',max:'',deals:false,stock:false,sort:'featured'},SORTS=[['featured','Featured'],['plh','Price: low to high'],['phl','Price: high to low'],['disc','Biggest discount'],['az','Name A–Z']];
 const CH=[['Under £2','',2],['£2–£5',2,5],['£5–£10',5,10],['£10+',10,'']];
+const cname=l=>window.canonCat?canonCat(l.category||''): (l.category||'Other')||'Other';
 const L=()=>A.viewL||[],pr=l=>+l.retail_price||0,was=l=>+l.compare_at_price>pr(l)?+l.compare_at_price:0,disc=l=>was(l)?1-pr(l)/was(l):0;
-function readURL(){const q=new URLSearchParams(location.search);F.cats=(q.get('fc')||'').split('|').filter(Boolean);F.min=q.get('fmin')||'';F.max=q.get('fmax')||'';F.deals=q.get('fd')==='1';F.stock=q.get('fs')==='1';F.sort=q.get('sort')||'featured'}
+function readURL(){const q=new URLSearchParams(location.search);F.cats=(q.get('fc')||'').split('|').filter(Boolean).map(c=>window.canonCat?canonCat(c):c);F.min=q.get('fmin')||'';F.max=q.get('fmax')||'';F.deals=q.get('fd')==='1';F.stock=q.get('fs')==='1';F.sort=q.get('sort')||'featured'}
 function writeURL(){const q=new URLSearchParams(location.search);const set=(k,v)=>v?q.set(k,v):q.delete(k);set('fc',F.cats.join('|'));set('fmin',F.min);set('fmax',F.max);set('fd',F.deals?'1':'');set('fs',F.stock?'1':'');set('sort',F.sort==='featured'?'':F.sort);
   const s=q.toString();history.replaceState(null,'',location.pathname+(s?'?'+s:'')+location.hash)}
-function match(l,skip){if(skip!=='cat'&&F.cats.length&&!F.cats.includes(l.category||'Other'))return false;const p=pr(l);if(F.min!==''&&p<+F.min)return false;if(F.max!==''&&p>+F.max)return false;if(F.deals&&!was(l))return false;if(F.stock&&!(l.stock>0))return false;return true}
+function match(l,skip){if(skip!=='cat'&&F.cats.length&&!F.cats.includes(cname(l)||'Other'))return false;const p=pr(l);if(F.min!==''&&p<+F.min)return false;if(F.max!==''&&p>+F.max)return false;if(F.deals&&!was(l))return false;if(F.stock&&!(l.stock>0))return false;return true}
 function results(){const r=L().filter(l=>match(l));const s=F.sort;if(s==='plh')r.sort((a,b)=>pr(a)-pr(b));else if(s==='phl')r.sort((a,b)=>pr(b)-pr(a));else if(s==='disc')r.sort((a,b)=>disc(b)-disc(a));else if(s==='az')r.sort((a,b)=>a.name.localeCompare(b.name));return r}
 const n=x=>`${x} product${x===1?'':'s'}`;
-function filtersHTML(){const counts={};L().filter(l=>match(l,'cat')).forEach(l=>{const c=l.category||'Other';counts[c]=(counts[c]||0)+1});const all=[...new Set(L().map(l=>l.category||'Other'))].sort();
+function filtersHTML(){const counts={};L().filter(l=>match(l,'cat')).forEach(l=>{const c=cname(l)||'Other';counts[c]=(counts[c]||0)+1});const all=[...new Set(L().map(l=>cname(l)||'Other'))].sort((a,b)=>a.localeCompare(b,'en-GB'));
   const chip=([t,a,b])=>`<button type="button" class="fq ${String(F.min)===String(a)&&String(F.max)===String(b)?'on':''}" data-sfq="${a}|${b}">${t}</button>`;
   return `<div class="fgrp"><h4>Category</h4>${all.map(c=>`<label class="fck"><input type="checkbox" data-sfc="${esc(c)}" ${F.cats.includes(c)?'checked':''}><span>${esc(c)}</span><em>${counts[c]||0}</em></label>`).join('')||'<p class="fnone">No categories</p>'}</div>
   <div class="fgrp"><h4>Price</h4><div class="frng"><label><span>£</span><input type="number" min="0" step="0.5" placeholder="Min" data-sfp="min" value="${esc(F.min)}"></label><i>–</i><label><span>£</span><input type="number" min="0" step="0.5" placeholder="Max" data-sfp="max" value="${esc(F.max)}"></label></div><div class="fqs">${CH.map(chip).join('')}</div></div>

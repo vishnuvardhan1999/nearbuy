@@ -37,7 +37,9 @@ async function load(){
   }catch(e){console.warn('Supabase unavailable',e)}}
   if(DEMO&&!S.shops.length)S.shops=DEMO_SHOPS.map(s=>({...s,demo:true}));
   if(!S.products.length){S.products=(await (await fetch('products.json')).json()).map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}
-  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();if(window.P5)await P5.init();if(window.Social)await Social.boot();const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
+  saveB();if(window.P2)await P2.init();if(window.P3)await P3.init();if(window.P4)await P4.init();if(window.P5)await P5.init();if(window.Social)await Social.boot();
+  NB_BOOTED=true;document.body.classList.add('nb-ready');const view=document.getElementById('view');if(view)view.removeAttribute('aria-busy');saveB();
+  const m=location.hash.match(/^#shop=(.+)/);m?route('shop',m[1]):route(window.P2_START||'home');
 }
 // ---------- curation ----------
 const has=p=>p.images&&p.images.length;
@@ -91,10 +93,10 @@ function home(){
    <div style="display:grid;gap:16px"><ul><li>${svg('check')}Listings filled from your orders</li><li>${svg('check')}Click & collect and local delivery</li><li>${svg('check')}No setup fee</li></ul><button class="btn" id="register3">Register your shop</button></div></section>
   
   ${foot()}`}
-function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="#"><span class="mark dk"></span><span class="word" style="color:var(--navy)">Shop<b>Nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
-   <div><h5>Shop</h5><a href="#" data-t="search">All products</a><a href="#" data-sec="0">Best sellers</a><a href="#" data-sec="3">Party</a></div>
-   <div><h5>Sellers</h5><a href="#sell">Sell on ShopNip</a><a href="#" id="register4">Register your shop</a><a href="#how">How it works</a></div>
-   <div><h5>ShopNip</h5><a href="#about">About</a><a href="#faq">FAQ</a><a href="#contact">Contact</a></div><div><h5>Legal</h5><a href="/terms">Terms of Use</a><a href="/privacy">Privacy Policy</a><a href="/seller-terms">Seller Terms</a><a href="/cookies">Cookie Notice</a></div></div>
+function foot(){return `<footer class="foot"><div class="fcols"><div><a class="brand" href="/" data-go="/"><span class="mark dk"></span><span class="word" style="color:var(--navy)">Shop<b>Nip</b></span></a><p>Independent shops, on your doorstep.</p></div>
+   <div><h5>Shop</h5><a href="/products" data-go="/products">All products</a><a href="/collection/best-sellers" data-go="/collection/best-sellers">Best sellers</a><a href="/collection/party-time" data-go="/collection/party-time">Party</a></div>
+   <div><h5>Sellers</h5><a href="/seller.html#login">Seller sign in</a><a href="/seller.html">Become a seller</a><a href="/how" data-go="/how">How it works</a></div>
+   <div><h5>ShopNip</h5><a href="/about" data-go="/about">About</a><a href="/faq" data-go="/faq">FAQ</a><a href="/contact" data-go="/contact">Contact</a></div><div><h5>Legal</h5><a href="/terms">Terms of Use</a><a href="/privacy">Privacy Policy</a><a href="/seller-terms">Seller Terms</a><a href="/cookies">Cookie Notice</a></div></div>
    <div class="fb"><span>© ${new Date().getFullYear()} ShopNip</span><span>ShopNip is a product of NuvonHub Private Limited (India)</span></div></footer>`}
 function list(title,items){return `<section class="sec"><div class="sh"><h2>${esc(title)}</h2><span class="note" style="margin:0">${items.length} items</span></div>${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:`<div class="empty">${svg('search')}<br>No matches yet</div>`}</section>`}
 const V={home,
@@ -107,9 +109,9 @@ const V={home,
  orders(){return `<div class="empty">${svg('orders')}<br>${LIVE?'Sign in to see your orders':'Your orders will appear here'}</div>`},
  account(){return `<section class="sec"><div class="sh"><h2>Account</h2></div><div class="panel"><div class="line"><span>Postcode</span><a href="#" id="setpc2">${esc(S.pc||'Set')}</a></div>
   <button class="btn full" id="register">Register your shop</button></div></section>`}};
-let cur=['home'];
+let cur=['home'],NB_BOOTED=false;
 function route(t,...a){cur=[t,...a];document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===(V[t]&&['cat','sec'].includes(t)?'search':t)));if(!V[t]){t="home";a=[];cur=[t]}$("#view").innerHTML=V[t](...a);if(t==='home')carousel();scrollTo(0,0)}
-function render(){const y=scrollY;$('#view').innerHTML=V[cur[0]](...cur.slice(1));if(cur[0]==='home')carousel();scrollTo(0,y)}
+function render(){if(!NB_BOOTED)return;const y=scrollY;$('#view').innerHTML=V[cur[0]](...cur.slice(1));if(cur[0]==='home')carousel();scrollTo(0,y)}
 function carousel(){const s=$('#slides'),d=[...document.querySelectorAll('#dots i')];if(!s)return;
  s.addEventListener('scroll',()=>{const i=Math.round(s.scrollLeft/s.clientWidth);d.forEach((e,k)=>e.classList.toggle('on',k===i))},{passive:true});
  clearInterval(window._ct);window._ct=setInterval(()=>{if(!document.body.contains(s)||innerWidth>=768)return;const i=(Math.round(s.scrollLeft/s.clientWidth)+1)%3;s.scrollTo({left:i*s.clientWidth,behavior:'smooth'})},5000)}
