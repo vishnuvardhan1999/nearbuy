@@ -1,4 +1,4 @@
-// ShopNip · p25: real URLs (History API), All products page with filters, accurate "Use my location",
+window.NB_SPA=true;// ShopNip · p25: real URLs (History API), All products page with filters, accurate "Use my location",
 // UI/UX polish (price-first cards, "Ready today by", checkout postcode, toast position, mobile nav/category targets, shorter ticker).
 (()=>{const {MOCK,toast}=P2;
 const KEEP=['mock','demo','as','rich','multi','promos','status','dup','shop','open'];               // dev/test params carried across navigation
@@ -7,7 +7,7 @@ const keepQS=extra=>{const Q=new URLSearchParams(location.search),o=new URLSearc
 const slug=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
 const SITE=(CFG.SITE_URL||'https://www.shopnip.co.uk').replace(/\/$/,'');
 const INFO=['about','how','sell','faq','contact','terms','privacy','seller-terms','cookies'];
-const SIMPLE=['basket','checkout','orders','account','register','myshop','inbox','addprod','partner'];
+const SIMPLE=['deals','basket','checkout','orders','account','register','myshop','inbox','addprod','partner'];
 const shopSlug=s=>{const b=slug(s.name);return S.shops.filter(x=>slug(x.name)===b).length>1?b+'-'+String(s.id).slice(0,8):b};
 const findShop=seg=>S.shops.find(s=>shopSlug(s)===seg||String(s.id)===seg)||S.shops.find(s=>String(s.id).startsWith(seg.split('-').pop()));
 
@@ -48,7 +48,7 @@ const _route=route;
 window.route=route=function(t,...a){
   if(!booted){booted=true;const want=parse();
     if(want&&!(location.pathname==='/'&&t!=='home')){                       // explicit ?view= screenshots on "/" keep priority
-      if(want[0]==='product'){pfFromURL();_route('products');setTimeout(()=>openProduct(want[1]),50);return meta()}
+      if(want[0]==='product'){pfFromURL();_route('products');openProduct(want[1]);return meta()}
       if(want[0]==='products')pfFromURL();
       if(want[0]==='notfound'){_route('home');history.replaceState(null,'','/'+keepQS());return meta()}
       [t,...a]=want}}
@@ -82,7 +82,7 @@ function setMeta(title,desc,path){document.title=title;
 const DEF='Order from independent shops near you. Click & collect or local delivery, pay at the shop.';
 function meta(){const [t,a]=cur,p=location.pathname,T=x=>x+' · ShopNip';
   const sheet=$('#sheet');if(sheet?.classList.contains('on')&&sheet._p&&p.startsWith('/product/')){const q=sheet._p;return setMeta(T(q.name),`${q.name} for ${gbp(q.price)} from a local shop. Click & collect or local delivery on ShopNip.`,p)}
-  const names={about:'About',how:'How it works',sell:'Sell on ShopNip',faq:'FAQ',contact:'Contact',terms:'Terms of Use',privacy:'Privacy Policy','seller-terms':'Seller Terms',cookies:'Cookie Notice',basket:'Your basket',checkout:'Checkout',orders:'Your orders',account:'Your account',register:'Register your shop',order:'Order details'};
+  const names={about:'About',how:'How it works',sell:'Sell on ShopNip',faq:'FAQ',contact:'Contact',terms:'Terms of Use',privacy:'Privacy Policy','seller-terms':'Seller Terms',cookies:'Cookie Notice',basket:'Your basket',checkout:'Checkout',orders:'Your orders',account:'Your account',register:'Register your shop',deals:'Today’s deals',order:'Order details'};
   if(t==='home')return setMeta('ShopNip · Your local shops, online | Click & collect or delivery','ShopNip: order stationery, party, gift and craft essentials from independent shops near you. Click & collect or local delivery, pay at the shop.','/');
   if(t==='products')return setMeta(T(PF.cat?PF.cat:'All products'),`Browse ${PF.cat||'every product'} from independent shops near you. Filter by shop, price, stock and click & collect or delivery.`,'/products');
   if(t==='search'){const q=$('#q')?.value.trim();return setMeta(T(q?`Search: ${q}`:'Search'),DEF,'/search')}

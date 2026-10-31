@@ -120,7 +120,7 @@ V.home=function(...a){let h=_h.apply(this,a);
   if(!h.includes('id="about"'))h=h.replace('<section class="news"',about()+'<section class="news"');
   h=h.replace(/data-plink="#about"/g,'data-about');
   return `<div class="h12">${h}</div>`};
-function toAbout(){const go=()=>{const el=$('#about');if(!el)return;const top=$('.top');scrollTo({top:el.getBoundingClientRect().top+scrollY-(top?top.offsetHeight:0),behavior:RM()?'auto':'smooth'})};
+function toAbout(){if(!(cur[0]==='home'&&$('#about'))){route('about');return}const go=()=>{const el=$('#about');if(!el)return;const top=$('.top');scrollTo({top:el.getBoundingClientRect().top+scrollY-(top?top.offsetHeight:0),behavior:RM()?'auto':'smooth'})};
   if(cur[0]!=='home'){if(location.hash)history.replaceState(null,'',location.pathname+location.search);route('home');requestAnimationFrame(()=>requestAnimationFrame(go))}else go()}
 addEventListener('click',e=>{const a=e.target.closest('[data-about]');if(!a)return;e.preventDefault();e.stopPropagation();toAbout()},true);
 window.P12={about:toAbout};

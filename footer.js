@@ -3,14 +3,14 @@
 var slug=function(s){return String(s).toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')};
 var DEPTS=['Stationery','Party','Art & craft','Gift wrap','Packaging','Household'];
 var esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')};
-function col(t,links){return '<details class="sf-col" open><summary>'+t+'</summary><ul>'+links.map(function(l){return '<li><a href="'+l[1]+'"'+(l[2]?' '+l[2]:'')+'>'+esc(l[0])+'</a></li>'}).join('')+'</ul></details>'}
+function col(t,links){return '<details class="sf-col" open><summary>'+t+'</summary><ul>'+links.map(function(l){var go=window.NB_SPA&&/^\/(?!seller)/.test(l[1])?' data-go="'+l[1]+'"':'';return '<li><a href="'+l[1]+'"'+go+(l[2]?' '+l[2]:'')+'>'+esc(l[0])+'</a></li>'}).join('')+'</ul></details>'}
 function html(o){o=o||{};var sel=o.seller;
   return '<footer class="sf" role="contentinfo"><div class="sf-in">'+
-   '<div class="sf-brand"><a class="sf-logo" href="/" aria-label="ShopNip home"><span class="sf-mark" aria-hidden="true">S</span><span>Shop<b>Nip</b></span></a>'+
+   '<div class="sf-brand"><a class="sf-logo" href="/"'+(window.NB_SPA?' data-go="/"':'')+' aria-label="ShopNip home"><span class="sf-mark" aria-hidden="true">S</span><span>Shop<b>Nip</b></span></a>'+
    '<p>Your independent local shops, online. Click &amp; collect or local delivery, pay at the shop.</p>'+
    '<a class="sf-mail" href="mailto:hello@shopnip.co.uk">hello@shopnip.co.uk</a></div>'+
    '<div class="sf-cols">'+
-   col('Shop',DEPTS.map(function(d){return [d,'/category/'+slug(d)]}).concat([['All products','/products'],['Deals','/#deals']]))+
+   col('Shop',DEPTS.map(function(d){return [d,'/category/'+slug(d)]}).concat([['All products','/products'],['Deals','/deals']]))+
    col('Sellers',[['Seller account','/seller.html'],['Register shop','/seller.html#register'],['Fees','/seller.html#fees'],['How it works','/how']])+
    col('Help',[['Contact us','/contact'],['hello@shopnip.co.uk','mailto:hello@shopnip.co.uk'],['Delivery &amp; collection'.replace('&amp;','&'),'/how'],['Returns &amp; refunds'.replace('&amp;','&'),'/faq'],['FAQ','/faq']])+
    col('Legal',[['Terms of Use','/terms'],['Privacy Policy','/privacy'],['Cookie Notice','/cookies'],['Seller Terms','/seller-terms']])+

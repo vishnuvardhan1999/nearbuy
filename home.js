@@ -26,7 +26,7 @@ const HOUSE=[
  {theme:'coral',k:'Party',cat:'Party',title:'Party essentials, ready today',sub:'Balloons, candles and banners from shops near you.',cta:'Shop party'},
  {theme:'night',k:'Stationery',cat:'Stationery',title:'Desk and school essentials',sub:'Pens, pads and pencils from your local shop.',cta:'Shop stationery'},
  {theme:'gold',k:'Post & packaging',cat:'Packaging',title:'Posting a parcel?',sub:'Mail bags, envelopes and boxes, ready to collect.',cta:'Shop packaging'},
- {theme:'lime',k:'Click & collect',title:'Order now, collect later',sub:'Click & collect is always free, and you pay the shop when you pick up.',cta:'How it works',go:'data-about'}];
+ {theme:'lime',k:'Click & collect',title:'Order now, collect later',sub:'Click & collect is always free, and you pay the shop when you pick up.',cta:'How it works',go:'data-go="/how"'}];
 function slides(){const L=live(),out=[];
   promos().filter(b=>b.type==='banner'&&(b.placement||'hero')==='hero').forEach(b=>out.push({theme:b.theme||'teal',k:b.shop_id?'Promoted':'ShopNip',title:b.title,sub:b.subtitle,cta:b.cta||'Shop now',go:`data-plink="${esc(b.link||'#search')}"`,img:b.image,art:b.sku?L.filter(p=>p.sku===b.sku):[]}));
   HOUSE.forEach(h=>{const i=h.cat?catIdx(h.cat):-1,art=i>=0?varied(L.filter(CATS[i][1]),3):varied(L,3);

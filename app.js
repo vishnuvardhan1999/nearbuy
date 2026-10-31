@@ -36,7 +36,7 @@ async function load(){
   /* restore the saved login (and the account's postcode) before anything renders */
   if(document.readyState==='loading')await new Promise(r=>addEventListener('DOMContentLoaded',r,{once:true}));
   if(sb&&window.P2&&!P2.MOCK){try{await P2.refresh()}catch(e){console.warn(e)}window.LOC&&LOC.apply();dispatchEvent(new Event('nb:auth'))}
-  $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
+  $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'&&location.pathname==='/'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
   if(sb){try{
     const [l,s]=await Promise.all([
       (async()=>{/* the API returns at most 1000 rows per request, so page through all live listings */const q=a=>sb.from('shop_listings').select('id,retail_price,shop_id,sku,name,image,category,trade_price,stock,updated_at').eq('active',true).gt('retail_price',0).order('id').range(a,a+999);let out=[],a=0;for(;;){const pages=await Promise.all([q(a),q(a+1000),q(a+2000)]);for(const p of pages){if(p.error)return p;out=out.concat(p.data||[])}if((pages[2].data||[]).length<1000)break;a+=3000;if(a>=30000)break}return {data:out,error:null}})(),
