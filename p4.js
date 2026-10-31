@@ -54,7 +54,7 @@ async function ssheet(p){await P3.sheet(p);const el=$('#sheet'),on=NT().includes
 addEventListener('click',e=>{
   const n=e.target.closest('[data-ntf]');if(n){e.preventDefault();e.stopPropagation();notify(n.dataset.ntf);if(n.classList.contains('ntf2'))n.textContent=NT().includes(n.dataset.ntf)?'On your notify list':'Notify me when it’s nearby';return}
   const po=e.target.closest('[data-po]');if(po){e.preventDefault();e.stopPropagation();const g=$('#sheet')._g;gsheet(g,g.offers[+po.dataset.po]).then(()=>{$('#sheet .sh-card').scrollTop=1e4});return}
-  const add=e.target.closest('.add[data-sku]');if(add){const g=grp(add.dataset.sku);if(g&&g.offers.length>1){e.preventDefault();e.stopPropagation();gsheet(g);return}}
+  const add=e.target.closest('.add[data-sku]');if(add){const g=grp(add.dataset.sku);if(g&&g.offers.length>1){e.preventDefault();e.stopPropagation();gsheet(g)}return}
   const c=e.target.closest('.pc[data-psku]');if(c){const g=grp(c.dataset.psku);if(g){e.preventDefault();e.stopPropagation();gsheet(g);return}
     const p=S.products.find(x=>x.sku===c.dataset.psku)||CAT.find(x=>x.sku===c.dataset.psku);if(p&&!c.dataset.lid){e.preventDefault();e.stopPropagation();ssheet({...p,demo:true})}return}
   const t=e.target.closest('[data-fq],[data-fd],[data-ff],[data-fclr]');if(!t)return;e.preventDefault();

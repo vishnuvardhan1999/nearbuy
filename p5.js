@@ -127,7 +127,7 @@ document.addEventListener('submit',async e=>{if(e.target.id!=='nwf')return;e.pre
 
 // ---------- ticker + glassy header + mega menu ----------
 function chrome(){const top=$('.top');if(!top||$('.ticker'))return;
-  const items=[['bag','Free click & collect'],['bolt','Same-day local delivery'],['lock','Pay at the shop']];/* p25: shorter ticker */
+  const items=[['bag','Free click & collect'],['bolt','Local delivery from shops that deliver'],['lock','Pay at the shop']];/* p25: shorter ticker */
   const one=items.map(([i,t,l])=>`<span ${l?`data-plink="${l}" class="tk-l"`:''}>${svg(i)}${t}</span>`).join('<i>•</i>');
   top.insertAdjacentHTML('afterbegin',`<div class="ticker" role="marquee" aria-label="Announcements"><div class="tk">${one}<i>•</i>${one}<i>•</i></div></div>`);
   const mm=CATS.map(([l,t],i)=>{const ps=CAT().filter(p=>p.images?.length&&t(p));const thumbs=[0,7,15,23].map(k=>ps[k]).filter(Boolean);

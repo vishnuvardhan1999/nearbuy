@@ -13,8 +13,9 @@ async function catalog(){if(!A.catalog)A.catalog=await (await fetch('products.js
 // ---------- data layer (Supabase or mock) ----------
 const M={users:{},shops:[],listings:[]};
 const DB=MOCK?{
-  async session(){if(M.user)return{user:M.user};if(localStorage.nb_mock_out)return null;const a=Q.get('as');return a&&a!=='none'?{user:{id:'u1',email:'owner@example.com'}}:null},
-  async signUp(e,p,role,name){delete localStorage.nb_mock_out;if(Q.get('dup')===e)throw new Error('User already registered');A.user=M.user={id:'u9',email:e};M.name=name;return{}}, async signIn(e){delete localStorage.nb_mock_out;A.user=M.user={id:'u1',email:e};return{}}, async signOut(){M.user=null;localStorage.nb_mock_out='1'},
+  async session(){if(M.user)return{user:M.user};if(localStorage.nb_mock_out)return null;const a=Q.get('as');return a&&a!=='none'?{user:{id:'u1',email:'owner@example.com',user_metadata:{loc:parseL(localStorage.nb_mock_acct_loc)}}}:null},
+  async signUp(e,p,role,name,loc){delete localStorage.nb_mock_out;if(Q.get('dup')===e)throw new Error('User already registered');if(loc)localStorage.nb_mock_acct_loc=JSON.stringify(loc);A.user=M.user={id:'u9',email:e,user_metadata:{loc}};M.name=name;return{}}, async signIn(e){delete localStorage.nb_mock_out;A.user=M.user={id:'u1',email:e,user_metadata:{loc:parseL(localStorage.nb_mock_acct_loc)}};return{}}, async signOut(){M.user=null;localStorage.nb_mock_out='1'},
+  async saveLoc(loc){localStorage.nb_mock_acct_loc=JSON.stringify(loc)},
   async profile(){if(M.user)return{role:M.user.id==='u1'&&!M.name?'owner':'shopper',full_name:M.name||''};return{role:Q.get('as')==='shopper'?'shopper':'owner',full_name:'Priya Shah'}},
   async myShop(){return M.shops.find(s=>s.owner_id===A.user?.id)||null},
   async listings(){return M.listings}, async saveShop(s){s.id=s.id||'s1';s.owner_id='u1';s.status=s.status||'pending';const i=M.shops.findIndex(x=>x.id===s.id);i<0?M.shops.push(s):M.shops[i]={...M.shops[i],...s};return s},
@@ -26,7 +27,8 @@ const DB=MOCK?{
   async backfill(){return 0}
 }:{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
-  async signUp(email,password,role,full_name){const {data,error}=await sb.auth.signUp({email,password,options:{data:{role,full_name},emailRedirectTo:location.origin+'/#account'}});if(error){if(/already (registered|exists)/i.test(error.message))throw new Error(DUP);throw error}return data},
+  async signUp(email,password,role,full_name,loc){const {data,error}=await sb.auth.signUp({email,password,options:{data:{role,full_name,...(loc?{loc}:{})},emailRedirectTo:location.origin+'/#account'}});if(error){if(/already (registered|exists)/i.test(error.message))throw new Error(DUP);throw error}return data},
+  async saveLoc(loc){const {error}=await sb.auth.updateUser({data:{loc}});if(error)throw error},
   async signIn(email,password){const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;return data},
   async signOut(){await sb.auth.signOut()},
   async profile(){const {data}=await sb.from('profiles').select('role,full_name').eq('id',A.user.id).maybeSingle();return data||{role:A.user.user_metadata?.role||'shopper'}},
@@ -95,7 +97,7 @@ V.account=function(){
    <div class="atg">
     <button class="at" data-t="orders">${svg('orders')}<span><b>Your orders</b><small>${ordSub}</small></span></button>
     <button class="at" data-act="details">${svg('account')}<span><b>Saved details</b><small>${esc(det)}</small></span></button>
-    <button class="at" id="setpc2">${svg('store')}<span><b>Delivery postcode</b><small>${esc(S.pc||'Set your postcode to see shops near you')}</small></span></button>
+    <button class="at" data-act="loc">${svg('pin')}<span><b>Delivery postcode</b><small>${S.pc?esc(S.pc)+' · saved to your account · Change':'Add your postcode to see shops near you'}</small></span></button>
     <a class="at" href="#contact" data-t="contact">${svg('account')}<span><b>Help &amp; contact</b><small>FAQs, or email the ShopNip team</small></span></a>
    </div>
    ${A.editDet?`<form class="panel form cdf" data-form="contact"><h3 class="ft">Saved details</h3>
@@ -190,7 +192,9 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
   const v=id=>(f.querySelector('#'+id)?.value||'').trim();
   if(f.dataset.form==='contact'){window.CK&&CK.set({name:v('cd_name'),phone:v('cd_phone'),addr:v('cd_addr')});A.editDet=false;toast('Details saved');return route('account')}
   if(f.dataset.form==='login')return busy(btn,async()=>{await DB.signIn(v('f_email'),v('f_pw'));await refresh();A.authPage=false;route('account');toast('Logged in')});
-  if(f.dataset.form==='signup')return busy(btn,async()=>{const role='shopper';let r;try{r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'))}catch(err){if(/already (registered|exists)|already has an account/i.test(err.message)){A.tab='login';A.msg=DUP;route('account');setTimeout(()=>{const i=document.querySelector('#f_email');if(i)i.value=v('f_email')||''});return}throw err}
+  if(f.dataset.form==='signup')return busy(btn,async()=>{const role='shopper';let r,loc=null;
+    if(f.querySelector('#f_pc')){const g=await lookupPostcode(v('f_pc')).catch(()=>{throw new Error('We could not find that UK postcode. Please check it and try again.')});loc={pc:g.pc,lat:g.lat,lng:g.lng}}
+    try{r=await DB.signUp(v('f_email'),v('f_pw'),role,v('f_name'),loc)}catch(err){if(/already (registered|exists)|already has an account/i.test(err.message)){A.tab='login';A.msg=DUP;route('account');setTimeout(()=>{const i=document.querySelector('#f_email');if(i)i.value=v('f_email')||''});return}throw err}
     // If Supabase 'Confirm email' is off, signUp returns a session: log straight in. Otherwise fall back to the email step.
     if(!MOCK&&!r.session){A.tab='login';A.msg='Check your email to confirm your account, then log in.';return route('account')}
     await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};A.authPage=false;route('account');toast('Welcome to ShopNip')});
@@ -206,6 +210,7 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
     route('myshop')})});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-act]');if(!el)return;e.preventDefault();const a=el.dataset.act,val=el.dataset.v;
   if(a==='details'){A.editDet=!A.editDet;return route('account')}
+  if(a==='loc')return askPostcode(true);
   if(a==='tab'){A.tab=val;A.msg='';return route('account')}
   if(a==='go')return go(val);
   if(a==='logout'){await DB.signOut();A.user=null;A.shop=null;A.profile=null;A.editDet=false;toast('Logged out');return route('account')}
@@ -239,19 +244,29 @@ addEventListener('storage',e=>{if((e.key&&/^sb-.*auth-token$/.test(e.key)&&!e.ne
 /* delivery location is per user (guest choice carries to the next sign-in). Never set without the user's action: no default, no IP lookup, no auto geolocation.
    The old browser-wide nb_pc/nb_me keys leaked one person's postcode to the next account, so they are dropped, not migrated. */
 if(localStorage.nb_pc||localStorage.nb_me){delete localStorage.nb_pc;delete localStorage.nb_me;S.me=null;S.pc=''}
+/* A signed-in customer's postcode lives on their account (auth user_metadata.loc), so it follows them across devices and only
+   changes from Account settings. Guests keep theirs in this browser; it is adopted by the account they next sign in to if that account has none. */
+const parseL=s=>{try{return JSON.parse(s||'null')}catch(e){return null}};
 window.LOC={last:undefined,k(){return 'nb_loc:'+(A.user?.id||'guest')},
-  get(){const k=this.k();if(A.user&&!localStorage[k]&&localStorage['nb_loc:guest']){localStorage[k]=localStorage['nb_loc:guest'];delete localStorage['nb_loc:guest']}try{return JSON.parse(localStorage[k]||'null')}catch(e){return null}},
-  set(me,pc){localStorage[this.k()]=JSON.stringify({me,pc})},clear(){delete localStorage[this.k()]},
+  account(){const l=A.user?.user_metadata?.loc;return l&&l.lat!=null&&l.pc?{me:{lat:+l.lat,lng:+l.lng},pc:l.pc}:null},
+  get(){if(!A.user)return parseL(localStorage['nb_loc:guest']);const a=this.account();if(a)return a;
+    const k=this.k(),old=parseL(localStorage[k])||parseL(localStorage['nb_loc:guest']);if(old){delete localStorage[k];delete localStorage['nb_loc:guest'];this.save(old.me,old.pc)}return old},
+  set(me,pc){if(A.user)return this.save(me,pc);localStorage['nb_loc:guest']=JSON.stringify({me,pc})},
+  async save(me,pc){const loc={pc,lat:me.lat,lng:me.lng};A.user.user_metadata={...(A.user.user_metadata||{}),loc};try{await DB.saveLoc(loc)}catch(e){toast('We couldn’t save your postcode to your account. Please try again.')}},
+  clear(){delete localStorage['nb_loc:guest'];delete localStorage[this.k()]},
   hdr(){const e=document.getElementById('pc');if(e)e.textContent=S.pc||'Set your location'},
   apply(){const u=A.user?.id||'guest';if(u===this.last)return this.hdr();const first=this.last===undefined;this.last=u;const l=this.get();
-    if(l){S.me=l.me;S.pc=l.pc}else if(!first){S.me=null;S.pc=''}this.hdr();if(window.P4)P4.regroup()}};
-window.setMe=setMe=function(me,pc){S.me=me;S.pc=pc;LOC.set(me,pc);LOC.hdr();closeLoc();if(window.P4)P4.regroup();render()};
+    if(l){S.me=l.me;S.pc=l.pc}else if(!first){S.me=null;S.pc=''}this.hdr();if(window.P4)P4.regroup();if(cur?.[0]==='home')render()}};
+window.setMe=setMe=function(me,pc){S.me=me;S.pc=pc;LOC.set(me,pc);LOC.hdr();closeLoc();if(window.P4)P4.regroup();render();if(A.user)toast('Delivery postcode saved to your account')};
 function closeLoc(){document.getElementById('locm')?.remove()}
-window.askPostcode=askPostcode=function(){closeLoc();const d=document.createElement('div');d.id='locm';d.innerHTML=`<style>
+/* signed-in customers change their postcode only from Account settings; anywhere else sends them there with the dialog open */
+window.askPostcode=askPostcode=function(fromAccount){closeLoc();
+  if(A.user&&fromAccount!==true){A.authPage=false;route('account');return setTimeout(()=>askPostcode(true))}
+  const acct=!!A.user,d=document.createElement('div');d.id='locm';d.innerHTML=`<style>
 #locm{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:rgba(10,20,20,.5);padding:16px}#locm .lcard{display:block;background:#fff;border-radius:18px;max-width:420px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.25);position:relative}
 #locm h3{margin:0 0 6px;font-size:20px}#locm p{margin:0 0 14px;color:#64748b;font-size:14px}#locm .lrow{display:flex;gap:8px}#locm input{flex:1;padding:12px 14px;border:1px solid #d5dbd9;border-radius:12px;font:inherit;text-transform:uppercase}
 #locm .lor{text-align:center;color:#94a3b8;font-size:13px;margin:14px 0}#locm .x{position:absolute;right:12px;top:10px;border:0;background:none;font-size:20px;cursor:pointer}#locm .err{color:#e11d48;font-size:13px;margin-top:8px}</style>
-<div class="lcard" role="dialog" aria-label="Set your location"><button class="x" data-lx aria-label="Close">✕</button><h3>Where should we look?</h3><p>Enter your postcode to see local shops, delivery and distances. We only use it on this account.</p>
+<div class="lcard" role="dialog" aria-label="Set your location"><button class="x" data-lx aria-label="Close">✕</button><h3>${acct?'Change your delivery postcode':'Where should we look?'}</h3><p>${acct?'Saved to your account, so you see the same shops on any device. You can change it here any time.':'Enter your postcode to see local shops, delivery and distances. Create an account to save it.'}</p>
 <form class="lrow" data-locf><input id="loc_pc" placeholder="e.g. LE1 5YA" autocomplete="postal-code" value="${esc(S.pc||'')}"><button class="btn">Set</button></form><div class="err" id="loc_err"></div>
 <div class="lor">or</div><button class="btn ghost full" data-lgeo>Use my current location</button></div>`;document.body.appendChild(d);setTimeout(()=>d.querySelector('#loc_pc')?.focus())};
 document.addEventListener('click',e=>{if(e.target.id==='locm'||e.target.closest('[data-lx]')){closeLoc();return}

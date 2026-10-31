@@ -107,8 +107,10 @@ const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash
 // p29: new seller sign-ups (Become a seller) go to shop registration; signing in without a shop shows a friendly choice, not a redirect
 function landSeller(su){if(D.shop){location.hash='overview';return true}if(D.user){if(su){location.href=idx('view=register&seller=1');return true}location.hash='dash';return true}return false}
 function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="seller.html${MOCK?'?'+keep():''}"><span class="mark">S</span><span>Shop<b>Nip</b></span><small class="fs">for sellers</small></a>`;
-  return `<div class="gate sauth"><div class="card">${brand}<h2>${su?'Create your seller account':'Seller sign in'}</h2>
-   <p>${su?'Put your shop on ShopNip. Free during the pilot. Every shop is reviewed before it goes live.':'For shop owners: manage your shop, orders and products. Same email and password as your shopping account.'}</p>
+  const shopper='/account'+(su?'?view=signup'+(MOCK?'&'+keep():''):(MOCK?'?'+keep():''));
+  return `<div class="gate sauth"><div class="card">${brand}<nav class="rsw" aria-label="Account type"><a href="${shopper}">🛍️ I’m shopping</a><span class="on" aria-current="page">🏪 I run a shop</span></nav>
+   <span class="ak">Seller account</span><h2>${su?'Create your seller account':'Seller sign in'}</h2>
+   <p>${su?'Put your shop on ShopNip. Free during the pilot. Every shop is reviewed before it goes live.':'Manage your shop, products and incoming orders. Already shop with us? Use the same email and password.'}</p>
    ${D.ui.amsg?`<div class="amsg ${D.ui.aok?'ok':''}" role="status">${esc(D.ui.amsg)}</div>`:''}
    <form id="authf" data-mode="${mode}" class="af">
     ${su?`<label><span>Your name</span><input name="name" autocomplete="name" required></label>`:''}
@@ -116,7 +118,7 @@ function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="s
     <label><span>Password</span><input name="pw" type="password" minlength="8" autocomplete="${su?'new':'current'}-password" required></label>
     <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a>, <a href="/seller-terms" target="_blank" rel="noopener">Seller Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>':''}</form>
    <div class="alt">${su?'Already selling on ShopNip? <a href="#login">Seller sign in</a>':'New to ShopNip? <a href="#signup">Create a seller account</a>'}</div>
-   <div class="xl">Shopping? <a href="${idx('view=account')}">Go to customer sign in</a></div></div></div>`}
+   <div class="xl">Just want to buy from local shops? <a href="${shopper}">Use a shopping account</a></div></div></div>`}
 function render(){if(fromAuth()&&D.user){const su=/type=signup/.test(location.hash);history.replaceState(null,'',location.pathname+location.search);if(landSeller(su))return}
   const am=AUTH();if(am){if(D.user&&!D.ui.busy){if(landSeller(am==='signup'))return}document.body.className='auth';document.title=(am==='signup'?'Seller sign up':'Seller sign in')+' · ShopNip for sellers';$('#app').innerHTML=authView(am);return}
   const p=page();if(!p){document.body.className='land';document.title='Sell on ShopNip · Put your shop online';$('#app').innerHTML=landing();return}
