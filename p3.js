@@ -58,7 +58,7 @@ document.addEventListener('click',e=>{
 
 // ---------- product sheet ----------
 async function sheet(p){if(!p)return;let full=p;
-  if(!p.description){const c=await (A.catalog?Promise.resolve(A.catalog):fetch('products.json').then(r=>r.json()).then(j=>A.catalog=j));const cp=c.find(x=>x.sku===p.sku);if(cp)full={...cp,...p,images:(p.images?.length?p.images:cp.images),description:cp.description}}
+  if(!p.description){const c=await (A.catalog?Promise.resolve(A.catalog):fetch('products.json').then(r=>r.json()).then(j=>A.catalog=j));const cp=c.find(x=>x.sku===p.sku);if(cp)full={...cp,...p,images:(p.images?.length?p.images:cp.images),description:cp.description};if(!full.description){/* descriptions live in pdesc/<n>.json shards so products.json stays small */const k=String(p.sku),n=[...k].reduce((a,c)=>a+c.charCodeAt(0),0)%32;window.PDESC=window.PDESC||{};const m=await (PDESC[n]||(PDESC[n]=fetch('/pdesc/'+n+'.json').then(r=>r.json()).catch(()=>({}))));if(m[k])full={...full,description:m[k]}}}
   const imgs=(full.images||[]).filter(Boolean),shop=S.shops.find(s=>s.id===p.shop_id)||A.view;
   let el=$('#sheet');if(!el){el=document.createElement('div');el.id='sheet';document.body.appendChild(el)}
   el.innerHTML=`<div class="sh-bg" data-x="close"></div><div class="sh-card" role="dialog" aria-label="${esc(p.name)}"><div class="grab"></div>

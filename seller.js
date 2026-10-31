@@ -202,7 +202,7 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
    <div class="faq">${FAQ.map(([q,a],i)=>`<details ${i?'':'open'}><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></div></section>
   <section class="lsec" style="padding-top:0"><div class="wrap"><div class="lcta"><div><h2>Ready to bring your shop online?</h2><p>Your first 50 products are free to list. It takes about ten minutes.</p></div>
    <div class="ctas">${has?`<a class="btn white lg" href="#dash">Open seller dashboard</a>`:signed?`<a class="btn white lg" href="${RG}">Register your shop</a>`:`<a class="btn coral lg" href="${SU}">Sign up free</a><a class="btn line lg" href="${LI}">Sign in</a>`}</div></div></div></section>
-  <footer class="lfoot"><div class="wrap"><div><a href="/about">About</a><a href="/faq">Customer FAQ</a><a href="/seller-terms">Seller Terms</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/cookies">Cookies</a><a href="/contact">Contact</a></div><span>© ${new Date().getFullYear()} ShopNip · ShopNip is a trading name of Suman Bros (Wholesale) Limited, company no. 01802958, Crown House, Otterspool Way, Watford WD25 8HL</span></div></footer>
+  ${window.NBFooter?NBFooter({seller:1}):''}
   <div class="stick">${has?`<a class="btn coral" href="#dash">Seller dashboard</a>`:signed?`<a class="btn coral" href="${RG}">Register your shop</a>`:`<a class="btn ghost" href="${LI}">Sign in</a><a class="btn coral" href="${SU}">Start selling</a>`}</div>`}
 // =================== DASHBOARD ===================
 const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};

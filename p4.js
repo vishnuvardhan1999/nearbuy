@@ -25,7 +25,7 @@ function build(){const g={};
 function regroup(){const g=build();
   if(g.length){S.products=g;S.live=true;const want=NT(),now=g.filter(p=>want.includes(p.sku));
     if(now.length&&!sessionStorage.nb_nt){sessionStorage.nb_nt=1;setTimeout(()=>toast(`${now.length} item${now.length>1?'s':''} you asked about ${now.length>1?'are':'is'} now at a shop near you`),1200)}}
-  else{S.live=false;if(!S.products[0]?.demo||S.products.some(p=>p.listing_id&&!p.demo))S.products=CAT.map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}}
+  else{S.live=false;if(CAT.length&&(!S.products[0]?.demo||S.products.some(p=>p.listing_id&&!p.demo)))S.products=CAT.map(p=>({...p,price:+(p.trade_price*1.6).toFixed(2),demo:true}))}}
 const asOffer=(p,o)=>({...p,listing_id:o.listing_id,shop_id:o.shop_id,price:o.price,stock:o.stock});
 
 // ---------- product card ----------
@@ -139,7 +139,7 @@ addEventListener('hashchange',hroute);
 document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(a&&INFO[a.getAttribute('href').slice(1)]&&location.hash===a.getAttribute('href'))scrollTo(0,0)});
 
 window.P4={card,regroup,F,gsheet:g=>gsheet(g),ssheet:p=>ssheet(p),cat:()=>CAT,async init(){
-  CAT=A0.catalog||await fetch('products.json').then(r=>r.json()).catch(()=>[]);
+  {const ld=()=>fetch('products.json').then(r=>r.json()).catch(()=>[]);if(A0.catalog)CAT=A0.catalog;else if(MOCK)CAT=await ld();else{CAT=CAT||[];ld().then(j=>{CAT=j;A0.catalog=A0.catalog||j})}}/* non-blocking: first paint does not wait for the catalogue */
   if(MOCK&&M.shops[0]&&Q.get('multi')!=='0'){ // a second approved shop sharing SKUs, to show grouping
     if(!M.shops.find(s=>s.id==='s3')){M.shops.push({id:'s3',owner_id:'u3',name:'High Street Cards & Gifts',address:'40 Market Street, Leicester',postcode:'LE1 6DP',lat:52.6335,lng:-1.1325,phone:'0116 765 4321',status:'approved',active:true,delivery_options:{collect:true,delivery:false}});
       M.listings.filter(l=>l.active).slice(0,4).forEach((l,i)=>M.listings.push({...l,id:'m'+i,shop_id:'s3',retail_price:+(l.retail_price*(i%2?0.9:1.12)).toFixed(2),stock:[5,0,14,2][i],source:'manual',updated_at:'2026-10-2'+(i+1)}))}

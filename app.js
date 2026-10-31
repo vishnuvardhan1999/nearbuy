@@ -39,7 +39,7 @@ async function load(){
   $('#tabs').innerHTML=['home','search','basket','orders','account'].map(t=>`<button data-t="${t}" class="${t==='home'?'on':''}">${svg(t)}${t[0].toUpperCase()+t.slice(1)}${t==='basket'?'<b class="badge hidden" data-bc>0</b>':''}</button>`).join('');
   if(sb){try{
     const [l,s]=await Promise.all([
-      sb.from('shop_listings').select('id,retail_price,shop_id,sku,name,image,category,trade_price,stock,updated_at').eq('active',true).gt('retail_price',0).limit(2000),
+      (async()=>{/* the API returns at most 1000 rows per request, so page through all live listings */const q=a=>sb.from('shop_listings').select('id,retail_price,shop_id,sku,name,image,category,trade_price,stock,updated_at').eq('active',true).gt('retail_price',0).order('id').range(a,a+999);let out=[],a=0;for(;;){const pages=await Promise.all([q(a),q(a+1000),q(a+2000)]);for(const p of pages){if(p.error)return p;out=out.concat(p.data||[])}if((pages[2].data||[]).length<1000)break;a+=3000;if(a>=30000)break}return {data:out,error:null}})(),
       sb.from('shops').select('id,name,postcode,lat,lng,delivery_options,logo_url,cover_url,opening_hours').eq('active',true).eq('status','approved').limit(500)]);
     if(s.error)throw s.error; S.shops=s.data||[];
     if(!l.error){const ok=new Set(S.shops.map(s=>s.id)),best={};S.L=l.data.filter(x=>ok.has(x.shop_id));await subcatRows();S.L.filter(x=>x.image).forEach(x=>{if(!best[x.sku]||x.retail_price<best[x.sku].price)best[x.sku]={listing_id:x.id,stock:x.stock,sku:x.sku,name:x.name,images:[x.image],category:x.category||'',price:+x.retail_price,shop_id:x.shop_id,listing:true}});S.products=Object.values(best);S.live=S.products.length>0}
@@ -65,10 +65,10 @@ const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to sc
 const pcard=p=>window.P4?P4.card(p):`<div class="pc" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fb></div>
 <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
 const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
-function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
+function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img loading="lazy" decoding="async" src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
  const st=s._st||shopStatus(s);const cls=st.unknown?'unknown':st.open?(st.closingSoon?'soon':''):(st.openingSoon?'soon':'closed');
  return `<div class="shop" data-shop="${esc(s.id)}"><div class="cover" style="background:${s.cover_url?`center/cover url('${esc(s.cover_url)}')`:grads[i%3]}"><div class="imgs">${imgs}</div><span class="open ${cls}"><i></i>${esc(st.label)}</span></div>
- <div class="sb"><div class="sav">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</div><h4>${esc(s.name)}${s.demo?'<span class="sample">Sample</span>':''}</h4>
+ <div class="sb"><div class="sav">${s.logo_url?`<img loading="lazy" decoding="async" src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</div><h4>${esc(s.name)}${s.demo?'<span class="sample">Sample</span>':''}</h4>
  <div class="meta">${s.rating_n?`<span class="star">${svg('star')}${Number(s.rating_avg).toFixed(1)} (${s.rating_n})</span><span class="dot"></span>`:(s.rating?`<span class="star">${svg('star')}${s.rating}</span><span class="dot"></span>`:'<span class="star">New</span><span class="dot"></span>')}${d?`<span>${d}</span><span class="dot"></span>`:''}<span>${s.mins||'30–60'} min</span></div>
  <div class="tags">${s.active_offer?'<span class="tg eodtag">End-of-day deal</span>':''}${s.delivery_options?.collect!==false?'<span class="tg">Click & collect</span>':''}${s.delivery_options?.delivery?'<span class="tg">Delivery</span>':''}</div></div></div>`}
 function shopsSection(){
@@ -85,8 +85,8 @@ function shopsSection(){
   return `<section class="sec"><div class="sh"><h2>${head}${DEMO&&n?'<span class="sample">Sample</span>':''}</h2></div>${filt}${hoursFilt}${body}</section>`}
 function home(){
   const h1=pick(kw('pen','notebook','glue'),3,4),h2=pick(kw('pencil','ruler','notebook'),3,9),h3=pick(kw('balloon','gift bag'),3,2);
-  const art=a=>`<div class="art">${a.map(p=>`<img src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
-  const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0];return `<button class="cat" data-cat="${i}"><span class="ci">${p?`<img src="${esc(p.images[0])}" alt="">`:''}</span>${l}</button>`}).join('');
+  const art=a=>`<div class="art">${a.map(p=>`<img loading="lazy" decoding="async" src="${esc(p.images[0])}" alt="">`).join('')}</div>`;
+  const cats=CATS.map(([l,t],i)=>{const p=pick(t,1,i*5+3)[0];return `<button class="cat" data-cat="${i}"><span class="ci">${p?`<img loading="lazy" decoding="async" src="${esc(p.images[0])}" alt="">`:''}</span>${l}</button>`}).join('');
   const secs=SECTIONS.map(([t,f,s],i)=>`<section class="sec"><div class="sh"><h2>${t}</h2><a href="#" data-sec="${i}">See all</a></div><div class="row prods">${pick(f,12,s).map(pcard).join('')}</div></section>`).join('');
   return `<section class="hero"><div class="slides" id="slides">
    <div class="slide s1"><div class="tag">Shop local</div><h3>Your local shops, delivered in hours</h3><p>Click & collect or same-day delivery from independents near you.</p><button class="cta" data-t="search">Start shopping</button>${art(h1)}</div>
