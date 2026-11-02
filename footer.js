@@ -11,7 +11,7 @@ function html(o){o=o||{};var sel=o.seller;
    '<a class="sf-mail" href="mailto:hello@shopnip.co.uk">hello@shopnip.co.uk</a></div>'+
    '<div class="sf-cols">'+
    col('Shop',DEPTS.map(function(d){return [d,'/category/'+slug(d)]}).concat([['All products','/products'],['Deals','/deals']]))+
-   col('Sellers',[['Seller account','/seller.html'],['Register shop','/seller.html#register'],['Fees','/seller.html#fees'],['How it works','/how']])+
+   col('Sellers',[['Seller account','/seller.html']].concat(/^\/(account|signin|login|signup)/.test(location.pathname)?[]:[['Register shop','/seller.html#register']]).concat([['Fees','/seller.html#fees'],['How it works','/how']]))+
    col('Help',[['Contact us','/contact'],['hello@shopnip.co.uk','mailto:hello@shopnip.co.uk'],['Delivery &amp; collection'.replace('&amp;','&'),'/how'],['Returns &amp; refunds'.replace('&amp;','&'),'/faq'],['FAQ','/faq']])+
    col('Legal',[['Terms of Use','/terms'],['Privacy Policy','/privacy'],['Cookie Notice','/cookies'],['Seller Terms','/seller-terms']])+
    '</div></div><div class="sf-bar"><span>© '+new Date().getFullYear()+' ShopNip, a product of Suman Bros (Wholesale) Limited</span><span class="sf-pay">Pay the shop in store or on delivery</span></div></footer>'}
