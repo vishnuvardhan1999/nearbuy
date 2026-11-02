@@ -35,7 +35,7 @@ function slides(){const L=live(),out=[];
 function hero(){const B=slides();if(!B.length)return '';
   return `<section class="h5 hm-h5" id="h5" aria-roledescription="carousel" aria-label="Featured"><div class="h5s">${B.map((b,i)=>`<div class="h5i th-${esc(b.theme)} ${i?'':'on'}"${b.img?` style="--bg:url('${esc(b.img)}')"`:''} role="group" aria-roledescription="slide" aria-label="${i+1} of ${B.length}">
     ${b.img?'<div class="h5bg"></div>':''}<div class="h5o"></div>
-    <div class="h5t"><span class="h5k">${esc(b.k)}</span><h2>${esc(b.title)}</h2>${b.sub?`<p>${esc(b.sub)}</p>`:''}<button type="button" class="h5c" ${b.go}>${esc(b.cta)}${svg('arrow')}</button></div>
+    <div class="h5t"><span class="h5k">${esc(b.k)}</span><h2>${esc(b.title)}</h2>${b.sub?`<p>${esc(b.sub)}</p>`:''}<button type="button" class="h5c" ${b.go}>${esc(b.cta)}${svg('arrow')}</button>${S.me?'':'<button type="button" class="h5loc" data-h5loc>Enter postcode</button>'}</div>
     ${b.img?'':`<div class="h5p" aria-hidden="true">${(b.art||[]).slice(0,3).map((p,j)=>`<span class="cut c${j}"><img decoding="async" ${i?'loading="lazy" ':''}src="${esc(p.images[0])}" alt="" data-fbhide></span>`).join('')}<i class="orb o1"></i><i class="orb o2"></i></div>`}</div>`).join('')}</div>
    ${B.length>1?`<button type="button" class="h5a h5prev" data-h5go="-1" aria-label="Previous slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="h5a h5next" data-h5go="1" aria-label="Next slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`:''}</section>`}
 
@@ -98,9 +98,9 @@ function shopsSec(){const list=listShops();
   const title=!S.me?'Local shops on ShopNip':near?`Shops near ${esc(S.pc)}`:'Nearest shops';
   const sub=S.me?'Nearest first, with today’s opening hours'
    :P2.A.user?'Add your postcode in account settings to see distances and who delivers to you'
-   :`${plural(list.length,'independent shop')}. <a href="#" id="setpc2">Set your location</a> to see distances and who delivers to you.`;
+   :`${list.length>2?plural(list.length,'independent shop')+'. ':''}<a href="#" id="setpc2">Set your location</a> to see distances and who delivers to you.`;
   const note=S.me&&!near?`<p class="hm-note">No shops within 10 miles of ${esc(S.pc)} yet. More independent shops are joining ShopNip; these are the nearest. Click &amp; collect still works.</p>`:'';
-  const filt=`<div class="hm-seg" role="group" aria-label="Filter shops"><button type="button" data-openf="all" class="${S.openOnly?'':'on'}">All shops (${list.length})</button><button type="button" data-openf="open" class="${S.openOnly?'on':''}">Open now (${openN})</button></div>`;
+  const filt=!openN?'':`<div class="hm-seg" role="group" aria-label="Filter shops"><button type="button" data-openf="all" class="${S.openOnly?'':'on'}">All shops (${list.length})</button><button type="button" data-openf="open" class="${S.openOnly?'on':''}">Open now (${openN})</button></div>`;
   const more=shown.length>FIRST?`<button type="button" class="hm-all" data-hmall>${showAll?'Show fewer shops':`Show all ${shown.length} shops`}</button>`:'';
   const body=shown.length?`<div class="hm-shops">${vis.map(shopCard).join('')}</div>${more}`
    :`<div class="hm-empty">${svg('clock')}<b>No shops are open right now</b><p>You can still browse and order. The shop confirms when it opens.</p><button type="button" class="btn" data-openf="all">Show all shops</button></div>`;
@@ -250,3 +250,5 @@ new MutationObserver(()=>document.querySelectorAll('.sh-d:not([data-cl])').forEa
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 if(cur&&cur[0]==='home')render();
 })();
+
+document.addEventListener('click',e=>{if(e.target.closest('[data-h5loc]')){e.preventDefault();document.getElementById('loc')?.click()}});

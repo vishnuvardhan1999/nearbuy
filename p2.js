@@ -129,15 +129,15 @@ V.register=function(){
     <p class="hint">Products you buy wholesale with this email are added to your shop automatically after they ship.</p>
     <label class="fl"><span>What products would you like listed in your shop? <small>(optional)</small></span><textarea id="s_want" rows="3" maxlength="2000" placeholder="e.g. balloons, greeting cards, exercise books, parcel tape">${esc(s.requested_products||(()=>{try{return localStorage.nb_want||''}catch(_){return ''}})())}</textarea></label></div>
    <div class="panel"><h3 class="ft">Photos</h3><div class="two">
-    <label class="up"><input type="file" id="s_logo" accept="image/*" hidden><span class="upi" id="pv_logo">${s.logo_url?`<img src="${esc(s.logo_url)}">`:svg('plus')}</span><b>Logo</b><small>Square, 400px+</small></label>
-    <label class="up"><input type="file" id="s_cover" accept="image/*" hidden><span class="upi wide" id="pv_cover">${s.cover_url?`<img src="${esc(s.cover_url)}">`:svg('plus')}</span><b>Cover photo</b><small>Shop front, 1200×600</small></label></div></div>
+    <label class="up"><input type="file" id="s_logo" accept="image/*" hidden><span class="upi" id="pv_logo">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="Shop logo">`:svg('plus')}</span><b>Logo</b><small>Square, 400px+</small></label>
+    <label class="up"><input type="file" id="s_cover" accept="image/*" hidden><span class="upi wide" id="pv_cover">${s.cover_url?`<img src="${esc(s.cover_url)}" alt="Shop cover photo">`:svg('plus')}</span><b>Cover photo</b><small>Shop front, 1200×600</small></label></div></div>
    <button class="btn full big" id="s_submit">${s.id?'Save changes':'Submit for approval'}</button>
    <p class="hint c">By registering you agree to the ShopNip seller terms.</p></form></section>`};
 V.myshop=function(){
   if(!A.shop)return V.register();const s=A.shop,L=A.listings;
   const live=L.filter(l=>l.active).length,low=L.filter(l=>l.stock<=3).length;
   const st=s.status==='approved'?'':`<div class="banner ${s.status}">${s.status==='pending'?'⏳ Your shop is awaiting approval. You can set up listings now; shoppers will see them once approved.':'Your shop is '+statusLabel(s.status).toLowerCase()+'. Contact support.'}</div>`;
-  return `<section class="sec"><div class="dash-h"><div class="dash-logo">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><div><h2>${esc(s.name)}</h2><small>${esc(s.postcode||'')} · <span class="st ${s.status}">${statusLabel(s.status)}</span></small></div>
+  return `<section class="sec"><div class="dash-h"><div class="dash-logo">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="${esc(s.name)} logo">`:esc(s.name[0])}</div><div><h2>${esc(s.name)}</h2><small>${esc(s.postcode||'')} · <span class="st ${s.status}">${statusLabel(s.status)}</span></small></div>
    <button class="icon-btn" data-act="go" data-v="register" aria-label="Edit shop">${svg('account')}</button></div>${st}
    <div class="stats"><div><b>${L.length}</b><small>Products</small></div><div><b>${live}</b><small>Live</small></div><div><b>${low}</b><small>Low stock</small></div></div>
    <div class="acts"><button class="btn" data-act="go" data-v="addprod">${svg('plus')} Add products</button><button class="btn ghost" data-act="margin">Set margin</button>${s.status==='approved'?`<button class="btn ghost" data-act="viewshop">View shop</button>`:''}</div>
@@ -172,7 +172,7 @@ V.shop=function(id){const s=A.view;if(!s||s.id!==id){loadShop(id);return '<div c
   const hsCls=hs?(hs.unknown?'unknown':(hs.openingSoon||hs.closingSoon)?'soon':hs.open?'live':'closed'):'';
   const note=hs?`<div class="hours-status ${hsCls}" role="status"><span class="hs-pill">${clk}${esc(hs.label)}</span>${hs.notice?`<p>${esc(hs.notice)}</p>`:''}</div>`:'';
   return `<div class="shero" style="${s.cover_url?`background-image:url('${esc(s.cover_url)}')`:''}"><button class="back" data-t="home" aria-label="Back">‹</button></div>
-  <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
+  <section class="sinfo"><div class="dash-logo big">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="${esc(s.name)} logo">`:esc(s.name[0])}</div><h1>${esc(s.name)}</h1>
    <div class="meta">${dist?`<span>${dist}</span><span class="dot"></span>`:''}<span>${esc(s.postcode||'')}</span></div>
    <div class="tags">${d.collect!==false?'<span class="tg">Click & collect</span>':''}${d.delivery?`<span class="tg">Delivery ${+d.delivery_radius_miles?'within '+(+d.delivery_radius_miles)+' mi':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
    ${note}
@@ -233,7 +233,7 @@ document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='aq'){A.aq=t.value;clearTimeout(A._t);A._t=setTimeout(()=>{const p=t.selectionStart;render();const n=$('#aq');n.focus();n.setSelectionRange(p,p)},200);return}
   if(t.id==='lf'){A.lf=t.value;clearTimeout(A._t);A._t=setTimeout(()=>{render();const n=$('#lf');n.focus()},250);return}
   if(t.dataset.f==='retail_price'){const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);const m=pct(+t.value,l.trade_price);const g=row.querySelector('.mg');g.textContent=m+'%';g.className='mg '+(m<20?'lo':m>=35?'hi':'')}
-  if(t.id==='s_logo'||t.id==='s_cover'){const f=t.files[0];if(f)$('#pv_'+t.id.slice(2)).innerHTML=`<img src="${URL.createObjectURL(f)}">`}});
+  if(t.id==='s_logo'||t.id==='s_cover'){const f=t.files[0];if(f)$('#pv_'+t.id.slice(2)).innerHTML=`<img src="${URL.createObjectURL(f)}" alt="Upload preview">`}});
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.f)return;const row=t.closest('.li'),l=A.listings.find(x=>String(x.id)===row.dataset.id);
   const val=t.type==='checkbox'?t.checked:t.dataset.f==='compare_at_price'&&(t.value===''||+t.value<=0)?null:t.dataset.f==='stock'?Math.max(0,parseInt(t.value)||0):Math.max(0,+(+t.value).toFixed(2));
   try{await DB.updListing(l.id,{[t.dataset.f]:val});l[t.dataset.f]=val;if(t.type==='checkbox')row.classList.toggle('off',!val);toast('Saved')}catch(err){toast(err.message)}});
