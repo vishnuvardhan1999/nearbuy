@@ -74,8 +74,8 @@ const STOP=/^(and|with|the|pads?|sets?|books?)$/i;
 (window.DEPTS||[]).forEach(d=>{const k=SUBCATS.findIndex(c=>c.l===d.d);if(k>=0)SUBCATS.splice(k,1);const subs=d.s.map(([n])=>SUBCATS.find(c=>c.l===n)).filter(Boolean);SUBCATS.push({l:d.d,t:p=>subs.some(c=>c.t(p))})});
 function cats(){const D=(window.DEPTS||[]).filter(d=>d.s.length>=4).slice(0,12);if(!D.length)return '';
   const u=q=>'/products?cat='+encodeURIComponent(q);
-  return `<section class="hm-cg" aria-label="Shop by department">${D.map(d=>`<div class="hm-cc"><h3>${esc(d.d)}</h3><div class="hm-cq">${d.s.slice(0,4).map(([n,img])=>`<a class="hm-ci" href="${u(n)}" data-go="${u(n)}"><span class="hm-cim"><img loading="lazy" src="${esc(img)}" alt="" data-fb></span><small>${esc(n)}</small></a>`).join('')}</div>
-   <a href="${u(d.d)}" class="hm-cm" data-go="${u(d.d)}">See all ${esc(d.d)}</a></div>`).join('')}</section>`}
+  return `<div class="hm-cgw"><p class="hm-eye">Shop by department</p><section class="hm-cg" aria-label="Shop by department">${D.map(d=>`<div class="hm-cc"><h3>${esc(d.d)}</h3><div class="hm-cq">${d.s.slice(0,4).map(([n,img])=>`<a class="hm-ci" href="${u(n)}" data-go="${u(n)}"><span class="hm-cim"><img loading="lazy" src="${esc(img)}" alt="" data-fb></span><small>${esc(n)}</small></a>`).join('')}</div>
+   <a href="${u(d.d)}" class="hm-cm" data-go="${u(d.d)}">See all ${esc(d.d)}</a></div>`).join('')}</section></div>`}
 
 const varied=(L,n)=>{const out=CATS.map(([,t])=>L.find(t)).filter((p,i,a)=>p&&a.indexOf(p)===i);return out.concat(L.filter(p=>!out.includes(p))).slice(0,n)};
 function shopCard(s){const L=live().filter(p=>sids(p).includes(s.id)),st=s._st,d=s.delivery_options||{},rb=readyBy(s);
@@ -92,7 +92,7 @@ function shopCard(s){const L=live().filter(p=>sids(p).includes(s.id)),st=s._st,d
 
 let showAll=false;const FIRST=6;
 function shopsSec(){const list=listShops();
-  if(!list.length)return `<section class="hm-sec" id="shops"><div class="hm-h"><div><h2>Local shops</h2></div></div>
+  if(!list.length)return `<section class="hm-sec" id="shops"><div class="hm-h"><div><p class="hm-eye">Local shops</p><h2>Local shops</h2></div></div>
    <div class="hm-empty">${svg('store')}<b>No shops are live yet</b><p>Independent shops are joining ShopNip.</p><a href="${SU('signup')}">Run a shop? List it for free</a></div></section>`;
   const near=S.me?list.filter(s=>s.dist!=null&&s.dist<=10).length:0,openN=list.filter(s=>s._st.open).length,shown=S.openOnly?list.filter(s=>s._st.open):list,vis=showAll?shown:shown.slice(0,FIRST);
   const title=!S.me?'Local shops on ShopNip':near?`Shops near ${esc(S.pc)}`:'Nearest shops';
@@ -104,13 +104,13 @@ function shopsSec(){const list=listShops();
   const more=shown.length>FIRST?`<button type="button" class="hm-all" data-hmall>${showAll?'Show fewer shops':`Show all ${shown.length} shops`}</button>`:'';
   const body=shown.length?`<div class="hm-shops">${vis.map(shopCard).join('')}</div>${more}`
    :`<div class="hm-empty">${svg('clock')}<b>No shops are open right now</b><p>You can still browse and order. The shop confirms when it opens.</p><button type="button" class="btn" data-openf="all">Show all shops</button></div>`;
-  return `<section class="hm-sec" id="shops"><div class="hm-h"><div><h2>${title}</h2><p>${sub}</p></div></div>${note}${filt}${body}</section>`}
+  return `<section class="hm-sec" id="shops"><div class="hm-h"><div><p class="hm-eye">${S.me?"Shops near you":"Local shops"}</p><h2>${title}</h2><p>${sub}</p></div></div>${note}${filt}<div class="hm-shw">${body}${mapBox(list)}</div></section>`}
 
 function mixCats(L,n){const by={};L.forEach(p=>(by[p.category]=by[p.category]||[]).push(p));const g=Object.values(by).sort((a,b)=>b.length-a.length),out=[];
   for(let i=0;out.length<n&&g.some(x=>x[i]);i++)g.forEach(x=>{if(x[i]&&out.length<n)out.push(x[i])});return out}
 function prodSec(){const L=live();if(!L.length)return '';const items=mixCats(L.filter(p=>p.stock>0),12);if(!items.length)return '';
   const from=new Set(L.flatMap(sids).filter(Boolean)).size;
-  return `<section class="hm-sec"><div class="hm-h"><div><h2>Ready to order</h2><p>In stock at ${plural(from,'local shop')}</p></div>
+  return `<section class="hm-sec"><div class="hm-h"><div><p class="hm-eye">In stock now</p><h2>Ready to order</h2><p>In stock at ${plural(from,'local shop')}</p></div>
    <a href="/products" class="hm-more" data-t="products">See all ${L.length}${svg('arrow')}</a></div><div class="grid hm-grid">${items.map(pcard).join('')}</div></section>`}
 
 /* Today's deals: shops' end-of-day offers (shop_offers via social.js) plus products with a was-price (compare_at_price). */
@@ -126,7 +126,7 @@ function dealCard(d){if(d.k==='offer'){const o=d.o,t=left(o.valid_until);
   return `<button type="button" class="hm-dc" data-hmp="${esc(p.sku)}"><span class="hm-db">${pct}% off</span><div class="hm-dim"><img loading="lazy" src="${esc(p.images[0])}" alt="" data-fb></div>
    <b class="hm-dn">${esc(short(p.name))}</b><span class="hm-dp">${gbp(p.price)} <s>${gbp(p.cmp)}</s></span>${d.shop?`<small class="hm-ds">${esc(d.shop)}</small>`:''}</button>`}
 function dealsSec(){const D=dealItems();if(!D.length)return '';
-  return `<section class="hm-sec" id="deals"><div class="hm-h"><div><h2>Today’s deals</h2><p>End-of-day offers and price drops from local shops</p></div>${D.length>6?`<a href="#" class="hm-more" data-t="deals">See all ${D.length}${svg('arrow')}</a>`:''}</div><div class="hm-dg">${D.slice(0,6).map(dealCard).join('')}</div></section>`}
+  return `<section class="hm-sec" id="deals"><div class="hm-h"><div><p class="hm-eye">Deals</p><h2>Today’s deals</h2><p>End-of-day offers and price drops from local shops</p></div>${D.length>6?`<a href="#" class="hm-more" data-t="deals">See all ${D.length}${svg('arrow')}</a>`:''}</div><div class="hm-dg">${D.slice(0,6).map(dealCard).join('')}</div></section>`}
 V.deals=function(){const D=dealItems();return `<div class="hm"><section class="hm-sec"><div class="hm-h"><div><h1 style="margin:0">Today’s deals</h1><p>End-of-day offers and price drops from local shops</p></div></div>
   ${D.length?`<div class="hm-dg">${D.map(dealCard).join('')}</div>`:`<div class="hm-empty">${svg('tag')}<b>No deals right now</b><p>Shops post end-of-day offers and price drops here. Check back later.</p><button type="button" class="btn" data-t="products">Browse products</button></div>`}</section></div>${foot()}`};
 /* header "Deals" link -> deals view */
@@ -135,23 +135,49 @@ addEventListener('click',e=>{const a=e.target.closest('.mgd');if(!a)return;e.pre
 addEventListener('click',e=>{const b=e.target.closest('[data-hmp]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const sku=b.dataset.hmp;
   const g=S.products.find(p=>p.sku===sku&&p.offers);if(g&&window.P4?.gsheet)return P4.gsheet(g);const p=S.products.find(x=>x.sku===sku);if(p&&window.P3?.sheet)P3.sheet(p)},true);
 
-const how=()=>`<section class="hm-how" id="about"><div class="hm-h"><div><h2>How ShopNip works</h2><p>Every order goes straight to an independent shop near you. No warehouses.</p></div></div>
+const how=()=>`<section class="hm-how" id="about"><div class="hm-h"><div><p class="hm-eye">How it works</p><h2>How ShopNip works</h2><p>Every order goes straight to an independent shop near you. No warehouses.</p></div></div>
   <ol>${[['pin','Find a shop','Enter your postcode to see local shops, their opening hours and what they have in stock.'],
    ['bag','Order online','Add items to your basket and choose click & collect or local delivery. Each order is for one shop.'],
    ['store','Collect or get it delivered','The shop confirms your order. Show your collection PIN at the counter and pay the shop by card or cash.']]
    .map(([i,t,s],k)=>`<li><span class="hm-n">${k+1}</span>${svg(i)}<b>${t}</b><p>${s}</p></li>`).join('')}</ol>
   <p class="hm-faq">Questions about payment, delivery or cancelling? <a href="#faq">Read the FAQ</a></p></section>`;
 
-const sell=()=>`<section class="hm-sell"><div><p class="hm-eye">For shop owners</p><h2>Run an independent shop?</h2>
-  <p>Put your shop on ShopNip. Your first 50 products are free to list. Products you buy wholesale are listed for you with photos, and you set the prices.</p>
-  <ul>${['Listings filled from your wholesale orders','Click & collect and local delivery','Orders arrive in your seller dashboard'].map(t=>`<li>${svg('check')}${t}</li>`).join('')}</ul></div>
-  <div class="hm-sell-a"><a class="btn" href="${SU('signup')}">Become a seller</a><a class="hm-link" href="${SU('login')}">Seller sign in</a></div></section>`;
+const sellBan=()=>{const im=(d,k)=>{const x=(window.DEPTS||[]).find(v=>v.d===d);return x&&x.s[k]?x.s[k][1]:''};
+  const card=(cls,k,t,p,btn,href,extra,img,ic)=>`<div class="hm-2c ${cls}"><div class="hm-2c-t"><p class="hm-2c-k">${svg(ic)}${k}</p><h2>${t}</h2><p>${p}</p><div class="hm-2c-a"><a class="hm-2c-btn" href="${href}" ${href.startsWith('/products')?'data-go="/products"':'data-sell'}>${btn}${svg('arrow')}</a>${extra}</div></div>${img?`<span class="hm-2c-im" aria-hidden="true"><img loading="lazy" src="${esc(img)}" alt="" data-fb></span>`:''}</div>`;
+  return `<section class="hm-2cs" aria-label="Shop or sell on ShopNip">${card('shop','Shop local','Shop local','Order from independent shops near you. Free click &amp; collect or local delivery.','Browse products','/products','',im('Stationery',0),'bag')}${card('sell','For local shops','Sell on ShopNip','Get a free online shop and take orders from customers nearby. Your first 50 listings are free.','Become a seller','/seller.html#register','<a class="hm-2c-l" href="/how" data-go="/how">How it works</a>',im('Party & Events',0),'store')}</section>`};
+/* Shops map: pins at each live shop's own listed location (lat/lng from the shops table, same as the postcode shown on cards). Leaflet + OSM tiles load only when the map scrolls into view. */
+function mapBox(list){const pins=list.filter(s=>s.lat!=null&&s.lng!=null&&(s.lat||s.lng)).map(s=>({id:s.id,n:s.name,pc:s.postcode||'',la:+s.lat,ln:+s.lng,d:s.dist,o:s._st?.label||''}));if(!pins.length)return '';
+  const near=S.me&&pins[0].d!=null?pins[0]:null;
+  return `<div class="hm-map"><div class="hm-mapc" id="hmmap" data-pins='${esc(JSON.stringify(pins))}'${S.me?` data-me='${esc(JSON.stringify([S.me.lat,S.me.lng]))}'`:''} role="img" aria-label="Map of shops on ShopNip"></div>
+   ${near?`<a class="hm-near" href="#shop=${esc(near.id)}" data-shop="${esc(near.id)}"><small>Nearest shop</small><b>${esc(near.n)}</b><span>${fmi(near.d)} · ${esc(near.pc)}${near.o?' · '+esc(near.o):''}</span></a>`
+    :`<button type="button" class="hm-near ask" data-h5loc><small>Find your nearest shop</small><b>Enter your postcode</b></button>`}</div>`}
+let LL=null;const loadLeaflet=()=>LL||(LL=new Promise((ok,no)=>{const c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(c);
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';s.onload=()=>ok(window.L);s.onerror=no;document.head.appendChild(s)}));
+function initMap(el){if(el.dataset.on)return;el.dataset.on=1;loadLeaflet().then(L=>{if(!el.isConnected)return;const pins=JSON.parse(el.dataset.pins),me=el.dataset.me?JSON.parse(el.dataset.me):null;
+  const m=L.map(el,{scrollWheelZoom:false,attributionControl:true,zoomControl:true});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap contributors'}).addTo(m);
+  const ic=k=>L.divIcon({className:'hm-pin'+(k?' on':''),html:'<i></i>',iconSize:[28,28],iconAnchor:[14,28]});const pts=[];
+  pins.forEach((p,k)=>{const mk=L.marker([p.la,p.ln],{icon:ic(me&&k===0),title:p.n}).addTo(m);mk.bindPopup(`<b>${esc(p.n)}</b><br>${esc(p.pc)}<br><a href="#shop=${esc(p.id)}" data-shop="${esc(p.id)}">View shop</a>`);pts.push([p.la,p.ln])});
+  if(me){L.circleMarker(me,{radius:7,color:'#fff',weight:3,fillColor:'#ff6b4a',fillOpacity:1}).addTo(m).bindTooltip('You');pts.push(me)}
+  pts.length>1?m.fitBounds(pts,{padding:[40,40],maxZoom:14}):m.setView(pts[0],13)}).catch(()=>{el.classList.add('off');el.textContent='Map unavailable right now.'})}
+const mapIO='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){mapIO.unobserve(e.target);initMap(e.target)}}),{rootMargin:'200px'}):null;
+new MutationObserver(()=>{const el=document.getElementById('hmmap');if(el&&!el.dataset.w){el.dataset.w=1;mapIO?mapIO.observe(el):initMap(el)}}).observe(document.body,{childList:true,subtree:true});
 
-const news=()=>`<section class="hm-news"><div><h2>Hear about offers near you</h2><p>One email a week from shops on your street. Unsubscribe any time.</p></div>
+/* Facts strip: figures computed from live listings and shops on every render. */
+const inStock=()=>live().filter(p=>p.stock>0);
+function brandCounts(){const B=window.BRANDSKU||{},have=new Set(inStock().map(p=>p.sku));return Object.entries(B).map(([b,s])=>[b,s.filter(k=>have.has(k)).length]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1])}
+function facts(){const n=inStock().length,sh=shops(),bc=brandCounts().length;if(!n&&!sh.length)return '';
+  const col=sh.some(s=>(s.delivery_options||{}).collect!==false),rb=sh.map(readyBy).find(Boolean);
+  const F=[n?[n.toLocaleString('en-GB'),'products in stock']:null,sh.length?[sh.length,sh.length===1?'local shop':'local shops']:null,bc?[bc,'brands stocked']:null,col?['Free','click & collect']:null,rb?[(s=>s.charAt(0).toUpperCase()+s.slice(1))(rb.replace(/^Ready /i,'')),'earliest collection']:null].filter(Boolean);
+  return `<section class="hm-facts" aria-label="ShopNip in numbers">${F.map(([a,b])=>`<div><b>${esc(String(a))}</b><span>${esc(b)}</span></div>`).join('')}</section>`}
+/* Brand strip: wordmarks of brands with stock right now; CSS marquee, pauses on hover, static if reduced motion. */
+function brandStrip(){const B=brandCounts().slice(0,18).map(x=>x[0]);if(B.length<4)return '';const row=B.map(b=>`<li>${esc(b)}</li>`).join('');
+  return `<section class="hm-brands" aria-label="Brands in stock"><p class="hm-eye">Brands in stock</p><div class="hm-bm"><ul class="hm-bt">${row}${row.replace(/<li>/g,'<li aria-hidden="true">')}</ul></div></section>`}
+
+const news=()=>`<section class="hm-news"><div><p class="hm-eye">Stay in the loop</p><h2>Hear about offers near you</h2><p>One email a week from shops on your street. Unsubscribe any time.</p></div>
   <form class="nwf" id="nwf"><div class="hm-nwi"><input type="email" id="nw_e" required placeholder="you@example.com" aria-label="Email address" autocomplete="email"><input id="nw_p" placeholder="Postcode" aria-label="Postcode (optional)" value="${esc(S.pc||'')}" maxlength="8"><button class="btn" type="submit">Sign up</button></div>
   <small>See our <a href="/privacy">Privacy Policy</a>.</small><div class="nwok" id="nwok"></div></form></section>`;
 
-V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${welcome()}${shopsSec()}${cats()}${dealsSec()}${prodSec()}${how()}${sell()}${news()}</div>${foot()}`};
+V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${welcome()}${facts()}${shopsSec()}${sellBan()}${cats()}${brandStrip()}${dealsSec()}${prodSec()}${how()}${news()}</div>${foot()}`};
 
 addEventListener('click',e=>{const t=e.target.closest('[data-hmloc],[data-hmall]');if(!t)return;e.preventDefault();e.stopImmediatePropagation();
   if(t.hasAttribute('data-hmloc'))return askPostcode();
