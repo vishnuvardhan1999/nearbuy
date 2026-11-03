@@ -58,7 +58,7 @@ const API=MOCK?{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
   async signOut(){await sb.auth.signOut()},
   // Seller accounts are always role 'owner' (same metadata p2.js used for “Sell on ShopNip”). The confirmation link returns to seller.html.
-  async signUp(email,password,full_name){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signUp({email,password,options:{data:{role:'owner',full_name},emailRedirectTo:location.origin+'/seller.html'}});if(error)throw error;return data},
+  async signUp(email,password,full_name){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signUp({email,password,options:{data:{...(window.NB_SRC?NB_SRC():{}),role:'owner',full_name},emailRedirectTo:location.origin+'/seller.html'}});if(error)throw error;return data},
   async signIn(email,password){if(!sb)throw new Error('Accounts need Supabase configured in config.js.');const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;return data},
   async createShop(r){const {data,error}=await sb.from('shops').insert({...r,owner_id:D.user.id}).select().single();if(error)throw error;try{await sb.rpc('backfill_shop_listings',{p_shop:data.id})}catch(_){}return data},
   async myShop(){const {data,error}=await sb.from('shops').select('*').eq('owner_id',D.user.id).maybeSingle();if(error)throw error;return data},
