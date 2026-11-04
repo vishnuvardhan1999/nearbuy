@@ -85,6 +85,7 @@ const API=MOCK?{
   async setShopStatus(id,status,reason){Object.assign(M.shops.find(s=>s.id===id),{status,active:status==='approved',status_reason:reason||null,approved_at:status==='approved'?new Date().toISOString():null});return{reasonSaved:true}},
   async savePromo(p){if(p.id)Object.assign(M.promos.find(x=>x.id===p.id),p);else M.promos.unshift({...p,id:'p'+Date.now(),created_at:new Date().toISOString()})},
   async delPromo(id){M.promos=M.promos.filter(p=>p.id!==id)},async upload(f){return URL.createObjectURL(f)},
+  async walletRefund(id,amt,why){const o=M.O.find(x=>x.id===id),left=(+o.total||0)-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0);if(!(amt>0))throw new Error('Refund amount must be more than £0');if(amt>left+1e-9)throw new Error('You can refund at most '+gbp(left)+' on this order');o.refunded_to_wallet=Math.round(((+o.refunded_to_wallet||0)+amt)*100)/100;o.order_events=[...(o.order_events||[]),{status:'refunded_to_wallet',at:new Date().toISOString(),note:gbp(amt)+' refunded to ShopNip wallet'+(why?' · '+why:''),by_role:'admin'}]},
   async setOrderStatus(id,st,note){const o=M.O.find(x=>x.id===id),from=o.status;if(from===st)throw new Error('Order is already '+st);o.status=st;if(note&&DEAD.includes(st))o.reject_reason=note;
     o.order_events=[...(o.order_events||[]),{status:st,at:new Date().toISOString(),note:note||'Changed by ShopNip admin',from_status:from,by_role:'admin'}];return{audited:true}},
   async listingsFor(shop){return M.L.filter(l=>l.shop_id===shop).map(l=>({sku:l.sku,stock:l.stock,retail_price:l.retail_price}))},
@@ -116,6 +117,7 @@ const API=MOCK?{
   async upload(f){const ext=(f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,''),path=`promos/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
     const {error}=await sb.storage.from('shop-media').upload(path,f,{contentType:f.type});if(error)throw error;return sb.storage.from('shop-media').getPublicUrl(path).data.publicUrl},
   // migration_008_admin_orders.sql: admin_set_order_status() (audited, stock-aware). Fallback: plain UPDATE via "orders admin update" policy.
+  async walletRefund(id,amt,why){const {error}=await sb.rpc('refund_order_to_wallet',{p_order:id,p_amount:amt,p_reason:why||null});if(error)throw error},
   async setOrderStatus(id,st,note){const {error}=await sb.rpc('admin_set_order_status',{p_order:id,p_status:st,p_note:note||null});if(!error)return{audited:true};
     if(!/admin_set_order_status|function|schema cache/i.test(error.message||''))throw error;
     const patch={status:st,updated_at:new Date().toISOString()};if(note&&DEAD.includes(st))patch.reject_reason=note;
@@ -314,6 +316,11 @@ function drawer(){const d=ST.ui.drawer;if(!d)return '';
       ${o.note?`<dt>Note</dt><dd>${esc(o.note)}</dd>`:''}${o.reject_reason?`<dt>Reason</dt><dd>${esc(o.reject_reason)}</dd>`:''}</dl>
      <div class="sec-t">Items</div><div class="items">${(o.order_items||[]).map(i=>`<div>${i.image?`<img src="${esc(i.image)}" alt="" loading="lazy">`:'<img alt="">'}<span>${esc(i.name)}<br><small class="mut">${i.qty} × ${gbp(i.unit_price)}</small></span><b>${gbp(i.qty*i.unit_price)}</b></div>`).join('')}</div>
      <dl class="kv" style="margin-top:16px"><dt>Subtotal</dt><dd>${gbp(o.subtotal)}</dd><dt>Delivery</dt><dd>${gbp(o.delivery_fee)}</dd><dt>Total</dt><dd><b>${gbp(o.total)}</b></dd></dl>
+     <div class="sec-t">Refund to ShopNip wallet (admin)</div>${`<div class="wrefc"><div class="cb">${(()=>{const left=Math.max(0,Math.round(((+o.total||0)-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0))*100)/100);
+     return `${+o.wallet_applied?`<div class="kv"><span>Paid from customer wallet${o.wallet_reversed?' (returned)':''}</span><span>${gbp(o.wallet_applied)}</span></div>`:''}${+o.refunded_to_wallet?`<div class="kv"><span>Already refunded to wallet</span><b style="color:#15803d">${gbp(o.refunded_to_wallet)}</b></div>`:''}
+     ${o.status==='placed'?'<p class="mut" style="margin:0;font-size:13px">Accept or reject the order first. Refunds are for accepted, completed or cancelled orders.</p>':left>0?`<p class="mut" style="margin:0 0 8px;font-size:13px">Refunds are paid as ShopNip wallet credit the customer spends on ShopNip, never back to a card.</p>
+     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="mi"><i>£</i><input id="wr_amt" type="number" step="0.01" min="0.01" max="${left}" value="${left.toFixed(2)}" aria-label="Refund amount"></span><input id="wr_why" class="inp" maxlength="200" placeholder="Reason (shown to customer)" style="flex:1;min-width:160px;padding:9px 10px;border:1px solid #d7dde4;border-radius:10px;font:inherit">
+     <button class="btn sm" data-a="wref" data-id="${esc(o.id)}">Refund to wallet</button></div><small class="mut">Up to ${gbp(left)}</small>`:'<p class="mut" style="margin:0;font-size:13px">Fully refunded.</p>'}`})()}</div></div>`}
      <div class="sec-t">Timeline</div><div class="tl">${(o.order_events||[]).map(e=>`<div><i></i><b>${esc((OST[e.status]||[e.status])[0])}${e.by_role==='admin'?' <span class="chip">Admin</span>':''}</b><span class="mut">${fmtDT(e.at)}${e.note?' · '+esc(e.note):''}</span></div>`).join('')||'<span class="mut">No events</span>'}</div>
      <div class="sec-t">Change status (admin)</div><div class="ostbox"><select class="sel" id="ostsel" aria-label="New status">${Object.entries(OST).map(([k,[l]])=>`<option value="${k}" ${k===o.status?'disabled':''} ${k===(ST.ui.ostPick||'')?'selected':''}>${esc(l)}${k===o.status?' (current)':''}</option>`).join('')}</select>
       <button class="btn sm" data-a="ostgo" data-id="${esc(o.id)}">Change status…</button></div>
@@ -421,6 +428,8 @@ document.addEventListener('click',async e=>{if(e.target.closest('[data-stop],inp
   if(a==='close'){ST.ui.drawer=null;ST.ui.promo=null;render();return}
   if(a==='nodecide'){ST.ui.decide=null;render();return}
   if(a==='noost'){ST.ui.ost=null;render();return}
+  if(a==='wref'){const amt=Math.round(+($('#wr_amt')?.value||0)*100)/100,why=($('#wr_why')?.value||'').trim(),o=ST.orders.find(x=>x.id===d.id);if(!o)return;
+    if(!confirm(`Refund ${gbp(amt)} to ${o.customer_name||'the customer'}’s ShopNip wallet? This is store credit, not a card refund.`))return;t.disabled=true;try{await API.walletRefund(d.id,amt,why);ST.orders=await API.orders();toast(gbp(amt)+' refunded to the customer’s ShopNip wallet');render()}catch(er){toast(er.message||'Refund failed');t.disabled=false}return}
   if(a==='ostgo'){const v=$('#ostsel')?.value,o=ST.orders.find(x=>x.id===d.id);if(!v||v===o?.status){toast('Choose a different status');return}ST.ui.ostPick=v;ST.ui.ost={id:d.id,status:v};render();setTimeout(()=>$('#ostf textarea')?.focus(),30);return}
   if(a==='impreset'){ST.imp=null;render();return}
   if(a==='impsample'){await impLoad(impSample(),'sample-orders.csv');return}
