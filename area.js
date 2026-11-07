@@ -1,10 +1,14 @@
 /* area.js: "ShopNip isn't in your area yet" notice when no shop is near the shopper's postcode,
    with browse-all / change-postcode actions and a "Tell me when you arrive" email capture (table area_waitlist,
-   migrations/011_area_waitlist.sql; fails gracefully if the table is missing). Loaded last. */
+   migrations/011_area_waitlist.sql; fails gracefully if the table is missing). Loaded last.
+   The saved postcode is restored before the shops query returns, and S.shops starts as [].
+   That empty list is "not loaded yet", not "no shops nearby", so the notice waits until load() finishes. */
 (()=>{
 const NEAR_MI=10;let MSG='',EM='';
 const hav=(a,b)=>{const R=3958.8,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dn=r(b.lng-a.lng);return 2*R*Math.asin(Math.sqrt(Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dn/2)**2))};
+function shopsLoaded(){return typeof NB_BOOTED!=='undefined'&&NB_BOOTED}
 function covered(){
+  if(!shopsLoaded())return true;
   if(!S.me||S.me.lat==null)return true;
   const real=(S.shops||[]).filter(s=>!s.demo&&s.lat!=null&&s.lng!=null);
   if(!real.length&&(S.shops||[]).some(s=>s.demo))return true;
