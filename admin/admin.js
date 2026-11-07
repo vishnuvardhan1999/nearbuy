@@ -88,7 +88,7 @@ const API=MOCK?{
   async walletRefund(id,amt,why){const o=M.O.find(x=>x.id===id),left=(+o.total||0)-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0);if(!(amt>0))throw new Error('Refund amount must be more than £0');if(amt>left+1e-9)throw new Error('You can refund at most '+gbp(left)+' on this order');o.refunded_to_wallet=Math.round(((+o.refunded_to_wallet||0)+amt)*100)/100;o.order_events=[...(o.order_events||[]),{status:'refunded_to_wallet',at:new Date().toISOString(),note:gbp(amt)+' refunded to ShopNip wallet'+(why?' · '+why:''),by_role:'admin'}]},
   async setOrderStatus(id,st,note){const o=M.O.find(x=>x.id===id),from=o.status;if(from===st)throw new Error('Order is already '+st);o.status=st;if(note&&DEAD.includes(st))o.reject_reason=note;
     o.order_events=[...(o.order_events||[]),{status:st,at:new Date().toISOString(),note:note||'Changed by ShopNip admin',from_status:from,by_role:'admin'}];return{audited:true}},
-  async listingsFor(shop){return M.L.filter(l=>l.shop_id===shop).map(l=>({sku:l.sku,stock:l.stock,retail_price:l.retail_price}))},
+  async listingsFor(shop){return M.L.filter(l=>l.shop_id===shop).map(l=>({name:l.name,sku:l.sku,stock:l.stock,retail_price:l.retail_price,active:l.active,updated_at:l.updated_at||null}))},
   async importedLines(shop){return(M.wil||[]).filter(w=>w.shop_id===shop)},
   async importWholesale(shop,items,upd){M.wil=M.wil||[];let created=0,topped=0,units=0,dup=0;for(const it of items){let n=0;for(const ln of it.lines){if(M.wil.some(w=>w.shop_id===shop&&w.order_ref===ln.order_ref&&w.sku===it.sku)){dup++;continue}M.wil.push({shop_id:shop,order_ref:ln.order_ref,sku:it.sku});n+=ln.qty}
       if(!n)continue;const l=M.L.find(x=>x.shop_id===shop&&x.sku===it.sku);if(l){l.stock+=n;if(upd&&it.retail_price>0)l.retail_price=it.retail_price;topped++}else{M.L.push({id:shop+'w'+M.L.length,shop_id:shop,sku:it.sku,name:it.name,image:it.image,retail_price:it.retail_price,stock:n,active:it.retail_price>0,source:'wholesale'});created++}units+=n}
@@ -122,7 +122,7 @@ const API=MOCK?{
     if(!/admin_set_order_status|function|schema cache/i.test(error.message||''))throw error;
     const patch={status:st,updated_at:new Date().toISOString()};if(note&&DEAD.includes(st))patch.reject_reason=note;
     const {data,error:e2}=await sb.from('orders').update(patch).eq('id',id).select('id');if(e2)throw e2;if(!data?.length)throw new Error('Not allowed: run migration_008_admin_orders.sql');return{audited:false}},
-  async listingsFor(shop){const out=[];for(let f=0;f<20000;f+=1000){const {data,error}=await sb.from('shop_listings').select('sku,stock,retail_price').eq('shop_id',shop).range(f,f+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out},
+  async listingsFor(shop){const out=[];for(let f=0;f<20000;f+=1000){const {data,error}=await sb.from('shop_listings').select('name,sku,stock,retail_price,active,updated_at').eq('shop_id',shop).range(f,f+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out},
   async importedLines(shop){const {data,error}=await sb.from('wholesale_import_lines').select('order_ref,sku').eq('shop_id',shop).limit(20000);if(error)return null;return data},   // null = migration 009 not run
   async importWholesale(shop,items,upd){const {data,error}=await sb.rpc('admin_import_wholesale',{p_shop:shop,p_items:items,p_update_prices:!!upd});if(error)throw error;return data}
 };
@@ -134,6 +134,7 @@ const PAGES={overview:['Overview','grid'],approvals:['Seller approvals','shield'
 const page=()=>{const h=location.hash.slice(1);return PAGES[h]?h:'overview'};
 const shopById=id=>ST.shops.find(s=>s.id===id);
 const tradeOK=s=>!!s.bluepark_customer_email&&ST.trade.has(s.bluepark_customer_email.toLowerCase().trim());
+function estFee(o){if(!o||o.fulfilment!=='delivery'||DEAD.includes(o.status))return 0;if(typeof window.NBAdmin?.sellingFeeOf==='function')return window.NBAdmin.sellingFeeOf(o);const s=shopById(o.shop_id);return Math.round((+(o.subtotal||0))*(s&&tradeOK(s)?5:10))/100}
 async function loadAll(){const run=async(k,fn)=>{try{ST[k]=await fn();delete ST.err[k]}catch(e){ST.err[k]=e.message||String(e);console.warn('load '+k+':',ST.err[k])}};
   await Promise.all([run('shops',API.shops),run('ls',API.listingStats),run('orders',API.orders),run('promos',API.promos),run('subs',API.subscribers),
     run('trade',async()=>new Set((await API.tradeEmails()).map(w=>String(w.trade_email||'').toLowerCase().trim()))),run('stats',API.stats)]);
@@ -248,10 +249,10 @@ function filteredOrders(){const u=ST.ui,q=u.oq.toLowerCase(),from=u.orng==='all'
   return ST.orders.filter(o=>(u.os==='all'||(u.os==='open'?['placed','accepted','ready','out_for_delivery'].includes(o.status):o.status===u.os))&&(u.osh==='all'||o.shop_id===u.osh)&&(u.ofu==='all'||o.fulfilment===u.ofu)&&Date.parse(o.created_at)>=from
    &&(!q||[o.order_number,o.customer_name,o.customer_email,o.customer_phone,o.delivery_postcode,shopById(o.shop_id)?.name].join(' ').toLowerCase().includes(q)))}
 function orderTable(O,compact){if(!O.length)return `<div class="empty">${svg('bag')}<b>No orders</b>${compact?'':'Try different filters.'}</div>`;
-  return `<div class="tw"><table class="t resp"><thead><tr><th>Order</th>${compact?'':'<th>Shop</th>'}<th>Customer</th>${compact?'':'<th>Fulfilment</th>'}<th>Status</th><th class="num">Total</th><th>Placed</th></tr></thead><tbody>${O.map(o=>`<tr class="click" data-order="${esc(o.id)}">
+  return `<div class="tw"><table class="t resp"><thead><tr><th>Order</th>${compact?'':'<th>Shop</th>'}<th>Customer</th>${compact?'':'<th>Fulfilment</th>'}<th>Status</th><th class="num">Total</th>${compact?'':'<th class="num">ShopNip fee</th>'}<th>Placed</th></tr></thead><tbody>${O.map(o=>`<tr class="click" data-order="${esc(o.id)}">
    <td class="first"><b>${esc(o.order_number||'#'+String(o.id).slice(0,6))}</b>${compact?`<div class="mut">${esc(shopById(o.shop_id)?.name||'')}</div>`:''}</td>${compact?'':`<td data-l="Shop">${esc(shopById(o.shop_id)?.name||'–')}</td>`}
    <td data-l="Customer">${esc(o.customer_name||'–')}</td>${compact?'':`<td data-l="Fulfilment" class="mut">${o.fulfilment==='delivery'?'Delivery':'Collect'}</td>`}<td data-l="Status">${pill(OST,o.status)}</td>
-   <td data-l="Total" class="num"><b>${gbp(o.total)}</b></td><td data-l="Placed" class="mut nowrap">${fmtDT(o.created_at)}</td></tr>`).join('')}</tbody></table></div>`}
+   <td data-l="Total" class="num"><b>${gbp(o.total)}</b></td>${compact?'':`<td data-l="ShopNip fee" class="num mut">${o.fulfilment==='delivery'?gbp(estFee(o)):'No fee'}</td>`}<td data-l="Placed" class="mut nowrap">${fmtDT(o.created_at)}</td></tr>`).join('')}</tbody></table></div>`}
 V.orders=()=>{const u=ST.ui,O=filteredOrders(),tot=O.filter(alive).reduce((a,o)=>a+ +o.total,0),opt=(id,v,list)=>`<select class="sel" id="${id}">${list.map(([k,l])=>`<option value="${esc(k)}" ${v===k?'selected':''}>${esc(l)}</option>`).join('')}</select>`;
   return `${errBox('orders')}<div class="ph"><div><h2>All orders</h2><p>${O.length} orders · ${gbp(tot)} excluding cancelled and rejected.</p></div><div class="acts"><button class="btn ghost" data-a="csv-orders">${svg('dl')}Export CSV</button></div></div>
   <div class="tools">${opt('orng',u.orng,[['today','Today'],['7','Last 7 days'],['30','Last 30 days'],['90','Last 90 days'],['all','All time']])}
@@ -315,7 +316,7 @@ function drawer(){const d=ST.ui.drawer;if(!d)return '';
       <dt>Fulfilment</dt><dd>${o.fulfilment==='delivery'?'Delivery to '+esc([o.delivery_address,o.delivery_postcode].filter(Boolean).join(', ')):'Click & collect'}</dd>${o.fulfilment==='collect'?`<dt>Collection PIN</dt><dd><b style="letter-spacing:.06em">${esc(o.collection_pin||'–')}</b></dd>`:''}<dt>Payment</dt><dd>${o.payment_method==='pay_on_delivery'?'Pay on delivery':'Pay on collection'}</dd>
       ${o.note?`<dt>Note</dt><dd>${esc(o.note)}</dd>`:''}${o.reject_reason?`<dt>Reason</dt><dd>${esc(o.reject_reason)}</dd>`:''}</dl>
      <div class="sec-t">Items</div><div class="items">${(o.order_items||[]).map(i=>`<div>${i.image?`<img src="${esc(i.image)}" alt="" loading="lazy">`:'<img alt="">'}<span>${esc(i.name)}<br><small class="mut">${i.qty} × ${gbp(i.unit_price)}</small></span><b>${gbp(i.qty*i.unit_price)}</b></div>`).join('')}</div>
-     <dl class="kv" style="margin-top:16px"><dt>Subtotal</dt><dd>${gbp(o.subtotal)}</dd><dt>Delivery</dt><dd>${gbp(o.delivery_fee)}</dd><dt>Total</dt><dd><b>${gbp(o.total)}</b></dd></dl>
+     <dl class="kv" style="margin-top:16px"><dt>Subtotal</dt><dd>${gbp(o.subtotal)}</dd><dt>Delivery</dt><dd>${gbp(o.delivery_fee)}</dd><dt>Total</dt><dd><b>${gbp(o.total)}</b></dd><dt>${o.fulfilment==='delivery'?'Est. ShopNip fee':'ShopNip fee'}</dt><dd>${o.fulfilment==='delivery'?gbp(estFee(o)):'No fee (click &amp; collect)'}</dd></dl>
      <div class="sec-t">Refund to ShopNip wallet (admin)</div>${`<div class="wrefc"><div class="cb">${(()=>{const left=Math.max(0,Math.round(((+o.total||0)-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0))*100)/100);
      return `${+o.wallet_applied?`<div class="kv"><span>Paid from customer wallet${o.wallet_reversed?' (returned)':''}</span><span>${gbp(o.wallet_applied)}</span></div>`:''}${+o.refunded_to_wallet?`<div class="kv"><span>Already refunded to wallet</span><b style="color:#15803d">${gbp(o.refunded_to_wallet)}</b></div>`:''}
      ${o.status==='placed'?'<p class="mut" style="margin:0;font-size:13px">Accept or reject the order first. Refunds are for accepted, completed or cancelled orders.</p>':left>0?`<p class="mut" style="margin:0 0 8px;font-size:13px">Refunds are paid as ShopNip wallet credit the customer spends on ShopNip, never back to a card.</p>
@@ -336,9 +337,11 @@ function drawer(){const d=ST.ui.drawer;if(!d)return '';
      <dt>Opening hours</dt><dd style="white-space:pre-line">${esc(s.opening_hours||'–')}</dd><dt>Fulfilment</dt><dd>${del.collect!==false?'Click & collect':''}${del.delivery?`${del.collect!==false?' · ':''}Delivery within ${del.delivery_radius_miles||0} mi, ${gbp(del.delivery_fee||0)}`:''}</dd>
      <dt>Registered</dt><dd>${fmtDT(s.created_at)}</dd>${s.approved_at?`<dt>Approved</dt><dd>${fmtDT(s.approved_at)}</dd>`:''}${s.status_reason?`<dt>Status reason</dt><dd>${esc(s.status_reason)}</dd>`:''}
      <dt>Listings</dt><dd>${ls.filter(l=>l.active).length} live of ${ls.length}</dd><dt>Orders</dt><dd>${os.length} · ${gbp(os.filter(alive).reduce((a,o)=>a+ +o.total,0))}</dd><dt>Shop ID</dt><dd class="mut">${esc(s.id)}</dd></dl>
+    ${(function(){const L=ST.ui.listings;if(L==null)return `<div class="sec-t">Prices &amp; stock</div><p class="mut">Loading listings…</p>`;if(L.error)return `<div class="sec-t">Prices &amp; stock</div><p class="mut">${esc(L.error)}</p>`;if(!L.length)return `<div class="sec-t">Prices &amp; stock</div><p class="mut">No listings yet.</p>`;const rows=[...L].sort((a,b)=>(a.name||a.sku||'').localeCompare(b.name||b.sku||''));const show=rows.slice(0,150);return `<div class="sec-t">Prices &amp; stock <span class="mut">set by the shop · ${rows.length} listing${rows.length===1?'':'s'}</span></div><div class="tw"><table class="t resp"><thead><tr><th>Product</th><th>SKU</th><th class="num">Price</th><th class="num">Stock</th><th>Status</th></tr></thead><tbody>${show.map(l=>`<tr><td class="first"><b>${esc(l.name||'–')}</b></td><td data-l="SKU" class="mut">${esc(l.sku||'')}</td><td data-l="Price" class="num">${gbp(l.retail_price)}</td><td data-l="Stock" class="num">${l.stock??'–'}</td><td data-l="Status">${l.active!==false?'Live':'Hidden'}</td></tr>`).join('')}</tbody></table></div>${rows.length>150?`<p class="mut">Showing the first 150 of ${rows.length}.</p>`:''}`})()}
     ${wo&&wo.rows&&wo.rows.length?`<div class="sec-t">Recent wholesale lines</div><div class="tw"><table class="t"><thead><tr><th>Ref</th><th>SKU</th><th class="num">Qty</th><th>Shipped</th></tr></thead><tbody>${wo.rows.slice(0,6).map(r=>`<tr><td>${esc(r.order_ref||'–')}</td><td class="mut">${esc(r.sku)}</td><td class="num">${r.qty}</td><td class="mut">${r.shipped_at?fmtD(r.shipped_at):'Not shipped'}</td></tr>`).join('')}</tbody></table></div>`:''}</div>
    <div class="df">${s.status==='approved'?`<a class="btn ghost" style="margin-right:auto" href="${esc(PUB)}/#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View public page</a>`:''}${actBtns(s,false)}</div></aside>`}
-async function openShop(id){ST.ui.drawer={type:'shop',id};ST.ui.wo=null;render();const s=shopById(id);
+async function openShop(id){ST.ui.drawer={type:'shop',id};ST.ui.wo=null;ST.ui.listings=null;render();const s=shopById(id);
+  try{ST.ui.listings=await API.listingsFor(id)}catch(e){ST.ui.listings={error:e.message||String(e)}}
   try{const rows=await API.wholesaleFor(s?.bluepark_customer_email);ST.ui.wo={rows}}catch(e){ST.ui.wo={error:e.message}}if(ST.ui.drawer?.id===id)render()}
 
 // ---------- approve / reject / suspend with reason ----------
@@ -475,6 +478,6 @@ document.addEventListener('submit',async e=>{const f=e.target;e.preventDefault()
       if(!p.title)throw new Error('Title is required');if(p.end_at&&Date.parse(p.end_at)<=Date.parse(p.start_at))throw new Error('End must be after start');
       if(p.type==='featured_shop'&&!p.shop_id)throw new Error('Choose a shop to feature');if(p.type==='sponsored'&&!p.sku)throw new Error('Enter the SKU to sponsor');
       await API.savePromo(p);ST.promos=await API.promos();ST.ui.promo=null;toast('Promotion saved')}catch(er){toast(er.message||String(er))}ST.ui.busy=false;render()}});
-window.NBAdmin={ST,PAGES,V,API,sb,MOCK,render,esc,svg,toast,gbp,fmtD,fmtDT,I,shopById};
+window.NBAdmin={ST,PAGES,V,API,sb,MOCK,render,esc,svg,toast,gbp,fmtD,fmtDT,I,shopById,estFee,tradeOK};
 boot();
 })();

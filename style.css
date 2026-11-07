@@ -618,7 +618,7 @@ body[data-page="home"],body:has(.hm){background:#faf7f2}
 .h5loc{margin-left:10px;background:transparent;border:1.5px solid rgba(255,255,255,.7);color:#fff;border-radius:999px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer}
 .h5loc:hover{background:rgba(255,255,255,.12)}
 
-.hx .sellk{display:none}
+/* seller pill lives inside .hx next to Sign in */
 
 /* Big hero v62 */
 html,body{overflow-x:clip}
@@ -704,3 +704,137 @@ html,body{overflow-x:clip}
 @media(max-width:900px){.hm-shw{grid-template-columns:1fr}.hm-map{height:260px}}
 @media(max-width:767px){.hm-facts{grid-template-columns:repeat(2,1fr);margin-top:0}.hm-facts>div{border-left:0;border-top:1px solid var(--line);padding:14px 16px}.hm-facts>div:nth-child(-n+2){border-top:0}.hm-facts>div:nth-child(even){border-left:1px solid var(--line)}.hm-facts b{font-size:21px}.hm-bt li{font-size:15px;padding:10px 18px}}
 .hm{grid-template-columns:minmax(0,1fr)}.hm>*{min-width:0}
+
+/* nb-header-v2: modern light sticky header */
+header.top{
+  position:sticky;top:0;z-index:20;
+  background:rgba(255,255,255,.92);
+  -webkit-backdrop-filter:saturate(180%) blur(16px);
+  backdrop-filter:saturate(180%) blur(16px);
+  color:#14202e;
+  box-shadow:none;
+  border-bottom:1px solid #e6eaf0;
+}
+header.top .top-in{
+  display:grid;
+  align-items:center;
+  gap:8px 10px;
+  padding-top:10px;
+  padding-bottom:10px;
+  grid-template-columns:auto minmax(0,1fr) auto auto;
+  grid-template-areas:"b l a k" "s s s s";
+}
+header.top .brand{grid-area:b;display:flex;align-items:center;gap:8px}
+header.top .word{font-size:20px;font-weight:700;letter-spacing:-.4px;color:#14202e}
+header.top .word b{color:#ff6b4a;font-weight:800}
+header.top .loc{
+  grid-area:l;justify-self:start;min-width:0;max-width:100%;
+  display:flex;align-items:center;gap:8px;
+  background:#f4f6f8;border:1px solid #e6eaf0;color:#14202e;
+  border-radius:999px;padding:6px 10px 6px 10px;text-align:left;overflow:hidden
+}
+header.top .loc svg{width:18px;height:18px;color:#0f766e}
+header.top .loc .chev{color:#6b7785;width:16px;height:16px;opacity:.8;flex:none}
+header.top .loc small{display:block;font-size:10px;opacity:.7;line-height:1.1;color:#6b7785}
+header.top .loc b{font-size:13px;font-weight:700;color:#14202e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+header.top .search{
+  grid-area:s;display:flex;align-items:center;gap:8px;
+  background:#f4f6f8;border:1px solid #e6eaf0;border-radius:999px;
+  padding:0 14px;height:42px;color:#6b7785
+}
+header.top .search input{flex:1;border:0;outline:0;font:inherit;font-size:15px;color:#14202e;background:none;min-width:0}
+header.top .search:focus-within{border-color:#0f766e;box-shadow:0 0 0 3px rgba(15,118,110,.16)}
+header.top .hx{grid-area:a;display:flex;align-items:center;gap:10px}
+header.top .hx .navab{display:none!important}
+header.top .hx .sellk,
+header.top .sellk{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  height:36px;padding:0 14px;border-radius:999px;background:#ff6b4a;color:#fff;
+  font-weight:800;font-size:13px;text-decoration:none;white-space:nowrap;grid-area:auto
+}
+header.top .hx .sellk span,
+header.top .sellk span{display:inline!important}
+header.top .hbtn.desk{
+  grid-area:k;display:grid!important;place-items:center;position:relative;
+  width:40px;height:40px;border-radius:50%;padding:0;
+  background:#f4f6f8;border:1px solid #e6eaf0;color:#14202e
+}
+header.top .hbtn.desk svg{width:20px;height:20px}
+header.top .acb{color:#14202e;border-color:transparent}
+header.top .acb:hover,
+header.top .acb[aria-expanded=true]{background:#f4f6f8;border-color:#e6eaf0}
+header.top .badge{background:#ff6b4a;color:#fff}
+@media(max-width:767px){
+  header.top .acb{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%;background:#f4f6f8;border:1px solid #e6eaf0}
+  header.top .acb .t{display:none}
+  header.top .acb svg{width:20px;height:20px;color:#14202e}
+  header.top .loc small{display:none}
+  header.top .hx{gap:8px}
+  header.top .hx .sellk,
+  header.top .sellk{height:32px;padding:0 10px;font-size:12px}
+}
+@media(max-width:400px){
+  header.top .brand .word{font-size:17px}
+  header.top .brand .mark{width:26px;height:26px;flex-basis:26px}
+  header.top .loc{padding:5px 8px;gap:6px}
+  header.top .loc b{font-size:12px}
+}
+@media(min-width:768px){
+  header.top .top-in{
+    grid-template-columns:auto auto minmax(240px,1fr) auto auto;
+    grid-template-areas:"b l s a k";
+    padding-top:12px;padding-bottom:12px;gap:12px 14px
+  }
+  header.top .search{height:44px}
+  header.top .hbtn.desk{width:44px;height:44px}
+  header.top .word{font-size:22px}
+  header.top .hx .sellk,
+  header.top .sellk{height:40px;padding:0 16px;font-size:13.5px}
+}
+
+/* nb-header-mega-v2: readable category row on the light header */
+header.top .mega{border-top:1px solid #e6eaf0;background:#fff}
+header.top .mega .mi>button{color:#0f5f58;font-weight:600}
+header.top .mega .mi:hover>button,
+header.top .mega .mi:focus-within>button{color:#0b2b29;background:#f0fdfa}
+header.top .mega .mg-all a{color:#0f5f58;font-weight:800}
+header.top .mega .mg-all a:hover{color:#0b2b29}
+header.top .mega .mgd{color:#e24a2b;font-weight:700}
+header.top .mega .mgd:hover{background:#fff1ec;color:#c2410c}
+header.top .mnav{border-top:1px solid #e6eaf0;background:#fff}
+header.top .mnav a{background:#f4f6f8;color:#14202e}
+header.top .mnav a svg{stroke:#0f766e}
+header.top .mnav a.on{background:#0f766e;color:#fff}
+header.top .mnav a.on svg{stroke:#fff}
+header.top .mnav a.cur{box-shadow:0 0 0 2px #0f766e inset}
+
+
+/* nb-header-mobile-v3: icon account + full-width search; beat older !important grid and p29 Sign-in label */
+@media(max-width:767px){
+  header.top .top-in,
+  header.top .wrap.top-in{
+    grid-template-columns:auto minmax(0,1fr) auto auto!important;
+    grid-template-areas:"b l a k" "s s s s"!important;
+    column-gap:8px;
+  }
+  header.top .hx{grid-area:a;justify-self:end}
+  header.top .hbtn.desk{grid-area:k}
+  header.top .search{grid-area:s;width:100%;min-width:0}
+  header.top .acb,
+  header.top .acw .acb,
+  header.top .acw .acb.p29out{
+    width:40px;height:40px;padding:0;justify-content:center;
+    border-radius:50%;background:#f4f6f8;border:1px solid #e6eaf0;gap:0
+  }
+  header.top .acb .t,
+  header.top .acw .acb .t,
+  header.top .acw .acb.p29out .t{display:none!important}
+}
+
+/* nb-header-seller-visible: orange Become a seller pill next to Sign in */
+header.top .hx .sellk,
+header.top .sellk{display:inline-flex!important;align-items:center;justify-content:center;background:#ff6b4a;color:#fff;text-decoration:none;white-space:nowrap}
+header.top .hx .sellk span,
+header.top .sellk span{display:inline!important}
+header.top .sellk.p29{background:transparent;border:1.5px solid #0f766e;color:#0f766e}
+header.top .sellk.p29:hover{background:#f0fdfa;filter:none}

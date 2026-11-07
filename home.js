@@ -18,26 +18,26 @@ function listShops(){const feat=new Set(promos().filter(p=>p.type==='featured_sh
   return shops().map(s=>({...s,dist:S.me&&s.lat!=null&&s.lng!=null?miles(S.me,s):null,_st:shopStatus(s),_feat:feat.has(s.id)}))
    .sort(S.me?(a,b)=>(a.dist??1e9)-(b.dist??1e9)||b._feat-a._feat:(a,b)=>b._feat-a._feat||b._st.open-a._st.open)}
 
-/* Hero carousel for everyone, using p5's slide markup so its auto-advance, dots, arrows and swipe apply.
-   Admin "banner" promotions come first; house slides only appear when that category has live stock to picture. */
-const catIdx=l=>CATS.findIndex(c=>c[0]===l);
-const HOUSE=[
- {theme:'teal',k:'Shop local',title:'Your high street, online',sub:'Order from independent shops near you. Collect for free or get local delivery.',cta:'Browse products',go:'data-t="products"'},
- {theme:'coral',k:'Party',cat:'Party',title:'Party essentials, ready today',sub:'Balloons, candles and banners from shops near you.',cta:'Shop party'},
- {theme:'night',k:'Stationery',cat:'Stationery',title:'Desk and school essentials',sub:'Pens, pads and pencils from your local shop.',cta:'Shop stationery'},
- {theme:'gold',k:'Post & packaging',cat:'Packaging',title:'Posting a parcel?',sub:'Mail bags, envelopes and boxes, ready to collect.',cta:'Shop packaging'},
- {theme:'lime',k:'Click & collect',title:'Order now, collect later',sub:'Click & collect is always free, and you pay the shop when you pick up.',cta:'How it works',go:'data-go="/how"'}];
-function slides(){const L=live(),out=[];
-  promos().filter(b=>b.type==='banner'&&(b.placement||'hero')==='hero').forEach(b=>out.push({theme:b.theme||'teal',k:b.shop_id?'Promoted':'ShopNip',title:b.title,sub:b.subtitle,cta:b.cta||'Shop now',go:`data-plink="${esc(b.link||'#search')}"`,img:b.image,art:b.sku?L.filter(p=>p.sku===b.sku):[]}));
-  HOUSE.forEach(h=>{const i=h.cat?catIdx(h.cat):-1,art=i>=0?varied(L.filter(CATS[i][1]),3):varied(L,3);
-    if(h.cat&&art.length<3)return;out.push({...h,art,go:h.go||`data-cat="${i}"`})});
-  return out.slice(0,6)}
-function hero(){const B=slides();if(!B.length)return '';
-  return `<section class="h5 hm-h5" id="h5" aria-roledescription="carousel" aria-label="Featured"><div class="h5s">${B.map((b,i)=>`<div class="h5i th-${esc(b.theme)} ${i?'':'on'}"${b.img?` style="--bg:url('${esc(b.img)}')"`:''} role="group" aria-roledescription="slide" aria-label="${i+1} of ${B.length}">
-    ${b.img?'<div class="h5bg"></div>':''}<div class="h5o"></div>
-    <div class="h5t"><span class="h5k">${esc(b.k)}</span><h2>${esc(b.title)}</h2>${b.sub?`<p>${esc(b.sub)}</p>`:''}<button type="button" class="h5c" ${b.go}>${esc(b.cta)}${svg('arrow')}</button>${S.me?'':'<button type="button" class="h5loc" data-h5loc>Enter postcode</button>'}</div>
-    ${b.img?'':`<div class="h5p" aria-hidden="true">${(b.art||[]).slice(0,3).map((p,j)=>`<span class="cut c${j}"><img decoding="async" ${i?'loading="lazy" ':''}src="${esc(p.images[0])}" alt="" data-fbhide></span>`).join('')}<i class="orb o1"></i><i class="orb o2"></i></div>`}</div>`).join('')}</div>
-   ${B.length>1?`<button type="button" class="h5a h5prev" data-h5go="-1" aria-label="Previous slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="h5a h5next" data-h5go="1" aria-label="Next slide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>`:''}</section>`}
+/* Deliveroo-style half-screen hero: light background, product photos at the sides, postcode search in the centre. */
+const HERO_L='/img/hero/left.jpg';
+const HERO_R='/img/hero/right.jpg';
+function hero(){
+  const pc=S.pc||'';
+  return `<section class="nb-hero" id="h5" aria-label="ShopNip">
+    <div class="nb-hero-art" aria-hidden="true"><span class="nb-hero-cut c0"><img decoding="async" src="${HERO_L}" alt=""></span><span class="nb-hero-cut c1"><img decoding="async" src="${HERO_R}" alt=""></span></div>
+    <div class="nb-hero-mid">
+      <h2>Your local shops, online.</h2>
+      <form class="nb-hero-card" id="nb-hero-pc" action="#" autocomplete="on">
+        <label for="nb-hero-q">Enter a postcode to see shops near you</label>
+        <div class="nb-hero-row">
+          <span class="nb-hero-pin" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+          <input id="nb-hero-q" name="postcode" type="text" inputmode="text" autocomplete="postal-code" spellcheck="false" placeholder="e.g. SW1A 1AA" value="${esc(pc)}">
+          <button type="submit">Search</button>
+        </div>
+        <button type="button" class="nb-hero-geo" data-nb-geo><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>Use my current location</button>
+      </form>
+    </div>
+  </section>`}
 
 /* Signed-in customers: a slim bar under the carousel with their saved postcode, what is near them, and quick links. */
 function welcome(){if(!P2.A.user)return '';const nm=firstName(),L=listShops(),near=S.me?L.filter(s=>s.dist!=null&&s.dist<=10):[],open=near.filter(s=>s._st.open).length,bn=S.basket.reduce((a,b)=>a+b.qty,0);
@@ -72,10 +72,8 @@ const STOP=/^(and|with|the|pads?|sets?|books?)$/i;
   const r=new RegExp('\\b('+(w.length?w:[n]).join('|')+')','i');/* exact membership from subcats.json (the wholesaler's own category pages); keyword match only until it loads */
   SUBCATS.push({l:n,r,t:p=>window.SUBTAG?(SUBTAG[p.sku]||[]).includes(n):r.test((p.name||'')+' '+(p.category||''))})}));
 (window.DEPTS||[]).forEach(d=>{const k=SUBCATS.findIndex(c=>c.l===d.d);if(k>=0)SUBCATS.splice(k,1);const subs=d.s.map(([n])=>SUBCATS.find(c=>c.l===n)).filter(Boolean);SUBCATS.push({l:d.d,t:p=>subs.some(c=>c.t(p))})});
-function cats(){const D=(window.DEPTS||[]).filter(d=>d.s.length>=4).slice(0,12);if(!D.length)return '';
-  const u=q=>'/products?cat='+encodeURIComponent(q);
-  return `<div class="hm-cgw"><p class="hm-eye">Shop by department</p><section class="hm-cg" aria-label="Shop by department">${D.map(d=>`<div class="hm-cc"><h3>${esc(d.d)}</h3><div class="hm-cq">${d.s.slice(0,4).map(([n,img])=>`<a class="hm-ci" href="${u(n)}" data-go="${u(n)}"><span class="hm-cim"><img loading="lazy" src="${esc(img)}" alt="" data-fb></span><small>${esc(n)}</small></a>`).join('')}</div>
-   <a href="${u(d.d)}" class="hm-cm" data-go="${u(d.d)}">See all ${esc(d.d)}</a></div>`).join('')}</section></div>`}
+function cats(){const want=['Packaging & Mailing','Gifts & Cards','Stationery','Art & Craft'];const D=want.map(n=>(window.DEPTS||[]).find(d=>d.d===n&&d.s.length)).filter(Boolean);if(!D.length)return '';
+  return `<section class="hm-departments" aria-label="Shop by category"><h2>Shop by category</h2><div class="hm-dept-grid">${D.map(d=>{const du='/products?cat='+encodeURIComponent(d.d);const subs=d.s.slice(0,4).map(([n,src])=>{const u='/products?cat='+encodeURIComponent(n);return `<a class="hm-dsub" href="${u}" data-go="${u}"><span><img loading="lazy" src="${esc(String(src).replace(/ /g,'%20'))}" alt="" data-fb></span><small>${esc(n)}</small></a>`}).join('');return `<article class="hm-dept"><div class="hm-dept-h"><h3>${esc(d.d)}</h3><a class="hm-dept-more" href="${du}" data-go="${du}">See more</a></div><div class="hm-dept-subs">${subs}</div></article>`}).join('')}</div></section>`}
 
 const varied=(L,n)=>{const out=CATS.map(([,t])=>L.find(t)).filter((p,i,a)=>p&&a.indexOf(p)===i);return out.concat(L.filter(p=>!out.includes(p))).slice(0,n)};
 function shopCard(s){const L=live().filter(p=>sids(p).includes(s.id)),st=s._st,d=s.delivery_options||{},rb=readyBy(s);
@@ -92,8 +90,8 @@ function shopCard(s){const L=live().filter(p=>sids(p).includes(s.id)),st=s._st,d
 
 let showAll=false;const FIRST=6;
 function shopsSec(){const list=listShops();
-  if(!list.length)return `<section class="hm-sec" id="shops"><div class="hm-h"><div><p class="hm-eye">Local shops</p><h2>Local shops</h2></div></div>
-   <div class="hm-empty">${svg('store')}<b>No shops are live yet</b><p>Independent shops are joining ShopNip.</p><a href="${SU('signup')}">Run a shop? List it for free</a></div></section>`;
+  if(!list.length)return `<section class="hm-sec" id="shops"><div class="hm-h"><div><p class="hm-eye">Around the corner</p><h2>Local shops</h2></div></div>
+   <div class="hm-empty">${svg('store')}<b>No shops are live yet</b><p>Independent shops are joining ShopNip.</p><a href="${SU('signup')}">Run a shop? Join ShopNip</a></div></section>`;
   const near=S.me?list.filter(s=>s.dist!=null&&s.dist<=10).length:0,openN=list.filter(s=>s._st.open).length,shown=S.openOnly?list.filter(s=>s._st.open):list,vis=showAll?shown:shown.slice(0,FIRST);
   const title=!S.me?'Local shops on ShopNip':near?`Shops near ${esc(S.pc)}`:'Nearest shops';
   const sub=S.me?'Nearest first, with today’s opening hours'
@@ -104,13 +102,15 @@ function shopsSec(){const list=listShops();
   const more=shown.length>FIRST?`<button type="button" class="hm-all" data-hmall>${showAll?'Show fewer shops':`Show all ${shown.length} shops`}</button>`:'';
   const body=shown.length?`<div class="hm-shops">${vis.map(shopCard).join('')}</div>${more}`
    :`<div class="hm-empty">${svg('clock')}<b>No shops are open right now</b><p>You can still browse and order. The shop confirms when it opens.</p><button type="button" class="btn" data-openf="all">Show all shops</button></div>`;
-  return `<section class="hm-sec" id="shops"><div class="hm-h"><div><p class="hm-eye">${S.me?"Shops near you":"Local shops"}</p><h2>${title}</h2><p>${sub}</p></div></div>${note}${filt}<div class="hm-shw">${body}${mapBox(list)}</div></section>`}
+  return `<section class="hm-sec" id="shops"><div class="hm-h"><div><p class="hm-eye">${S.me?"Your neighbourhood":"Independent favourites"}</p><h2>${title}</h2><p>${sub}</p></div></div>${note}${filt}<div class="hm-shw">${body}${mapBox(list)}</div></section>`}
 
 function mixCats(L,n){const by={};L.forEach(p=>(by[p.category]=by[p.category]||[]).push(p));const g=Object.values(by).sort((a,b)=>b.length-a.length),out=[];
   for(let i=0;out.length<n&&g.some(x=>x[i]);i++)g.forEach(x=>{if(x[i]&&out.length<n)out.push(x[i])});return out}
-function prodSec(){const L=live();if(!L.length)return '';const items=mixCats(L.filter(p=>p.stock>0),12);if(!items.length)return '';
+function prodSec(){const ids=new Set(listShops().filter(s=>s.dist!=null&&s.dist<=10).map(s=>s.id));
+  const L=live().filter(p=>p.stock>0&&(!S.me||sids(p).some(id=>ids.has(id))));const items=mixCats(L,12);
+  if(!items.length)return `<section class="hm-sec hm-popular"><div class="hm-h"><div><p class="hm-eye">From local shelves</p><h2>Popular near you</h2></div></div><div class="hm-empty"><b>${S.me?'No in-stock products nearby yet':'Find what’s in stock near you'}</b><p>${S.me?'Browse the nearest shops above for their latest availability.':'Enter your postcode above to explore local shops and available products.'}</p><a href="#shops">Explore local shops</a></div></section>`;
   const from=new Set(L.flatMap(sids).filter(Boolean)).size;
-  return `<section class="hm-sec"><div class="hm-h"><div><p class="hm-eye">In stock now</p><h2>Ready to order</h2><p>In stock at ${plural(from,'local shop')}</p></div>
+  return `<section class="hm-sec"><div class="hm-h"><div><p class="hm-eye">In stock now</p><h2>Popular near you</h2><p>In stock at ${plural(from,'local shop')}</p></div>
    <a href="/products" class="hm-more" data-t="products">See all ${L.length}${svg('arrow')}</a></div><div class="grid hm-grid">${items.map(pcard).join('')}</div></section>`}
 
 /* Today's deals: shops' end-of-day offers (shop_offers via social.js) plus products with a was-price (compare_at_price). */
@@ -137,14 +137,12 @@ addEventListener('click',e=>{const b=e.target.closest('[data-hmp]');if(!b)return
 
 const how=()=>`<section class="hm-how" id="about"><div class="hm-h"><div><p class="hm-eye">How it works</p><h2>How ShopNip works</h2><p>Every order goes straight to an independent shop near you. No warehouses.</p></div></div>
   <ol>${[['pin','Find a shop','Enter your postcode to see local shops, their opening hours and what they have in stock.'],
-   ['bag','Order online','Add items to your basket and choose click & collect or local delivery. Each order is for one shop.'],
-   ['store','Collect or get it delivered','The shop confirms your order. Show your collection PIN at the counter and pay the shop by card or cash.']]
+   ['bag','Order online','Add items to your basket and choose click &amp; collect, or delivery where offered. Each order is for one shop.'],
+   ['store','Collect from your shop','Wait for the shop to confirm your order, then show your collection PIN and pay at the counter. Delivery options depend on the shop.']]
    .map(([i,t,s],k)=>`<li><span class="hm-n">${k+1}</span>${svg(i)}<b>${t}</b><p>${s}</p></li>`).join('')}</ol>
-  <p class="hm-faq">Questions about payment, delivery or cancelling? <a href="#faq">Read the FAQ</a></p></section>`;
+  <p class="hm-faq">Questions about payment, delivery or cancelling? <a href="/faq" data-go="/faq">Read the FAQ</a></p></section>`;
 
-const sellBan=()=>{const im=(d,k)=>{const x=(window.DEPTS||[]).find(v=>v.d===d);return x&&x.s[k]?x.s[k][1]:''};
-  const card=(cls,k,t,p,btn,href,extra,img,ic)=>`<div class="hm-2c ${cls}"><div class="hm-2c-t"><p class="hm-2c-k">${svg(ic)}${k}</p><h2>${t}</h2><p>${p}</p><div class="hm-2c-a"><a class="hm-2c-btn" href="${href}" ${href.startsWith('/products')?'data-go="/products"':'data-sell'}>${btn}${svg('arrow')}</a>${extra}</div></div>${img?`<span class="hm-2c-im" aria-hidden="true"><img loading="lazy" src="${esc(img)}" alt="" data-fb></span>`:''}</div>`;
-  return `<section class="hm-2cs" aria-label="Shop or sell on ShopNip">${card('shop','Shop local','Shop local','Order from independent shops near you. Free click &amp; collect or local delivery.','Browse products','/products','',im('Stationery',0),'bag')}${card('sell','For local shops','Sell on ShopNip','Get a free online shop and take orders from customers nearby. Your first 50 listings are free.','Become a seller','/seller.html#register','<a class="hm-2c-l" href="/how" data-go="/how">How it works</a>',im('Party & Events',0),'store')}</section>`};
+const sellBan=()=>`<section class="hm-sell" aria-label="Become a seller"><div><p class="hm-eye">Own a local shop?</p><h2>Your neighbourhood.<br>Your shop. Now online.</h2><p>Bring your shelves to nearby customers and take click &amp; collect orders with ShopNip.</p></div><div class="hm-sell-a"><a class="btn" href="${SU('register')}" data-sell>Become a seller ${svg('arrow')}</a><a class="hm-link" href="/how" data-go="/how">See how it works</a></div></section>`;
 /* Shops map: pins at each live shop's own listed location (lat/lng from the shops table, same as the postcode shown on cards). Leaflet + OSM tiles load only when the map scrolls into view. */
 function mapBox(list){const pins=list.filter(s=>s.lat!=null&&s.lng!=null&&(s.lat||s.lng)).map(s=>({id:s.id,n:s.name,pc:s.postcode||'',la:+s.lat,ln:+s.lng,d:s.dist,o:s._st?.label||''}));if(!pins.length)return '';
   const near=S.me&&pins[0].d!=null?pins[0]:null;
@@ -165,19 +163,35 @@ new MutationObserver(()=>{const el=document.getElementById('hmmap');if(el&&!el.d
 /* Facts strip: figures computed from live listings and shops on every render. */
 const inStock=()=>live().filter(p=>p.stock>0);
 function brandCounts(){const B=window.BRANDSKU||{},have=new Set(inStock().map(p=>p.sku));return Object.entries(B).map(([b,s])=>[b,s.filter(k=>have.has(k)).length]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1])}
+function odo(val){
+  const s=String(val);
+  if(!/^\d[\d,]*$/.test(s))return `<b class="hm-od">${esc(s).replace(/ /g,'&nbsp;')}</b>`;
+  let i=0;
+  return `<b class="hm-od" aria-label="${esc(s)}">${s.replace(/(\d+)|([^\d]+)/g,(_,d,t)=>{
+    if(t)return `<em class="hm-od-t">${esc(t).replace(/ /g,'&nbsp;')}</em>`;
+    return [...d].map(ch=>{
+      const to=20+(+ch);
+      const cells=Array.from({length:to+1},(_,k)=>`<i>${k%10}</i>`).join('');
+      return `<span class="hm-od-d" style="--to:${to};--i:${i++}"><span>${cells}</span></span>`;
+    }).join('');
+  })}</b>`}
 function facts(){const n=inStock().length,sh=shops(),bc=brandCounts().length;if(!n&&!sh.length)return '';
   const col=sh.some(s=>(s.delivery_options||{}).collect!==false),rb=sh.map(readyBy).find(Boolean);
   const F=[n?[n.toLocaleString('en-GB'),'products in stock']:null,sh.length?[sh.length,sh.length===1?'local shop':'local shops']:null,bc?[bc,'brands stocked']:null,col?['Free','click & collect']:null,rb?[(s=>s.charAt(0).toUpperCase()+s.slice(1))(rb.replace(/^Ready /i,'')),'earliest collection']:null].filter(Boolean);
-  return `<section class="hm-facts" aria-label="ShopNip in numbers">${F.map(([a,b])=>`<div><b>${esc(String(a))}</b><span>${esc(b)}</span></div>`).join('')}</section>`}
+  return `<section class="hm-facts" aria-label="ShopNip in numbers">${F.map(([a,b])=>`<div>${odo(a)}<small>${esc(b)}</small></div>`).join('')}</section>`}
+const TRUSTED=[['Post Offices','/img/trusted/post-offices.jpg','sq'],['Retailers','/img/trusted/retailers.jpg','md'],['Newsagents','/img/trusted/newsagents.jpg','wd'],['Convenience','/img/trusted/convenience.jpg','md'],['Stationery','/img/trusted/stationery.jpg','sq'],['Online Sellers','/img/trusted/online-sellers.jpg','wd'],['Schools','/img/trusted/schools.jpg','sq'],['Community','/img/trusted/community.jpg','wd'],['Off Licence','/img/trusted/off-licence.jpg','wd'],['Gift & Party','/img/trusted/gift-party.jpg','md']];
+function trusted(){
+  const tiles=TRUSTED.map(([n,src,sz])=>`<li class="${sz}"><img decoding="async" src="${src}" alt=""><span>${esc(n)}</span></li>`).join('');
+  return `<section class="hm-trust" aria-label="Trusted by"><p class="hm-eye">Trusted by</p><div class="hm-tm"><ul class="hm-tt">${tiles}${tiles.replace(/<li/g,'<li aria-hidden="true"')}</ul></div></section>`}
 /* Brand strip: wordmarks of brands with stock right now; CSS marquee, pauses on hover, static if reduced motion. */
 function brandStrip(){const B=brandCounts().slice(0,18).map(x=>x[0]);if(B.length<4)return '';const row=B.map(b=>`<li>${esc(b)}</li>`).join('');
   return `<section class="hm-brands" aria-label="Brands in stock"><p class="hm-eye">Brands in stock</p><div class="hm-bm"><ul class="hm-bt">${row}${row.replace(/<li>/g,'<li aria-hidden="true">')}</ul></div></section>`}
 
-const news=()=>`<section class="hm-news"><div><p class="hm-eye">Stay in the loop</p><h2>Hear about offers near you</h2><p>One email a week from shops on your street. Unsubscribe any time.</p></div>
+const news=()=>`<section class="hm-news"><div><p class="hm-eye">Stay in the loop</p><h2>Hear about offers near you</h2><p>Get updates from independent shops and discover local offers. Unsubscribe any time.</p></div>
   <form class="nwf" id="nwf"><div class="hm-nwi"><input type="email" id="nw_e" required placeholder="you@example.com" aria-label="Email address" autocomplete="email"><input id="nw_p" placeholder="Postcode" aria-label="Postcode (optional)" value="${esc(S.pc||'')}" maxlength="8"><button class="btn" type="submit">Sign up</button></div>
   <small>See our <a href="/privacy">Privacy Policy</a>.</small><div class="nwok" id="nwok"></div></form></section>`;
 
-V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${welcome()}${facts()}${shopsSec()}${sellBan()}${cats()}${brandStrip()}${dealsSec()}${prodSec()}${how()}${news()}</div>${foot()}`};
+V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${facts()}${trusted()}${shopsSec()}${sellBan()}${cats()}${dealsSec()}${prodSec()}${how()}${news()}</div>${foot()}`};
 
 addEventListener('click',e=>{const t=e.target.closest('[data-hmloc],[data-hmall]');if(!t)return;e.preventDefault();e.stopImmediatePropagation();
   if(t.hasAttribute('data-hmloc'))return askPostcode();
@@ -191,6 +205,51 @@ const css=`.nx-empty{padding:28px 16px 8px}.nx-h{font-size:18px;margin:24px 0 12
 .sh-d.clamp{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .sh-more{background:none;border:0;padding:8px 0;min-height:44px;font-weight:700;color:var(--teal,#0f766e);cursor:pointer;font-size:14px}
 .hm-h5 .h5d{display:none!important}
+.nb-hero{position:relative;overflow:hidden;display:grid;place-items:center;min-height:300px;height:50vh;height:50dvh;max-height:520px;width:100vw;margin:0 0 0 calc(50% - 50vw);padding:28px 24px;background:#f4f5f6}
+.nb-hero:before{content:"";position:absolute;left:-6%;top:-8%;width:38%;height:120%;background:linear-gradient(160deg,#2dd4bf 0%,#0f766e 72%);clip-path:polygon(0 0,72% 0,100% 50%,72% 100%,0 100%);opacity:.95}
+.nb-hero:after{content:"";position:absolute;right:-10%;bottom:-20%;width:28%;height:70%;background:#d1fae5;border-radius:50%;filter:blur(8px);opacity:.7}
+.nb-hero-mid{position:relative;z-index:2;width:min(560px,92%);text-align:center}
+.nb-hero h2{margin:0 0 18px;font-size:clamp(28px,4.4vw,48px);line-height:1.12;letter-spacing:-.04em;font-weight:800;color:#0b2b29;text-wrap:balance}
+.nb-hero-card{background:#fff;border-radius:14px;padding:20px 22px 16px;box-shadow:0 10px 36px rgba(16,32,56,.12);text-align:left}
+.nb-hero-card label{display:block;margin:0 0 10px;font-size:14px;font-weight:700;color:#0b2b29}
+.nb-hero-row{position:relative;display:flex;gap:10px;align-items:stretch}
+.nb-hero-pin{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:#0f766e;pointer-events:none}
+.nb-hero-pin svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}
+.nb-hero-row input{flex:1;min-width:0;height:48px;border:1.5px solid #d0d5dd;border-radius:10px;padding:0 14px 0 38px;font:inherit;font-size:15px;background:#fff;color:#0b2b29}
+.nb-hero-row input:focus{outline:2px solid #0f766e;outline-offset:1px;border-color:#0f766e}
+.nb-hero-row button[type=submit]{flex:none;height:48px;padding:0 22px;border:0;border-radius:10px;background:#0f766e;color:#fff;font:800 15px inherit;cursor:pointer}
+.nb-hero-row button[type=submit]:hover{background:#0c5f59}
+.nb-hero-geo{display:inline-flex;align-items:center;margin-top:12px;padding:0;border:0;background:none;color:#0f766e;font:700 14px inherit;cursor:pointer}
+.nb-hero-geo svg{display:none}
+.nb-hero-geo:hover{text-decoration:underline}
+.nb-hero-art{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(520px,1.4fr) minmax(0,1fr);align-items:stretch;gap:18px;padding:18px 22px;pointer-events:none;z-index:1}
+.nb-hero-cut{background:transparent;border:0;box-shadow:none;border-radius:0;overflow:hidden;min-width:0;min-height:0;-webkit-mask-image:radial-gradient(ellipse 78% 82% at 50% 50%,#000 52%,transparent 78%);mask-image:radial-gradient(ellipse 78% 82% at 50% 50%,#000 52%,transparent 78%)}
+.nb-hero-cut.c0{grid-column:1}
+.nb-hero-cut.c1{grid-column:3}
+.nb-hero-cut img{width:118%;height:118%;margin:-9%;object-fit:cover;display:block;animation:nbDrift var(--dur,11s) ease-in-out var(--del,0s) infinite alternate}
+.nb-hero-cut.c0 img{--dx:12px;--dy:-8px;--dur:11s}
+.nb-hero-cut.c1 img{--dx:-12px;--dy:8px;--dur:12s;--del:.35s}
+@keyframes nbDrift{from{transform:translate(0,0)}to{transform:translate(var(--dx,8px),var(--dy,-8px))}}
+@media(max-width:1100px){
+  .nb-hero-art{grid-template-columns:minmax(0,.85fr) minmax(400px,1.5fr) minmax(0,.85fr);gap:14px;padding:16px}
+}
+@media(max-width:767px){
+  .nb-hero{height:auto;max-height:none;min-height:0;padding:28px 16px 32px;place-items:start stretch}
+  .nb-hero:before{left:auto;right:0;top:0;width:84px;height:58px;background:#2dd4bf;clip-path:polygon(32% 0,100% 0,100% 100%);opacity:1}
+  .nb-hero:after{display:block;filter:none;border-radius:0;left:auto;right:0;top:14%;bottom:auto;width:24%;height:44%;background:linear-gradient(200deg,#5eead4 0%,#2dd4bf 50%,#14b8a6 100%);clip-path:polygon(40% 0,100% 0,100% 100%,0 58%);opacity:1}
+  .nb-hero-art{display:none}
+  .nb-hero-mid{width:100%;text-align:left}
+  .nb-hero h2{font-size:clamp(30px,8.2vw,38px);line-height:1.14;letter-spacing:-.035em;margin:0 0 22px;max-width:18ch;text-align:left}
+  .nb-hero-card{padding:18px 16px 16px;border-radius:16px;box-shadow:0 8px 28px rgba(16,32,56,.1)}
+  .nb-hero-card label{font-size:14px;font-weight:700;margin:0 0 12px}
+  .nb-hero-row{flex-direction:row;gap:8px}
+  .nb-hero-pin{top:50%}
+  .nb-hero-row input{height:48px;border-radius:12px}
+  .nb-hero-row button[type=submit]{width:auto;flex:none;height:48px;padding:0 18px;border-radius:24px;white-space:nowrap}
+  .nb-hero-geo{display:flex;width:100%;justify-content:center;gap:8px;margin-top:14px;min-height:48px;padding:0 16px;border:1.5px solid #d0d5dd;border-radius:12px;background:#fff;color:#0b2b29;font:700 15px inherit;box-sizing:border-box}
+  .nb-hero-geo svg{display:block;width:20px;height:20px;stroke:#0f766e;fill:none;stroke-width:2;flex:none}
+  .nb-hero-geo:hover{text-decoration:none;background:#f8faf9;border-color:#0f766e}
+}
 .hm-cg{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:-16px}
 .hm-cg{align-items:stretch}.hm-cc{height:100%;box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px 18px 14px;display:flex;flex-direction:column}.hm-cc h3{margin:0 0 12px;font-size:19px;letter-spacing:-.02em}
 .hm-cq{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px;flex:1}.hm-ci{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -271,10 +330,80 @@ const css=`.nx-empty{padding:28px 16px 8px}.nx-h{font-size:18px;margin:24px 0 12
 @media(max-width:760px){.hm{gap:30px;padding-top:12px} .hm-cats{margin:-14px -16px 0;padding:2px 16px}.hm-h h2{font-size:21px}.hm-h p{font-size:14px}.hm-shops{grid-template-columns:1fr}.hm-grid>:nth-child(n+9){display:none}
  .hm-how{padding:22px 18px}.hm-how ol{gap:10px}.hm-how li{padding:16px 40px 16px 16px;display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:12px}.hm-how li>svg{grid-row:span 2;width:24px;height:24px;margin-top:2px}.hm-how li b{margin:0 0 4px;font-size:16px}.hm-how li p{font-size:14px}.hm-sell{padding:26px 22px}.hm-sell h2{font-size:24px}.hm-news{padding:22px 18px}
  .hm-w{padding:16px;border-radius:20px}.hm-w-name{font-size:19px}.hm-h5{margin-top:-12px}.hm-h5 .h5a,.hm-h5 .h5p .c2{display:none}.hm-av{width:46px;height:46px;font-size:20px}.hm-w-b{width:100%}.hm-w-st{flex:1}.hm-w-b>button{flex:1 1 40%}
- .hm-nwi{flex-wrap:wrap}.hm-nwi #nw_e{flex-basis:100%}.hm-nwi #nw_p{flex:1 1 100px}}`;
-new MutationObserver(()=>document.querySelectorAll('.sh-d:not([data-cl])').forEach(d=>{d.dataset.cl=1;if(d.textContent.length>320){d.classList.add('clamp');const b=document.createElement('button');b.type='button';b.className='sh-more';b.textContent='Read more';b.onclick=()=>{const o=d.classList.toggle('clamp');b.textContent=o?'Read more':'Show less'};d.after(b)}})).observe(document.documentElement,{childList:true,subtree:true});
+ .hm-nwi{flex-wrap:wrap}.hm-nwi #nw_e{flex-basis:100%}.hm-nwi #nw_p{flex:1 1 100px}}
+.nb-hero{margin-bottom:0}.hm{--hmgap:40px}.hm>.nb-hero+.hm-facts,.hm>.hm-facts+.hm-trust{margin-top:var(--hmgap)!important}.hm-facts{margin-top:0;border:0;border-radius:28px;box-shadow:0 18px 48px rgba(15,32,56,.08),0 1px 0 rgba(15,32,56,.04);overflow:hidden;background:#fff}
+.hm-facts>div{padding:26px 24px 24px;gap:8px;border-left:1px solid #eef1f4}
+.hm-facts>div:first-child{border-left:0}
+.hm-facts b,.hm-facts .hm-od{font-size:clamp(32px,3vw,42px);font-weight:900;letter-spacing:-.045em;color:#0b2b29;line-height:1;font-variant-numeric:tabular-nums}
+.hm-facts .hm-od,.hm-facts .hm-od span,.hm-facts .hm-od i,.hm-facts .hm-od em{font-size:inherit;color:inherit;font-weight:900;line-height:1}
+.hm-facts>div>small{font-size:13px;color:#667085;font-weight:600;letter-spacing:.01em}
+.hm-od{display:inline-flex;align-items:center;white-space:nowrap;height:1em;line-height:1;overflow:hidden}
+.hm-od-t{font-style:normal;padding:0 .06em;font-weight:900;line-height:1}
+.hm-od-d{position:relative;display:block;flex:none;width:.62em;height:1em;min-width:.62em;min-height:0;overflow:hidden;line-height:1}
+.hm-od-d>span{position:absolute;left:0;top:0;display:flex;flex-direction:column;will-change:transform;transform:translateY(calc(var(--to) * -1em));line-height:1}
+.hm-od-d i{display:flex;align-items:center;justify-content:center;height:1em;width:.62em;line-height:1;font-style:normal;font-weight:900}
+.hm-facts.in .hm-od-d>span{animation:hmOd calc(1.15s + var(--i)*.12s) cubic-bezier(.12,.72,.14,1) both}
+@keyframes hmOd{from{transform:translateY(calc(var(--from,0) * -1em))}to{transform:translateY(calc(var(--to) * -1em))}}
+@media(prefers-reduced-motion:reduce){.hm-facts .hm-od-d>span,.hm-facts.in .hm-od-d>span{animation:none;transform:translateY(calc(var(--to) * -1em))}}
+@media(max-width:767px){.hm-facts>div{padding:16px 16px 15px}.hm-facts b,.hm-facts .hm-od{font-size:26px}}
+.hm-trust{width:100vw;margin-left:calc(50% - 50vw);margin-right:0;margin-bottom:0}
+.hm-trust .hm-eye{display:block;position:relative;z-index:1;margin:0 0 10px;padding:0 max(20px,calc(50vw - 620px));background:none;color:#0f5f58}
+.hm-tm{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.hm-tt{list-style:none;display:flex;align-items:stretch;gap:12px;width:max-content;margin:0;padding:2px 16px 6px;animation:hmTrust 68s linear infinite}
+.hm-tm:hover .hm-tt{animation-play-state:paused}
+.hm-tt li{position:relative;flex:none;height:156px;width:214px;border-radius:20px;overflow:hidden;background:#e8eef0}
+.hm-tt li.sq{width:208px}.hm-tt li.md{width:224px}.hm-tt li.wd{width:240px}
+.hm-tt img{width:100%;height:100%;object-fit:cover;object-position:center center;display:block}
+.hm-tt span{position:absolute;left:10px;bottom:10px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.94);color:#0b2b29;font:800 12.5px inherit;letter-spacing:-.01em;box-shadow:0 4px 14px rgba(15,32,56,.12)}
+@keyframes hmTrust{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.hm-tt{animation:none}.hm-tm{overflow-x:auto;-webkit-mask-image:none;mask-image:none}}
+@media(max-width:767px){
+  .hm{--hmgap:28px}
+  .hm>.nb-hero+.hm-facts,.hm>.hm-facts+.hm-trust{margin-top:var(--hmgap)!important}
+  .hm-trust .hm-eye{padding:0 16px;margin-bottom:12px}
+  .hm-tt{gap:10px;padding:2px 12px 4px}
+  .hm-tt li{height:124px;border-radius:16px}
+  .hm-tt li.sq{width:166px}.hm-tt li.md{width:178px}.hm-tt li.wd{width:190px}
+  .hm-tt span{font-size:11.5px;padding:4px 9px;left:8px;bottom:8px}
+}
+
+/* Homepage content: compact rhythm, flexible cards and touch-sized controls. */
+.hm{gap:0;background:#faf7f2;--hmgap:40px}.hm>*{min-width:0}
+.hm>section.hm-sec,.hm>section.hm-sell,.hm>section.hm-departments,.hm>section.hm-how,.hm>section.hm-news,.hm>section.hm-brands,.hm>section.hm-trust,.hm>section.hm-facts{margin-top:var(--hmgap)!important}
+.hm-h{gap:12px;flex-wrap:wrap;margin-bottom:20px}.hm-h h2{font-size:clamp(24px,2.7vw,34px);color:#102038;letter-spacing:-.035em}.hm-h p{line-height:1.55}.hm-h .hm-eye{color:#0f766e;font-size:11px;margin-bottom:7px}
+.hm-shw{grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr)}.hm-shw>.hm-shops{grid-template-columns:repeat(2,minmax(0,1fr))}.hm-shop{text-decoration:none;border-radius:24px}.hm-shop-b{min-width:0}.hm-shop h3{overflow-wrap:anywhere}.hm-map{min-width:0}.hm-seg{max-width:100%;flex-wrap:wrap}.hm-seg button{min-height:44px}.hm-th span{width:64px;height:64px;flex-shrink:1}.hm-shop-c{height:154px}
+.hm-sell{padding:clamp(24px,4vw,46px);background:linear-gradient(120deg,#102038,#0f766e);border-radius:28px;color:#fff}.hm-sell h2{font-size:clamp(28px,3vw,40px);line-height:1.12;color:#fff}.hm-sell-a .btn{display:inline-flex;align-items:center;gap:12px;min-height:48px;background:#fff;color:#0f5f58;border-radius:14px;text-decoration:none}.hm-sell-a svg{width:20px;height:20px}.hm-sell p{margin:12px 0 0;color:#fff;line-height:1.55;max-width:38em}.hm-sell .hm-eye{display:inline-flex;margin:0 0 14px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.2);color:#fff}.hm-sell .hm-link{color:#fff}.hm-sell-a{min-width:0}
+.hm-departments>h2{font-size:clamp(24px,2.7vw,34px);color:#102038;letter-spacing:-.035em;margin:0 0 22px;font-weight:800}.hm-dept-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.hm-dept{display:flex;flex-direction:column;min-width:0;height:100%;padding:18px 16px 16px;border-radius:24px;background:#eef2f5;color:#102038;overflow:hidden}.hm-dept:nth-child(2){background:#fde8df}.hm-dept:nth-child(3){background:#eef1f6}.hm-dept:nth-child(4){background:#e3f4ea}.hm-dept-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}.hm-dept-h h3{font-size:17px;line-height:1.25;margin:0;font-weight:800;overflow-wrap:anywhere}.hm-dept-more{flex-shrink:0;color:#0f766e;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}.hm-dept-more:hover{text-decoration:underline}.hm-dept-subs{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1}.hm-dsub{display:flex;flex-direction:column;min-width:0;background:#fff;border-radius:16px;padding:10px 8px 8px;text-decoration:none;color:#334155;overflow:hidden;transition:transform .2s}.hm-dsub>span{display:grid;place-items:center;height:110px;overflow:hidden}.hm-dsub img{width:100%;height:100%;object-fit:contain}.hm-dsub small{display:block;margin-top:8px;text-align:center;font-size:12px;line-height:1.3;color:#475569;overflow-wrap:anywhere}.hm-dsub:hover{transform:translateY(-2px)}
+.hm-grid{gap:14px;grid-template-columns:repeat(6,minmax(0,1fr))}.hm-grid>*{min-width:0;border-radius:20px;overflow:hidden}.hm-grid img{object-fit:contain}.hm-dg{grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr))}.hm-how{padding:clamp(22px,3vw,36px)}.hm-how ol{grid-template-columns:repeat(3,minmax(0,1fr))}.hm-how li{background:#faf7f2}.hm-how li:nth-child(2){background:#eaf5f1}.hm-how li:nth-child(3){background:#fff0e8}.hm-n{color:#0f766e}.hm-news{margin-bottom:12px}.hm-news>*,.hm-nwi>*{min-width:0}.hm a:focus-visible,.hm button:focus-visible{outline:3px solid #0f766e;outline-offset:4px}.hm-more{min-height:44px}
+@media(max-width:1050px){.hm-shw{grid-template-columns:1fr}.hm-shw>.hm-shops{grid-template-columns:repeat(3,minmax(0,1fr))}.hm-map{height:260px}.hm-dept-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.hm-dsub>span{height:100px}.hm-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hm-news{grid-template-columns:1fr}.hm-shop-c{height:130px}.hm-th{padding:12px;gap:5px}.hm-th span{width:54px;height:54px}}
+@media(max-width:767px){.hm{--hmgap:28px}.hm>section.hm-sec,.hm>section.hm-sell,.hm>section.hm-departments,.hm>section.hm-how,.hm>section.hm-news,.hm>section.hm-brands,.hm>section.hm-trust,.hm>section.hm-facts{margin-top:var(--hmgap)!important}.hm-shw>.hm-shops{grid-template-columns:1fr}.hm-shop-c{height:150px}.hm-th span{width:76px;height:76px}.hm-h h2{font-size:clamp(22px,7vw,28px)}.hm-sell{grid-template-columns:1fr;gap:18px;padding:22px 18px;border-radius:22px}.hm-sell h2{font-size:26px;line-height:1.18}.hm-sell p{font-size:15px;color:#fff}.hm-sell .hm-eye{color:#fff;background:rgba(255,255,255,.22)}.hm-sell-a{justify-self:stretch;align-items:stretch;flex-direction:column;gap:12px}.hm-sell-a .btn{justify-content:center;width:100%}.hm-link{min-height:44px;display:flex;align-items:center;justify-content:center;color:#fff}.hm-dept-grid{display:grid;grid-template-columns:1fr;gap:12px;overflow:visible}.hm-dept{border-radius:20px;padding:14px}.hm-dept-h h3{font-size:17px}.hm-dsub>span{height:112px}.hm-dsub small{font-size:12px}.hm-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.hm-how{padding:20px 16px}.hm-how ol{grid-template-columns:1fr}.hm-how li{padding:16px}.hm-h{align-items:flex-start}.hm-news{padding:20px 16px}.hm-news .nwf .btn{min-height:48px;width:100%}.hm-news h2{font-size:23px}.hm-shops{grid-template-columns:1fr}.hm-brands{overflow:hidden}}
+
+`;
+function armFacts(){const el=document.querySelector('.hm-facts:not([data-armed])');if(!el)return;el.dataset.armed=1;
+  const spin=first=>{el.querySelectorAll('.hm-od-d').forEach(d=>{const to=parseInt(getComputedStyle(d).getPropertyValue('--to'),10)||0;d.style.setProperty('--from',first?0:Math.max(0,to-10))});el.classList.remove('in');void el.offsetWidth;el.classList.add('in')};
+  const go=()=>{spin(true);clearInterval(window.__nbFactsOd);if(!matchMedia('(prefers-reduced-motion:reduce)').matches)window.__nbFactsOd=setInterval(()=>spin(false),3400)};
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches||!('IntersectionObserver' in window)){go();return}
+  const io=new IntersectionObserver(ents=>{if(ents.some(e=>e.isIntersecting)){go();io.disconnect()}},{threshold:.4,rootMargin:'0px 0px -8% 0px'});io.observe(el)}
+new MutationObserver(()=>{armFacts();document.querySelectorAll('.sh-d:not([data-cl])').forEach(d=>{d.dataset.cl=1;if(d.textContent.length>320){d.classList.add('clamp');const b=document.createElement('button');b.type='button';b.className='sh-more';b.textContent='Read more';b.onclick=()=>{const o=d.classList.toggle('clamp');b.textContent=o?'Read more':'Show less'};d.after(b)}})}).observe(document.documentElement,{childList:true,subtree:true});
+armFacts();
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 if(cur&&cur[0]==='home')render();
 })();
 
-document.addEventListener('click',e=>{if(e.target.closest('[data-h5loc]')){e.preventDefault();document.getElementById('loc')?.click()}});
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-h5loc]')){e.preventDefault();document.getElementById('loc')?.click();return}
+  if(e.target.closest('[data-nb-shops]')){e.preventDefault();if(!S.me){document.getElementById('loc')?.click();return}document.getElementById('shops')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+  if(e.target.closest('[data-nb-geo]')){
+    e.preventDefault();
+    const geo=document.getElementById('geo');if(geo){geo.click();return}
+    if(!navigator.geolocation){document.getElementById('loc')?.click();return}
+    navigator.geolocation.getCurrentPosition(async p=>{const me={lat:p.coords.latitude,lng:p.coords.longitude};setMe(me,await reversePc(me.lat,me.lng));requestAnimationFrame(()=>document.getElementById('shops')?.scrollIntoView({behavior:'smooth',block:'start'}))},()=>document.getElementById('loc')?.click());
+  }
+});
+document.addEventListener('submit',e=>{
+  if(e.target.id!=='nb-hero-pc')return;
+  e.preventDefault();
+  const v=(e.target.querySelector('input')?.value||'').trim();
+  if(!v){document.getElementById('loc')?.click();return}
+  (async()=>{try{const r=await lookupPostcode(v);setMe({lat:r.lat,lng:r.lng},r.pc);requestAnimationFrame(()=>document.getElementById('shops')?.scrollIntoView({behavior:'smooth',block:'start'}))}catch(err){alert('Sorry, we could not find that postcode.')}})();
+});
