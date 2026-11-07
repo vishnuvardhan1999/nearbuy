@@ -11,7 +11,7 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .foot a{display:inline-block;padding:6px 0}
 .tabs button{min-height:52px}
 /* mobile header: give the location chip room; seller entry lives in the account page and footer */
-@media(max-width:430px){header .sellk,header .hsell,header [data-sell].btn,header a[data-sell]{display:none!important}.loc b{max-width:none}}
+@media(max-width:430px){.loc b{max-width:none}}
 /* checkout clarity */
 .stp{display:flex;align-items:center;gap:6px;margin:0 0 16px;font-size:13px;font-weight:700;color:#94a3b8;list-style:none;padding:0}
 .stp li{display:flex;align-items:center;gap:6px}.stp li+li:before{content:"";width:22px;height:2px;background:#d5dbd9;border-radius:2px;margin-right:2px}

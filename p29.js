@@ -3,12 +3,12 @@
 (()=>{const P=window.P2;if(!P)return;const A=P.A;
 const SU=h=>window.SELLER_URL?SELLER_URL(h):'seller.html'+(h?'#'+h:'');
 document.head.insertAdjacentHTML('beforeend',`<style id="p29css">
-header .sellk.p29{background:transparent;border:1.5px solid rgba(255,255,255,.45);flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.1;gap:1px;padding:0 14px}
+header .sellk.p29{background:transparent;border:1.5px solid #0f766e;color:#0f766e;flex-direction:row;align-items:center;justify-content:center;line-height:1.1;gap:1px;padding:0 14px}
 header .sellk.p29 small{font-size:11px;font-weight:600;opacity:.85}header .sellk.p29 span{font-size:13.5px}
-header .sellk.p29:hover{background:rgba(255,255,255,.1);filter:none}
+header .sellk.p29:hover{background:#f0fdfa;filter:none}
 @media(max-width:767px){header .sellk.p29 small{display:none}header .sellk.p29{height:32px;padding:0 10px}header .sellk.p29 span{font-size:11.5px}
  .acw .acb.p29out{width:auto;border-radius:999px;padding:0 12px;height:34px;gap:6px}.acw .acb.p29out .t{display:flex}.acw .acb.p29out .t small{display:none}.acw .acb.p29out b{font-size:12.5px}.acw .acb.p29out svg{width:18px;height:18px}}
-@media(max-width:430px){header a.sellk.p29{display:none!important}}
+@media(max-width:430px){header .sellk{font-size:11px;padding:0 8px;height:30px}}
 .si .sel{background:#f8fafc;border:1px solid #e8ebf0;border-radius:14px;padding:12px 14px}
 .acm .acd.p29sw,.shopc .btn.p29sw{font-weight:800}.acm .acd.p29sw{color:#0f766e}
 </style>`);
@@ -18,7 +18,7 @@ function words(root){if(!root)return;const tw=document.createTreeWalker(root,Nod
 function set(el,html){if(el&&el.innerHTML!==html)el.innerHTML=html}
 function fix(){
   /* header: secondary "For shops" link (seller sign in), primary "Sign in" for shoppers */
-  const sk=document.querySelector('header .sellk');if(sk){sk.classList.add('p29');sk.href=SU('');sk.removeAttribute('data-sell');sk.setAttribute('aria-label','Seller account');set(sk,'<span>Seller account</span>')}
+  const sk=document.querySelector('header .sellk');if(sk){const owner=!!(A.shop||A.profile?.role==='owner');sk.href=SU(owner?'overview':'');sk.setAttribute('aria-label',owner?'Seller account':'Become a seller');set(sk,owner?'<span>Seller account</span>':'<span>Become a seller</span>');sk.classList.toggle('p29',owner)}
   const b=document.querySelector('.acw .acb');
   if(b&&b.dataset.acc==='signin'){b.classList.add('p29out');b.setAttribute('aria-label','Sign in to shop');set(b.querySelector('.t'),'<b>Sign in</b>')}
   if(b&&b.dataset.acc==='menu'){b.classList.remove('p29out');const d=document.querySelector('.acm a.acd');if(d){d.classList.add('p29sw');if(d.textContent!=='Switch to seller dashboard')d.textContent='Switch to seller dashboard'}}

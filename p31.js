@@ -12,18 +12,19 @@ async function loadInfo(force){if(!D.shop||(F.info&&!force)||F.busy)return;F.bus
    else{const {data,error}=await sb.rpc('shop_fee_info',{p_shop:D.shop.id});F.info=error?{enabled:false}:data}}catch(e){F.info={enabled:false}}
   F.busy=false;NB.rerender()}
 const on=()=>!!(F.info&&F.info.enabled);
-const feeOf=o=>Math.round((+(o.subtotal??o.total)||0)*(+F.info.selling_pct||0))/100;
+const feeOf=o=>{if(!o||o.fulfilment!=='delivery')return 0;return Math.round((+(o.subtotal??0))*(+F.info.selling_pct||0))/100};
 /* dashboard overview: fee summary card (only when fees are on) */
 const ov=PAGES.overview;PAGES.overview=()=>{loadInfo();const h=ov();if(!on())return h;const i=F.info,t=i.tier==='trade';
   const live=D.O.filter(o=>!DEAD.includes(o.status)),m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);const mo=live.filter(o=>Date.parse(o.created_at)>=m0),est=mo.reduce((a,o)=>a+feeOf(o),0);
-  return `<div class="bnr info">${svg('pound')}<div><b>Your fees: ${(+i.selling_pct).toFixed(1).replace(/\.0$/,'')}% of each order${t?' (Suman Bros trade rate)':''} + ${+i.monthly_fee_due?gbp(i.monthly_fee_due)+' this month':'no monthly fee this month'}</b>`+
+  return `<div class="bnr info">${svg('pound')}<div><b>Your fees: ${(+i.selling_pct).toFixed(1).replace(/\.0$/,'')}% of delivery orders (no selling fee on click &amp; collect)${t?' (Suman Bros trade rate)':''} + ${+i.monthly_fee_due?gbp(i.monthly_fee_due)+' this month':'no monthly fee this month'}</b>`+
    `${t?(+i.month_trade_spend>=+i.waiver_spend?`Your Suman Bros spend this month is ${gbp(i.month_trade_spend)}, so the ${gbp(i.monthly_fee)} monthly fee is waived.`:`Spend ${gbp(i.waiver_spend)} with Suman Bros this month (so far ${gbp(i.month_trade_spend)}) and the ${gbp(i.monthly_fee)} monthly fee is waived.`):'Shops that buy wholesale from Suman Bros pay a lower rate.'}`+
    ` Estimated selling fees this month: <b>${gbp(est)}</b>. First ${i.free_listings} products are free to list.</div></div>`+h};
 /* orders list + order drawer: estimated fee per order */
 function patch(){if(!on()||!document.body.classList.contains('dash'))return;
   document.querySelectorAll('tr[data-o]:not([data-fee])').forEach(tr=>{const o=D.O.find(x=>String(x.id)===tr.dataset.o);if(!o)return;tr.dataset.fee='1';const td=tr.querySelector('td.num');if(td&&!DEAD.includes(o.status))td.insertAdjacentHTML('beforeend',`<div class="mut" style="font-size:12px">Est. fee ${gbp(feeOf(o))}</div>`)});
   document.querySelectorAll('.kv.tot:not([data-fee])').forEach(k=>{const dr=k.closest('[data-oid],.drawer,.dr');const id=dr?.dataset?.oid||D.ui.drawer;const o=D.O.find(x=>String(x.id)===String(id));if(!o)return;k.dataset.fee='1';
-    k.insertAdjacentHTML('afterend',`<div class="kv"><span>Estimated ShopNip fee (${(+F.info.selling_pct).toFixed(1).replace(/\.0$/,'')}% of subtotal)</span><span>${gbp(feeOf(o))}</span></div><div class="kv"><span>You keep (est.)</span><b>${gbp((+o.total||0)-feeOf(o))}</b></div>`)})}
+    const collect=o.fulfilment!=='delivery';
+    k.insertAdjacentHTML('afterend',`<div class="kv"><span>${collect?'ShopNip fee (click &amp; collect)':`Estimated ShopNip fee (${(+F.info.selling_pct).toFixed(1).replace(/\.0$/,'')}% of delivery subtotal)`}</span><span>${collect?'No fee':gbp(feeOf(o))}</span></div><div class="kv"><span>You keep (est.)</span><b>${gbp((+o.total||0)-feeOf(o))}</b></div>`)})}
 new MutationObserver(()=>patch()).observe(document.getElementById('app'),{childList:true,subtree:true});
 /* products page: "Add my usual products" */
 const pp=PAGES.products;PAGES.products=()=>{const h=pp();const pend=D.shop&&D.shop.status!=='approved';
@@ -42,13 +43,13 @@ window.NBUsual=usual;
 /* seller landing: fees section + FAQ answer only once fees are switched on */
 function landing(){const s=F.set;if(!s||!s.enabled)return;const sec=document.getElementById('fees');if(!sec||sec.dataset.p31)return;sec.dataset.p31='1';
   const pc=v=>(+v).toFixed(1).replace(/\.0$/,'');
-  sec.querySelector('.wrap').innerHTML=`<span class="kick">Fees</span><h2>Simple fees, first ${s.free_listings} products free to list</h2><p class="sub">You only pay a selling fee when you get an order. No setup fee.</p>
-   <div class="fees"><div class="plan hot"><span class="badge">Suman Bros trade customers</span><h3>Trade</h3><div class="pr">${pc(s.trade_selling_pct)}% <small>per order</small></div><small>+ ${gbp(s.trade_monthly_fee)}/month, free in any month you spend ${gbp(s.trade_waiver_spend)}+ with Suman Bros</small>
+  sec.querySelector('.wrap').innerHTML=`<span class="kick">Fees</span><h2>Simple fees, first ${s.free_listings} products free to list</h2><p class="sub">No selling fee on click &amp; collect. You only pay a selling fee on delivery orders. No setup fee.</p>
+   <div class="fees"><div class="plan hot"><span class="badge">Suman Bros trade customers</span><h3>Trade</h3><div class="pr">${pc(s.trade_selling_pct)}% <small>on delivery</small></div><small>+ ${gbp(s.trade_monthly_fee)}/month, free in any month you spend ${gbp(s.trade_waiver_spend)}+ with Suman Bros</small>
      <ul><li>${svg('check')}Products you usually buy added for you</li><li>${svg('check')}First ${s.free_listings} products free to list</li><li>${svg('check')}Click &amp; collect and local delivery</li></ul></div>
-    <div class="plan"><h3>Other shops</h3><div class="pr">${pc(s.other_selling_pct)}% <small>per order</small></div><small>+ ${gbp(s.other_monthly_fee)}/month</small>
+    <div class="plan"><h3>Other shops</h3><div class="pr">${pc(s.other_selling_pct)}% <small>on delivery</small></div><small>+ ${gbp(s.other_monthly_fee)}/month</small>
      <ul><li>${svg('check')}Your own shop page</li><li>${svg('check')}First ${s.free_listings} products free to list</li><li>${svg('check')}Seller dashboard with order alerts</li></ul></div></div>
-   <p class="fnote">Selling fee is a percentage of the order subtotal (excluding delivery). Customers pay you directly.</p>`;
-  document.querySelectorAll('#faq details, #faq .qa, .faq details').forEach(d=>{if(/How much does it cost/i.test(d.textContent)){const p=d.querySelector('p');if(p)p.textContent=`First ${s.free_listings} products are free to list. Suman Bros trade customers pay ${pc(s.trade_selling_pct)}% per order plus ${gbp(s.trade_monthly_fee)} a month (free in any month they spend ${gbp(s.trade_waiver_spend)}+ with Suman Bros). Other shops pay ${pc(s.other_selling_pct)}% per order plus ${gbp(s.other_monthly_fee)} a month.`}})}
+   <p class="fnote">Click &amp; collect has no selling fee. On delivery orders, the selling fee is a percentage of the goods subtotal (excluding the delivery charge). Customers pay you directly.</p>`;
+  document.querySelectorAll('#faq details, #faq .qa, .faq details').forEach(d=>{if(/How much does it cost/i.test(d.textContent)){const p=d.querySelector('p');if(p)p.textContent=`First ${s.free_listings} products are free to list. There is no selling fee on click & collect. Suman Bros trade customers pay ${pc(s.trade_selling_pct)}% on delivery orders plus ${gbp(s.trade_monthly_fee)} a month (free in any month they spend ${gbp(s.trade_waiver_spend)}+ with Suman Bros). Other shops pay ${pc(s.other_selling_pct)}% on delivery orders plus ${gbp(s.other_monthly_fee)} a month.`}})}
 new MutationObserver(()=>landing()).observe(document.getElementById('app'),{childList:true,subtree:true});
 loadSet().then(landing);
 })();
