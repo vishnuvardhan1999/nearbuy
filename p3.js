@@ -14,7 +14,7 @@ const D=MOCK?{
   async shop(id){return M.shops.find(s=>s.id===id)},
   async place(a){const lines=a.items.map(i=>{const l=M.listings.find(x=>x.id===i.listing_id);if(!l||!l.active)throw new Error('An item is no longer available');if(l.stock<i.qty)throw new Error(`Only ${l.stock} left of ${l.name}`);return {l,q:i.qty}});
     lines.forEach(x=>x.l.stock-=x.q);const s=M.shops.find(x=>x.id===a.shop),prior=M.orders.some(o=>o.customer_id===(A.user?.id||'u1')&&!['cancelled','rejected'].includes(o.status)),fee=a.fulfilment==='delivery'&&prior?+(s.delivery_options.delivery_fee||0):0,st=lines.reduce((t,x)=>t+x.l.retail_price*x.q,0);
-    const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(1001+M.orders.length),collection_pin:a.fulfilment==='collect'?String(crypto.getRandomValues(new Uint16Array(1))[0]%10000).padStart(4,'0'):null,shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,note:a.note,
+    const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(2001+M.orders.length),collection_pin:a.fulfilment==='collect'?String(crypto.getRandomValues(new Uint16Array(1))[0]%10000).padStart(4,'0'):null,shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,note:a.note,
       payment_method:a.fulfilment==='delivery'?'pay_on_delivery':'pay_on_collection',status:'placed',subtotal:st,delivery_fee:fee,total:st+fee,created_at:new Date().toISOString(),
       order_items:lines.map(x=>({listing_id:x.l.id,sku:x.l.sku,name:x.l.name,image:x.l.image,unit_price:x.l.retail_price,qty:x.q})),order_events:[{status:'placed',at:new Date().toISOString()}],shops:{name:s.name,phone:s.phone,address:s.address}};
     M.orders.unshift(o);const wu=window.WAL?WAL.spend(o,a.useWallet):0;return {id:o.id,order_number:o.order_number,total:o.total,collection_pin:o.collection_pin,wallet_applied:wu,amount_due:o.total-wu}},
@@ -192,7 +192,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
     el.disabled=true;try{await D.status(el.dataset.id,st,note,pack);O.inbox=await D.inbox();badge();toast(LBL[st]);render()}catch(err){toast(err.message);el.disabled=false}return}
   if(a==='notif'){const r=await Notification.requestPermission();toast(r==='granted'?'Alerts on while ShopNip is open':'Alerts blocked in browser settings');return render()}
   if(a==='sim'){const l=M.listings.filter(x=>x.active&&x.stock>1).slice(0,2);const id='o'+(M.orders.length+1);
-    M.orders.unshift({id,order_number:'NB-'+(1001+M.orders.length),shop_id:A.shop.id,customer_id:'u9',customer_name:'Tom Reed',customer_phone:'07700 900456',fulfilment:'delivery',delivery_address:'4 Mill Lane',delivery_postcode:'LE1 6AB',status:'placed',subtotal:l.reduce((t,x)=>t+x.retail_price,0),delivery_fee:2.5,total:l.reduce((t,x)=>t+x.retail_price,0)+2.5,payment_method:'pay_on_delivery',created_at:new Date().toISOString(),order_items:l.map(x=>({listing_id:x.id,name:x.name,image:x.image,unit_price:x.retail_price,qty:1})),order_events:[{status:'placed',at:new Date().toISOString()}]});
+    M.orders.unshift({id,order_number:'NB-'+(2001+M.orders.length),shop_id:A.shop.id,customer_id:'u9',customer_name:'Tom Reed',customer_phone:'07700 900456',fulfilment:'delivery',delivery_address:'4 Mill Lane',delivery_postcode:'LE1 6AB',status:'placed',subtotal:l.reduce((t,x)=>t+x.retail_price,0),delivery_fee:2.5,total:l.reduce((t,x)=>t+x.retail_price,0)+2.5,payment_method:'pay_on_delivery',created_at:new Date().toISOString(),order_items:l.map(x=>({listing_id:x.id,name:x.name,image:x.image,unit_price:x.retail_price,qty:1})),order_events:[{status:'placed',at:new Date().toISOString()}]});
     return onOwnerChange({eventType:'INSERT',new:{id}})}
 });
 document.addEventListener('change',e=>{if(e.target.name==='ful'){CO.f=e.target.value;render()}if(e.target.id==='usewallet'){CO.useW=e.target.checked;render()}});
@@ -211,7 +211,7 @@ async function placeOrder(a){if(a.fulfilment==='delivery'){const g=await lookupP
 window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
-      M.orders.push({id:'o'+n,order_number:'NB-'+(1000+n),collection_pin:f==='collect'?String(4800+n*7):null,shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,
+      M.orders.push({id:'o'+n,order_number:'NB-'+(2000+n),collection_pin:f==='collect'?String(4800+n*7):null,shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,
        note:n===3?'Please gift wrap the balloon box':null,status:st,subtotal:st2,delivery_fee:fee,total:st2+fee,payment_method:f==='delivery'?'pay_on_delivery':'pay_on_collection',created_at:new Date(t0).toISOString(),shops:{name:s.name,phone:s.phone,address:s.address},
        order_items:items.map(([l,q])=>({listing_id:l.id,sku:l.sku,name:l.name,image:l.image,unit_price:l.retail_price,qty:q})),order_events:ev.map((e,i)=>({status:e,at:new Date(t0+i*9*60000).toISOString()}))})};
      mk(3,'placed','collect',[[L[3],1],[L[1],2]],4,'Sam Patel',['placed']);mk(2,'accepted','delivery',[[L[0],3]],38,'Priya Shah',['placed','accepted']);mk(1,'completed','collect',[[L[4],2]],1500,'Jo King',['placed','accepted','ready','completed'])}
@@ -230,5 +230,5 @@ window.P3={orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>a
   if(v==='sheet'){window.P2_START='home';}if(v==='sheet')setTimeout(()=>sheet(S.products.find(p=>p.listing_id)),300);
 }};
 V.orderdetail=()=>V.order(O.cur.id);
-V.placedmock=()=>{O.lastShop=M.shops[0].name;O.lastShopId=M.shops[0].id;O.lastF='collect';return V.placed({id:'o3',order_number:'NB-1003',total:M.orders.find(o=>o.id==='o3').total})};
+V.placedmock=()=>{O.lastShop=M.shops[0].name;O.lastShopId=M.shops[0].id;O.lastF='collect';return V.placed({id:'o3',order_number:'NB-2003',total:M.orders.find(o=>o.id==='o3').total})};
 })();
