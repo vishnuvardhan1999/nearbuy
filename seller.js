@@ -79,7 +79,7 @@ async function catalog(){if(!D.cat)D.cat=await fetch('products.json').then(r=>r.
 async function seed(){const c=(await catalog()).filter(p=>p.images?.length),step=Math.max(1,Math.floor(c.length/42)),st0=Q.get('status')||'approved';
   M.shops.push({id:'s1',owner_id:'u1',name:'Suman Bros',address:'Crown House, Otterspool Way, Watford',postcode:'WD25 8HL',lat:51.666787,lng:-0.366431,phone:'01923 000000',
     opening_hours:'Mon–Fri 9am–5pm\nSat 10am–2pm\nSun closed',bluepark_customer_email:'orders@sumanbros.example',status:st0,active:st0==='approved',
-    delivery_options:{collect:true,delivery:true,delivery_radius_miles:10,delivery_fee:3.99},logo_url:null,cover_url:null,created_at:'2026-10-20T09:00:00Z'},
+    delivery_options:{collect:true,delivery:true,delivery_radius_miles:10,delivery_fee:3.99,order_alerts:{sms:true,whatsapp:true,call:false,mobile:'07700 900123'}},logo_url:null,cover_url:null,created_at:'2026-10-20T09:00:00Z'},
    {id:'s2',owner_id:'u2',name:'Village Post Office Store',address:'1 Church Lane, Oadby',postcode:'LE2 5AA',status:'pending',active:false,bluepark_customer_email:'vpo@example.com',phone:'0116 271 0000',created_at:'2026-10-23T10:12:00Z'},
    {id:'s3',owner_id:'u3',name:'High Street Cards & Gifts',address:'40 Market Street, Leicester',postcode:'LE1 6DP',status:'pending',active:false,bluepark_customer_email:'cards@example.com',created_at:'2026-10-24T08:40:00Z'},
    {id:'s4',owner_id:'u4',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',status:'approved',active:true,bluepark_customer_email:'orders@cornernews.example',created_at:'2026-10-18T08:40:00Z'});
@@ -221,7 +221,7 @@ function dash(p){
   const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="${home()}" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
    <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
-   <div class="sb-f">${s&&s.status==='approved'?`<a href="index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="#" data-a="logout">${svg('out')}Sign out</a><small>ShopNip · Suman Bros (Wholesale) Limited</small></div></aside>`;
+   <div class="sb-f">${s&&s.status==='approved'?`<a href="/index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="#" data-a="logout">${svg('out')}Sign out</a><small>ShopNip · Suman Bros (Wholesale) Limited</small></div></aside>`;
   const tb=`<header class="tb"><div class="in"><button class="ib menu-b" data-a="menu" aria-label="Menu">${svg('menu')}</button><h1>${TITLE[p]}</h1>
    ${s?`<a class="ib" href="#orders" aria-label="${n} new orders">${svg('bell')}${n?'<span class="dot"></span>':''}</a>`:''}<span class="av">${esc((D.user.email||'?')[0].toUpperCase())}</span><div class="who"><b>${esc(s?.name||'')}</b><small>${esc(D.user.email)}</small></div></div></header>`;
   const bn=s?`<nav class="bnav" aria-label="Dashboard sections">${[['overview','grid','Overview'],['orders','orders','Orders'],['products','box','Products'],['settings','cog','Settings']].map(([k,i,l])=>`<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`).join('')}<a href="#" data-a="menu" class="${['deals','payouts'].includes(p)?'on':''}">${svg('dots')}More</a></nav>`:'';
@@ -328,6 +328,13 @@ PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
     <label class="fld"><span>Postcode</span><input name="postcode" required value="${esc(s.postcode||'')}"><small class="mut" id="pcok">${s.lat?'Location set ✓':''}</small></label>
     <div class="fld"><span>Opening hours</span>${HoursPicker.html('opening_hours',s.opening_hours)}</div>
     <label class="fld"><span>Wholesale account email</span><input name="bluepark_customer_email" type="email" value="${esc(s.bluepark_customer_email||'')}"><small class="mut">Products ordered with this account are listed automatically. Changing it sends your shop for re-approval.</small></label></div></div>
+   ${(()=>{const al=(d.order_alerts||{}),mob=esc(al.mobile||'');return `<div class="card fs"><div class="chd"><h3>New order alerts</h3></div><div class="cb">
+     <p class="mut" style="margin:0 0 12px">We’ll contact this number when a customer places an order, even if this app isn’t open.</p>
+     <label class="fld"><span>Mobile number</span><input name="alert_mobile" type="tel" autocomplete="tel" inputmode="tel" placeholder="07700 900123" value="${mob}"></label>
+     <label class="tg"><span><b>Text message (SMS)</b><small>A short text with the order total and a link to accept</small></span><span class="sw"><input type="checkbox" name="alert_sms" ${al.sms!==false?'checked':''}><i></i></span></label>
+     <label class="tg"><span><b>WhatsApp</b><small>The same message on WhatsApp</small></span><span class="sw"><input type="checkbox" name="alert_whatsapp" ${al.whatsapp!==false?'checked':''}><i></i></span></label>
+     <label class="tg"><span><b>Phone call</b><small>A short spoken message about the new order</small></span><span class="sw"><input type="checkbox" name="alert_call" ${al.call?'checked':''}><i></i></span></label>
+     <small class="mut">Example: New ShopNip order NB-1004: 3 items, £12.40, click &amp; collect. Open ShopNip Seller to accept.</small></div></div>`})()}
    <div class="cards"><div class="card fs"><div class="chd"><h3>Collection &amp; delivery</h3></div><div class="cb">
      <label class="tg"><span><b>Click &amp; collect</b><small>Customers collect and pay in store</small></span><span class="sw"><input type="checkbox" name="collect" ${d.collect!==false?'checked':''}><i></i></span></label>
      <label class="tg"><span><b>Local delivery</b><small>You deliver; customers pay on delivery</small></span><span class="sw"><input type="checkbox" name="delivery" ${d.delivery?'checked':''}><i></i></span></label>
@@ -364,7 +371,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
   if(d.a==='sim'){const L=D.L.filter(l=>l.active),n=1000+D.O.length+1,it=[L[n%L.length],L[(n*3)%L.length]],sub=it[0].retail_price*2+it[1].retail_price,ts=new Date().toISOString();
     const o={id:'o'+n,order_number:'NB-'+n,shop_id:D.shop.id,customer_name:'New Customer',customer_phone:'07700 900999',fulfilment:'collect',status:'placed',subtotal:sub,delivery_fee:0,total:sub,payment_method:'pay_on_collection',created_at:ts,
       order_items:[{listing_id:it[0].id,sku:it[0].sku,name:it[0].name,image:it[0].image,unit_price:it[0].retail_price,qty:2},{listing_id:it[1].id,sku:it[1].sku,name:it[1].name,image:it[1].image,unit_price:it[1].retail_price,qty:1}],order_events:[{status:'placed',at:ts}]};
-    M.O.unshift(o);onLive({eventType:'INSERT',new:o});return}
+    M.O.unshift(o);try{window.P33&&P33.notifyShop(D.shop,o,{toast:true})}catch(_){ }onLive({eventType:'INSERT',new:o});return}
   if(d.st){e.stopPropagation();setStatus(d.id,d.st);return}
   if(d.collect){e.preventDefault();e.stopPropagation();collect(d.collect);return}
   if(d.a==='vclear'){e.preventDefault();D.ui.vq='';rerender();return}
@@ -392,8 +399,11 @@ document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'|
     try{delete localStorage.nb_want}catch(_){}D.ui.amsg='';await load().catch(()=>{});if(!D.shop)D.shop=x;toast('Shop submitted for approval');location.hash='overview'}
    catch(er){b.disabled=false;b.textContent='Submit for approval';D.ui.aok=false;D.ui.amsg=er.message||'Could not register';render()}return}
   if(f.id==='setf'){e.preventDefault();const F=new FormData(f),s=D.shop,pcI=f.postcode;
+   const alertMobile=(F.get('alert_mobile')||'').trim();
+   const order_alerts={sms:!!F.get('alert_sms'),whatsapp:!!F.get('alert_whatsapp'),call:!!F.get('alert_call'),mobile:alertMobile};
+   if((order_alerts.sms||order_alerts.whatsapp||order_alerts.call)&&!(window.P33&&P33.toE164(alertMobile))){toast('Enter a UK mobile number for order alerts, for example 07700 900123');return}
    const r={id:s.id,name:F.get('name').trim(),phone:F.get('phone').trim(),address:F.get('address').trim(),postcode:F.get('postcode').trim().toUpperCase(),opening_hours:F.get('opening_hours').trim(),bluepark_customer_email:F.get('bluepark_customer_email').trim().toLowerCase(),
-    delivery_options:{...(s.delivery_options||{}),collect:!!F.get('collect'),delivery:!!F.get('delivery'),delivery_radius_miles:+F.get('delivery_radius_miles')||0,delivery_fee:+F.get('delivery_fee')||0}};
+    delivery_options:{...(s.delivery_options||{}),collect:!!F.get('collect'),delivery:!!F.get('delivery'),delivery_radius_miles:+F.get('delivery_radius_miles')||0,delivery_fee:+F.get('delivery_fee')||0,order_alerts}};
    if(pcI.dataset.lat){r.lat=+pcI.dataset.lat;r.lng=+pcI.dataset.lng}
    if(r.bluepark_customer_email!==(s.bluepark_customer_email||'')){if(!confirm('Changing your wholesale email sends your shop for re-approval. Continue?'))return;r._tradeChanged=true}
    try{const x=await API.saveShop(r);D.shop={...s,...x};toast('Shop settings saved');rerender()}catch(er){toast(er.message||'Could not save')}}});

@@ -12,7 +12,7 @@ const I={home:'<path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1
  star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',bag:'<path d="M6 7h12l1 14H5z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
  bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',tag:'<path d="M20 12 12 20l-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',store:'<path d="M3 9 5 4h14l2 5M4 9v11h16V9M3 9h18M9 20v-6h6v6"/>',
  pin:'<path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>'};
-const svg=n=>`<svg viewBox="0 0 24 24">${I[n]}</svg>`;
+const svg=n=>`<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[n]||''}</svg>`;
 const S={products:[],shops:[],basket:JSON.parse(localStorage.nb_basket||'[]'),pc:localStorage.nb_pc||'',me:JSON.parse(localStorage.nb_me||'null'),radius:+(localStorage.nb_r||5),openOnly:new URLSearchParams(location.search).get('open')==='1'};
 function shopStatus(s){return window.ShopHours?ShopHours.status(s&&s.opening_hours):{open:false,unknown:true,openingSoon:false,closingSoon:false,label:'Hours not set'}}
 const DEMO_SHOPS=[{id:'d1',name:'Corner News & Stationers',postcode:'Sample',lat:0,lng:0,demoMi:0.3,rating:4.8,mins:'25–35',opening_hours:'Mon-Sat 7am-7pm, Sun 9am-2pm',delivery_options:{collect:true,delivery:true},cat:'Stationery'},

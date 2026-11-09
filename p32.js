@@ -49,7 +49,7 @@ function headHTML(s){
         <div class="st-meta">${hs?`<span class="st-pill ${hsCls}">${esc(hs.label)}</span>`:''}${dist?`<span>${esc(dist)}</span>`:''}${s.postcode?`<span>${esc(s.postcode)}</span>`:''}</div>
         ${hs&&hs.notice?`<p class="st-notice">${esc(hs.notice)}</p>`:''}
         ${ready?`<p class="st-ready">${esc(ready)}</p>`:''}
-        <div class="st-tags">${d.collect!==false?'<span>Click &amp; collect</span>':''}${d.delivery?`<span>Delivery${+d.delivery_radius_miles?' within '+(+d.delivery_radius_miles)+' miles':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
+        <div class="st-tags">${d.collect!==false?'<span>Click &amp; collect</span>':''}${d.delivery&&window.P3&&P3.deliveryBy(s)==='shopnip'?'<span>Delivery windows</span>':d.delivery?`<span>Delivery${+d.delivery_radius_miles?' within '+(+d.delivery_radius_miles)+' miles':''}${d.delivery_fee!=null?' · '+gbp(d.delivery_fee):''}</span>`:''}</div>
         <div class="st-actions">
           ${maps?`<a class="st-btn" href="${esc(maps)}" target="_blank" rel="noopener">Get directions</a>`:''}
           ${phone?`<a class="st-btn ghost" href="tel:${esc(phone)}">Call shop</a>`:''}

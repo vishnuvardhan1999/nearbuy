@@ -54,16 +54,19 @@ function ask(k){C.step=k;const v=C.d[k==='addr'?'addr':k];
   const Q={name:'What name should the shop put on the order?',phone:'And your mobile number, so the shop can reach you?',addr:'What is the delivery address?',pc:'And the postcode?',note:'Any note for the shop? (optional)'};
   bot(Q[k]);quick(k==='note'?[['No note','-']]:v?[[esc('Use '+v),'=']]:[],k==='phone'?'e.g. 07700 900123':'Type here…')}
 const NEXT={name:'phone',phone:'addr',addr:'pc',pc:'note'};
-function nextAfter(k){let n=NEXT[k];if(C.f!=='delivery'&&(n==='addr'))n='note';n?ask(n):confirmStep()}
-function confirmStep(){C.step='confirm';const d=C.shop.delivery_options||{},shopFee=+(d.delivery_fee||0),free=C.f==='delivery'&&window.P3&&P3.welcome&&P3.welcome(),fee=C.f==='delivery'?(free?0:shopFee):0,s=P3.subtotal();
+function askWindow(){C.step='window';C.windows=P3.deliveryWindows(C.shop);bot('Pick when you want your order dropped off. All times are UK time.');
+  if(!C.windows.length)bot('No delivery windows in the next three days. Choose click &amp; collect if offered, or check with the shop.');
+  quick([...C.windows.map(w=>[esc(w.label),'w:'+w.id]),['Change collection or delivery','fulchange']])}
+function nextAfter(k){if(k==='pc'&&C.f==='delivery'&&P3.deliveryBy(C.shop)==='shopnip')return askWindow();let n=NEXT[k];if(C.f!=='delivery'&&(n==='addr'))n='note';n?ask(n):confirmStep()}
+function confirmStep(){if(C.f==='delivery'&&P3.deliveryBy(C.shop)==='shopnip'&&!P3.deliveryWindows(C.shop).some(w=>w.value===C.d.delivery_window))return askWindow();C.step='confirm';const d=C.shop.delivery_options||{},shopFee=+(d.delivery_fee||0),free=C.f==='delivery'&&window.P3&&P3.welcome&&P3.welcome(),fee=C.f==='delivery'?(free?0:shopFee):0,s=P3.subtotal();
   bot(`<div class="cb-sum"><b>${esc(C.shop.name)}</b><br>${bsum()}<hr>${free?`Delivery <s>${gbp(shopFee)}</s><br>Free delivery on your first order <b>Free</b><br>`:(fee?`Delivery <b>${gbp(fee)}</b><br>`:'')}Total <b>${gbp(s+fee)}</b> · pay ${C.f==='delivery'?'on delivery':'on collection'}<hr>
-   ${C.f==='delivery'?'Deliver to '+esc(C.d.addr+', '+C.d.pc):'Click &amp; collect · '+esc(C.shop.address||'')}<br>${esc(C.d.name)} · ${esc(C.d.phone)}${C.d.note?'<br>“'+esc(C.d.note)+'”':''}</div>Shall I place this order?`);
+   ${C.f==='delivery'?'Deliver to '+esc(C.d.addr+', '+C.d.pc):'Click &amp; collect · '+esc(C.shop.address||'')}${C.f==='delivery'&&C.d.delivery_window?'<br><b>Delivery window: '+esc(C.d.delivery_window)+'</b>':''}<br>${esc(C.d.name)} · ${esc(C.d.phone)}${C.d.note?'<br>“'+esc(C.d.note)+'”':''}</div>Shall I place this order?`);
   quick([['Place order · '+gbp(s+fee),'place','pri'],['Edit items','edit'],['Start over','restart']])}
 async function place(){if(!A.user){window.CK&&CK.set({name:C.d.name,phone:C.d.phone,addr:C.d.addr||''});
     bot('Please log in so you can track your order. Your basket is saved and checkout will be ready for you.');qr.innerHTML='<button type="button" class="pri" data-o="login">Log in to finish</button>';return}
   if(C.busy)return;C.busy=true;quick([]);bot('<span class="cb-dots"><i></i><i></i><i></i></span> Placing your order…');
-  try{const r=await P3.place({shop:C.shop.id,items:items().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:C.f,name:C.d.name,phone:C.d.phone,address:C.f==='delivery'?C.d.addr:'',postcode:C.f==='delivery'?(C.d.pc||'').toUpperCase():'',note:C.d.note||''});
-    log.lastChild.remove();C.step='done';bot(`<div class="cb-ok">✓ Order <b>${esc(r.order_number)}</b> placed</div>${r.collection_pin?`<div class="cb-ok">Show or say this at the shop: <b>${esc(r.order_number)} · PIN ${esc(r.collection_pin)}</b><br><small>Bring this when you collect</small></div>`:''}${esc(C.shop.name)} has been notified and will confirm shortly. Total ${gbp(r.total)}.`);
+  try{const r=await P3.place({shop:C.shop.id,items:items().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:C.f,name:C.d.name,phone:C.d.phone,address:C.f==='delivery'?C.d.addr:'',postcode:C.f==='delivery'?(C.d.pc||'').toUpperCase():'',note:C.d.note||'',delivery_window:C.f==='delivery'?C.d.delivery_window:''});
+    log.lastChild.remove();C.step='done';bot(`<div class="cb-ok">✓ Order <b>${esc(r.order_number)}</b> placed</div>${r.collection_pin?`<div class="cb-ok">Show or say this at the shop: <b>${esc(r.order_number)} · PIN ${esc(r.collection_pin)}</b><br><small>Bring this when you collect</small></div>`:''}${esc(C.shop.name)} has been notified and will confirm shortly. Total ${gbp(r.total)}.${r.delivery_window?'<br><b>Delivery window: '+esc(r.delivery_window)+'</b>':''}`);
     qr.innerHTML=`<button type="button" class="pri" data-c="track" data-id="${esc(r.id)}">Track order</button><button type="button" data-c="q" data-v="restart">New order</button>`}
   catch(e){log.lastChild.remove();bot('Sorry, that did not go through: '+esc(e.message||String(e)));quick([['Try again','place','pri'],['Edit items','edit']])}
   C.busy=false}
@@ -72,7 +75,9 @@ function handle(v,label){if(C.busy)return;if(label)me(label);
   if(C.step==='shop'){const t=v.toLowerCase(),s=shops().find(x=>x.name.toLowerCase().includes(t));return s?pickShop(s.id):bot(`I couldn't find a shop called “${esc(v)}”.`)}
   if(v==='edit'||v==='more')return askItems();
   if(C.step==='items'){if(v==='done')return items().length?askFul():bot('Add at least one item first.');if(v.startsWith('f:')){const c=v.slice(2);return bot(`Popular in ${esc(c)}:`),search(c)}return search(v)}
-  if(C.step==='ful'){if(v!=='collect'&&v!=='delivery')return bot('Please pick one of the options below.');C.f=v;return ask('name')}
+  if(v==='fulchange')return askFul();
+  if(C.step==='window'){const w=P3.deliveryWindows(C.shop).find(w=>'w:'+w.id===v);if(!w)return bot('Please choose an available delivery window.'),askWindow();C.d.delivery_window=w.value;return ask('note')}
+  if(C.step==='ful'){const d=C.shop.delivery_options||{};if((v==='delivery'&&!d.delivery)||(v==='collect'&&d.collect===false))return bot('Please pick one of the options below.');if(v!=='collect'&&v!=='delivery')return bot('Please pick one of the options below.');C.f=v;C.d.delivery_window='';if(v==='delivery')bot(P3.deliveryBy(C.shop)==='shopnip'?'You’ll pick a delivery window after your address.':'The shop will deliver your order with their own drivers.');return ask('name')}
   if(['name','phone','addr','pc','note'].includes(C.step)){const k=C.step;let x=v==='='?C.d[k]:v==='-'?'':v.trim();
     if(k==='name'&&x.length<2)return bot('Please type your name.');
     if(k==='phone'&&!PH.test(x))return bot('That doesn’t look like a valid UK phone number. Try again?');
