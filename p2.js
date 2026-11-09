@@ -43,7 +43,13 @@ const DB=MOCK?{
   async updListing(id,ch){const {error}=await sb.from('shop_listings').update({...ch,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error},
   async delListing(id){const {error}=await sb.from('shop_listings').delete().eq('id',id);if(error)throw error},
   async bulk(ids,ch){for(let i=0;i<ids.length;i++)await this.updListing(ids[i],ch[i])},
-  async shop(id){const {data}=await sb.from('shops').select('id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,delivery_options,active,status,created_at').eq('id',id).maybeSingle();return data},
+  async shop(id){const sel='id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,delivery_options,active,status,created_at';
+    let {data}=await sb.from('shops').select(sel).eq('id',id).maybeSingle();if(data)return data;
+    const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    if(id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){
+      const {data:all}=await sb.from('shops').select(sel).eq('status','approved').limit(500);
+      return (all||[]).find(x=>sl(x.name)===id||sl(x.name)+'-'+String(x.id).slice(0,8)===id)||null}
+    return null},
   async shopListings(id){const {data}=await sb.from('shop_listings').select('*').eq('shop_id',id).eq('active',true).order('name');return data||[]},
   async backfill(id){const {data}=await sb.rpc('backfill_shop_listings',{p_shop:id});return data||0}
 };
@@ -58,7 +64,7 @@ async function seedMock(){
   if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
     M.shops.push({id:'s1',owner_id:Q.get('as')==='shopper'?'u-owner':'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
       opening_hours:'Mon-Fri 10am-6pm, Sat closed, Sun 10am-2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
-      delivery_options:{collect:true,delivery:true,delivery_radius_miles:3,delivery_fee:2.5},logo_url:null,cover_url:null});
+      delivery_options:{collect:true,delivery:true,delivery_by:'shopnip',delivery_radius_miles:3,delivery_fee:2.5,order_alerts:{sms:true,whatsapp:true,call:false,mobile:'07700 900123'}},logo_url:null,cover_url:null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
       M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],compare_at_price:i%3===1?+(p.trade_price*2.1).toFixed(2):null,active:i!==2,source:i<5?'wholesale':'manual'}));
     M.shops.push({id:'s2',owner_id:'u2',name:'Village Post Office Store',address:'1 Church Lane, Oadby',postcode:'LE2 5AA',status:'pending',bluepark_customer_email:'vpo@example.com',created_at:'2026-10-23',delivery_options:{collect:true}});
@@ -185,7 +191,12 @@ function weekLine(txt){
   const rows=ShopHours.weekRows(p.w,null).map(r=>{const t=String(r.label).slice(0,3)===td,c=/closed/i.test(r.hours);return `<div class="wh-r${t?' today':''}${c?' shut':''}"><span>${esc(r.label)}${t?' <em>Today</em>':''}</span><b>${esc(r.hours)}</b></div>`}).join('');
   return `<div class="wh-sum"><div class="wh-h">Opening hours</div><div class="wh-rows">${rows}</div></div>`;
 }
-async function loadShop(id){A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
+async function loadShop(id){
+  if(id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){
+    const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const hit=((window.S&&S.shops)||[]).find(s=>sl(s.name)===id||sl(s.name)+'-'+String(s.id).slice(0,8)===id||String(s.id)===id);
+    if(hit)id=hit.id}
+  A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(A.view.id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
 
 // ---------- actions ----------
@@ -205,7 +216,7 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
   if(f.dataset.form==='shop')return busy($('#s_submit'),async()=>{
     const pc=await lookupPostcode(v('s_pc')).catch(()=>{throw new Error('We could not find that UK postcode.')});
     const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:pc.lat,lng:pc.lng,phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),requested_products:v('s_want')||null,
-      delivery_options:{collect:$('#s_col').checked,delivery:$('#s_del').checked,delivery_radius_miles:+v('s_rad')||0,delivery_fee:+v('s_fee')||0}};
+      delivery_options:{...(A.shop?.delivery_options||{}),collect:$('#s_col').checked,delivery:$('#s_del').checked,delivery_radius_miles:+v('s_rad')||0,delivery_fee:+v('s_fee')||0}};
     if(!rec.delivery_options.collect&&!rec.delivery_options.delivery)throw new Error('Choose click & collect, delivery or both.');
     if(A.shop?.id)rec.id=A.shop.id;
     for(const k of ['logo','cover']){const file=$('#s_'+k).files[0];if(file){if(file.size>5e6)throw new Error('Images must be under 5 MB.');rec[k+'_url']=await DB.upload(file,k)}}
