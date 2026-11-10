@@ -72,7 +72,8 @@ const STOP=/^(and|with|the|pads?|sets?|books?)$/i;
   const r=new RegExp('\\b('+(w.length?w:[n]).join('|')+')','i');/* exact membership from subcats.json (the wholesaler's own category pages); keyword match only until it loads */
   SUBCATS.push({l:n,r,t:p=>window.SUBTAG?(SUBTAG[p.sku]||[]).includes(n):r.test((p.name||'')+' '+(p.category||''))})}));
 (window.DEPTS||[]).forEach(d=>{const k=SUBCATS.findIndex(c=>c.l===d.d);if(k>=0)SUBCATS.splice(k,1);const subs=d.s.map(([n])=>SUBCATS.find(c=>c.l===n)).filter(Boolean);SUBCATS.push({l:d.d,t:p=>subs.some(c=>c.t(p))})});
-function cats(){const want=['Packaging & Mailing','Gifts & Cards','Stationery','Art & Craft'];const D=want.map(n=>(window.DEPTS||[]).find(d=>d.d===n&&d.s.length)).filter(Boolean);if(!D.length)return '';
+function cats(){const want=['Packaging & Mailing','Gifts & Cards','Stationery','Art & Craft'];const on=typeof stockedNames==='function'?stockedNames():null;
+  let D=want.map(n=>(window.DEPTS||[]).find(d=>d.d===n&&d.s.length)).filter(Boolean);if(on)D=D.map(d=>({...d,s:d.s.filter(([n])=>on.has(n))})).filter(d=>d.s.length);if(!D.length)return '';
   return `<section class="hm-departments" aria-label="Shop by category"><h2>Shop by category</h2><div class="hm-dept-grid">${D.map(d=>{const du='/products?cat='+encodeURIComponent(d.d);const subs=d.s.slice(0,4).map(([n,src])=>{const u='/products?cat='+encodeURIComponent(n);return `<a class="hm-dsub" href="${u}" data-go="${u}"><span><img loading="lazy" src="${esc(String(src).replace(/ /g,'%20'))}" alt="" data-fb></span><small>${esc(n)}</small></a>`}).join('');return `<article class="hm-dept"><div class="hm-dept-h"><h3>${esc(d.d)}</h3><a class="hm-dept-more" href="${du}" data-go="${du}">See more</a></div><div class="hm-dept-subs">${subs}</div></article>`}).join('')}</div></section>`}
 
 const varied=(L,n)=>{const out=CATS.map(([,t])=>L.find(t)).filter((p,i,a)=>p&&a.indexOf(p)===i);return out.concat(L.filter(p=>!out.includes(p))).slice(0,n)};

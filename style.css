@@ -840,3 +840,29 @@ header.top .sellk span{display:inline!important}
 header.top .sellk.p29{background:transparent;border:1.5px solid #0f766e;color:#0f766e}
 header.top .sellk.p29:hover{background:#f0fdfa;filter:none}
 header.top .brand .mark,header .brand .mark{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%22-6%20-6%2076%2076%22%3E%3Cg%20transform%3D%22translate%283%200%29%22%3E%3Cpath%20fill%3D%22%230f766e%22%20d%3D%22M22%2024h34l-2.8%2029.5a4%204%200%200%201-4%203.5H28.8a4%204%200%200%201-4-3.5Z%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23ff6b4a%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M31%2024v-4a8%208%200%200%201%2016%200v4%22/%3E%3Cpath%20d%3D%22M5%2034h13%22/%3E%3Cpath%20d%3D%22M9%2046h11%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+
+/* Location control: the label was a flex item that could not shrink, so the button clipped it down to a stray letter. Phones get the pin only; wider screens keep the label with an ellipsis. */
+header.top .loc > span{min-width:0;overflow:hidden}
+header.top .loc b{max-width:100%}
+@media(max-width:767px){
+  header.top .top-in,
+  header.top .wrap.top-in{
+    grid-template-columns:auto 40px minmax(0,1fr) auto!important;
+    grid-template-areas:"b l a k" "s s s s"!important;
+  }
+  header.top .loc{
+    grid-area:l;width:40px;height:40px;min-width:40px;max-width:40px;padding:0;gap:0;
+    justify-content:center;justify-self:center;border-radius:50%;z-index:1
+  }
+  header.top .loc > span,
+  header.top .loc .chev{
+    position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+    clip:rect(0,0,0,0);white-space:nowrap;border:0
+  }
+  header.top .hx{grid-area:a;justify-self:stretch;min-width:0;overflow:hidden}
+  header.top .acw{flex:none}
+  header.top .hx .sellk,
+  header.top .sellk{flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden}
+  header.top .hx .sellk span,
+  header.top .sellk span{display:block!important;min-width:0;overflow:hidden;text-overflow:ellipsis}
+}
