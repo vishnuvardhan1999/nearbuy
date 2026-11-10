@@ -46,9 +46,8 @@ function recompute(o){
   return total}
 function refund(num,amount,reason){
   const o=get(num);if(!o||!(amount>0))return o;
+  // local record only; the real wallet credit is DESK.refundLines (refund_order_lines RPC), called by the seller actions below
   const r={amount:Math.round(amount*100)/100,reason,at:Date.now(),method:'none'};
-  try{if(window.WAL&&typeof WAL.refund==='function'){WAL.refund(num,r.amount,reason);r.method='wallet'}
-      else if(window.WAL&&typeof WAL.credit==='function'){WAL.credit(r.amount,reason+' · '+num);r.method='wallet'}}catch(_){}
   put(num,{refunds:(o.refunds||[]).concat([r])});
   const how=r.method==='wallet'?'back in your ShopNip wallet now':(o.paid?'refunded to your card now':'taken off what you pay — nothing was charged');
   notify(num,`Refunded now: ${gbp(r.amount)} (${reason}), ${how}.`,'good');
@@ -208,7 +207,8 @@ function custInit(){
     const tot=sec.querySelector('.panel .line.tot b:last-child');if(tot&&r.total!=null&&tot.textContent!==gbp(r.total))tot.textContent=gbp(r.total);
     const cb=sec.querySelector('button[data-o=cancel]');if(cb)cb.style.display=r.status==='placed'?'':'none'};
   const run=()=>{decorateCheckout();onPlacedView();decorateOrder()};
-  new MutationObserver(run).observe(document.documentElement,{childList:true,subtree:true});
+  // batch DOM changes into one pass per frame, so our own edits can't re-trigger us in a tight loop
+  let q=0;new MutationObserver(()=>{if(!q)q=requestAnimationFrame(()=>{q=0;run()})}).observe(document.documentElement,{childList:true,subtree:true});
   subs.add(run);setInterval(()=>{tick();run()},4000);
   document.addEventListener('click',async e=>{const t=e.target.closest('[data-rc],[data-rcan],[data-rprob],[data-relgo],[data-rsim]');if(!t)return;e.preventDefault();e.stopPropagation();
     const sec=t.closest('#relbox');const num=t.dataset.relgo||(sec&&sec.dataset.num)||t.dataset.num;
@@ -236,7 +236,7 @@ function custOrderHTML(o){
   ${o.proof?`<h4 style="margin-top:12px">Proof of delivery</h4><p class="mut">${o.proof.name?'Handed to '+esc(o.proof.name):'Left at the door'} · ${hm(o.proof.at)}</p>${o.proof.photo?`<img class="pf" src="${esc(o.proof.photo)}" alt="Doorstep photo">`:''}`:''}
   ${o.case?caseHTML(o):''}
   <div class="row" style="margin-top:10px">${(keyOut||o.awaiting_customer)&&!done&&o.status!=='out_for_delivery'?`<button class="bt d" data-rcan="${esc(o.num)}">Cancel order</button>`:''}
-  ${!o.case&&['accepted','picking','ready','out_for_delivery','completed'].includes(o.status)?`<button class="bt g" data-rprob="${esc(o.num)}">Report a problem</button>`:''}</div>
+  ${!o.case&&!window.DESK&&['accepted','picking','ready','out_for_delivery','completed'].includes(o.status)?`<button class="bt g" data-rprob="${esc(o.num)}">Report a problem</button>`:''}</div>
   ${isMock()?`<p class="mut" style="margin-top:10px">Preview tools: <a href="#" data-rsim="${esc(o.num)}" data-ms="${16*MIN}">skip 16 minutes</a>${o.case&&o.case.status==='open'?` · <a href="#" data-rsim="${esc(o.num)}" data-ms="${T.caseReply+1000}">shop doesn’t reply</a>`:''}</p>`:''}</div>`}
 function caseHTML(o){const c=o.case;return `<h4 style="margin-top:12px">Problem ${esc(c.id)}</h4><div class="n ${c.status==='resolved'?'good':''}">${c.status==='resolved'?`Sorted: ${c.resolution==='refund'?'refunded':'item being resent'} by ${c.resolved_by==='shopnip'?'ShopNip':'the shop'}.`:c.owner==='shopnip'?'ShopNip is handling this now. You don’t need to contact the shop.':`${esc(o.shop_name||'The shop')} is handling this and will resend or refund. If they haven’t by ${hm(c.respond_by)}, ShopNip takes over.`}<small>“${esc(c.note||'')}”</small></div>${c.photo?`<img class="pf" src="${esc(c.photo)}" alt="Problem photo">`:''}`}
 function problemModal(num){const o=get(num);modal(`<h3>Report a problem · ${esc(num)}</h3>
@@ -257,12 +257,14 @@ function sellerInit(){
   const sget=o=>{const r=get(o.order_number);return same(o,r)?r:null};
   const refresh=async()=>{try{D.O=await API.orders()}catch(_){}S.rerender()};
   const ensure=o=>{let r=get(o.order_number);if(r&&!same(o,r))return null;if(!r){r=put(o.order_number,{shop_id:o.shop_id,shop_name:D.shop&&D.shop.name,fulfilment:o.fulfilment,status:o.status,placed_at:o.status==='placed'?Date.now():Date.parse(o.created_at),deadline:(o.status==='placed'?Date.now():Date.parse(o.created_at))+T.accept,total:+o.total,total_at_place:+o.total,delivery_fee:+o.delivery_fee||0,delivery_window:o.delivery_window,driver:o.fulfilment==='delivery'?'shop':null,pref:'ask',items:o.order_items.map(i=>({name:i.name,qty:i.qty,unit_price:+i.unit_price,listing_id:i.listing_id})),notices:[],refunds:[],escal:o.status==='placed'?[]:['sound','text','call']});put(r.num,{promised_at:promisedAt(r)})}return get(o.order_number)};
+  // real wallet refund (server caps it at what was paid and never refunds a line twice)
+  const liveRefund=(o,ids,why,src)=>{if(!window.DESK||!o||!o.id)return;DESK.refundLines(o.id,ids,why,src).then(x=>{if(x&&+x.credited>0)toast(gbp(x.credited)+' refunded to the customer’s ShopNip wallet')}).catch(er=>toast('Refund not recorded: '+(er.message||er)))};
   // pull customer-tab orders into the mock seller inbox
   const importMock=()=>{if(!S.MOCK||!D.shop)return false;let added=false;Object.values(st().orders).forEach(r=>{if(r.status!=='placed'||D.O.some(o=>o.order_number===r.num)||S.M.O.some(o=>o.order_number===r.num))return;
     S.M.O.unshift({id:'r'+r.num,order_number:r.num,shop_id:D.shop.id,customer_name:'Customer',customer_phone:'',fulfilment:r.fulfilment||'collect',delivery_address:r.fulfilment==='delivery'?'Customer address':null,delivery_window:r.delivery_window,status:'placed',subtotal:r.subtotal,delivery_fee:r.delivery_fee,total:r.total,payment_method:r.fulfilment==='delivery'?'pay_on_delivery':'pay_on_collection',created_at:new Date(r.placed_at).toISOString(),order_items:(r.items||[]).map(i=>({name:i.name,qty:i.qty,unit_price:i.unit_price,listing_id:i.listing_id})),order_events:[{status:'placed',at:new Date(r.placed_at).toISOString()}]});added=true});return added};
   // mirror REL status -> seller order (timeouts, customer cancels)
   const sync=async()=>{let ch=importMock();for(const o of D.O){const r=sget(o);if(!r)continue;
-    if(['rejected','cancelled'].includes(r.status)&&!['rejected','cancelled'].includes(o.status)){try{await API.status(o.id,r.status,r.reject_reason||'Cancelled by customer',r.status==='cancelled'?{reason:'other',note:'Cancelled by customer'}:undefined)}catch(_){o.status=r.status}ch=true}
+    if(['rejected','cancelled'].includes(r.status)&&!['rejected','cancelled'].includes(o.status)){try{await API.status(o.id,r.status,r.reject_reason||'Cancelled by customer',r.status==='cancelled'?{reason:'other',note:'Cancelled by customer'}:undefined);liveRefund(o,null,r.reject_reason||'Order cancelled',r.status==='rejected'?'declined':'cancelled')}catch(_){o.status=r.status}ch=true}
     if(+r.total<+o.total){o.total=r.total;ch=true}}
     const sh=D.shop&&shop(D.shop.id);if(sh&&D.shop.delivery_options&&!!D.shop.delivery_options.paused!==!!sh.paused){D.shop.delivery_options.paused=sh.paused;ch=true}
     if(ch)await refresh()};
@@ -274,7 +276,7 @@ function sellerInit(){
   document.addEventListener('click',async e=>{const b=e.target.closest('[data-st]');if(!b)return;const o=byId(b.dataset.id);if(!o)return;const s=b.dataset.st;
     if(s==='accepted'){e.preventDefault();e.stopImmediatePropagation();acceptSheet(o);return}
     if(s==='rejected'){e.stopImmediatePropagation();e.preventDefault();const why=prompt('Reason for declining (the customer sees this and is refunded straight away):','Out of stock, sorry');if(why===null)return;
-      try{await API.status(o.id,'rejected',why)}catch(er){return toast(er.message||'Could not decline')}if(ensure(o))decline(o.order_number,why);putShop(o.shop_id,{missed:0});toast('Declined. The customer has been told and refunded now.');refresh();return}
+      try{await API.status(o.id,'rejected',why)}catch(er){return toast(er.message||'Could not decline')}liveRefund(o,null,why,'declined');if(ensure(o))decline(o.order_number,why);putShop(o.shop_id,{missed:0});toast('Declined. The customer has been told and refunded now.');refresh();return}
     if(s==='completed'&&o.fulfilment==='delivery'){e.preventDefault();e.stopImmediatePropagation();proofSheet(o);return}
     if(s==='out_for_delivery'){setTimeout(()=>{if(ensure(o))stage(o.order_number,'out_for_delivery')},0)}
     if(s==='ready'){setTimeout(()=>{if(ensure(o))stage(o.order_number,'ready')},0)}
@@ -286,7 +288,7 @@ function sellerInit(){
     if(a==='picking'){stage(o.order_number,'picking');toast('Customer told: picking now');decorate(true)}
     if(a==='driver'){const r=get(o.order_number);put(o.order_number,{driver:r.driver==='shop'?'shopnip':'shop'});decorate(true)}
     if(a==='resend'||a==='refund'){resolveCase(o.order_number,a,'shop');toast(a==='refund'?'Refunded to the customer now':'Customer told you’re resending it');decorate(true)}},true);
-  new MutationObserver(()=>decorate()).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
+  let dq=0;new MutationObserver(()=>{if(!dq)dq=requestAnimationFrame(()=>{dq=0;decorate()})}).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
   function decorate(force){
     // pause / busy switch at the top of overview + orders
     const ph=document.querySelector('#app .ph');if(ph&&D.shop&&!document.getElementById('relpause')){const sh=shop(D.shop.id);ph.insertAdjacentHTML('afterend',`<div id="relpause" class="relpause ${sh.paused?'p':''}"><span><b>${sh.paused?'Paused / busy: not taking orders':'Open: taking orders'}</b><br><small class="mut">${sh.paused?esc(sh.reason||''):`Missed orders in a row: ${sh.missed||0} of ${MISSED_PAUSE}. We pause your shop automatically at ${MISSED_PAUSE} so customers aren’t left waiting.`}</small></span><button class="bt ${sh.paused?'':'d'} rel" style="margin:0;padding:10px 14px;border-radius:10px;font-weight:700" data-rel="pause">${sh.paused?'Reopen shop':'Pause / busy'}</button></div>`)}
@@ -315,11 +317,12 @@ function sellerInit(){
      m.addEventListener('change',e=>{const n=e.target.name;if(n&&n[0]==='s'){const sel=m.querySelector(`[data-sw="${n.slice(1)}"]`);if(sel)sel.style.display=e.target.value==='0'?'block':'none'}});
      m.querySelector('#ra_go').onclick=async()=>{const stock={},swaps={};o.order_items.forEach((i,ix)=>{stock[ix]=(m.querySelector(`input[name=s${ix}]:checked`)||{}).value!=='0';const sel=m.querySelector(`[data-sw="${ix}"]`);if(sel&&sel.value){const [n,p]=sel.value.split('|');swaps[ix]={name:n,price:+p}}});
        if(!Object.values(stock).some(Boolean)&&!confirm('Nothing is in stock. Decline the order instead? The customer is refunded straight away.'))return;
-       if(!Object.values(stock).some(Boolean)){try{await API.status(o.id,'rejected','Nothing in stock')}catch(_){}decline(o.order_number,'nothing in stock');m.remove();return refresh()}
+       if(!Object.values(stock).some(Boolean)){try{await API.status(o.id,'rejected','Nothing in stock');liveRefund(o,null,'Nothing in stock','declined')}catch(_){}decline(o.order_number,'nothing in stock');m.remove();return refresh()}
        try{await API.status(o.id,'accepted')}catch(er){return toast(er.message||'Could not accept')}
        const res=accept(o.order_number,stock,swaps);putShop(o.shop_id,{missed:0});m.remove();
-       if(res&&res.status==='cancelled'){try{await API.status(o.id,'cancelled','Key item out of stock',{reason:'out_of_stock',note:'Key item out of stock'})}catch(_){}toast('Key item missing: order cancelled and refunded, as the customer asked')}
-       else toast('Accepted. Customer told about stock straight away.');
+       if(res&&res.status==='cancelled'){try{await API.status(o.id,'cancelled','Key item out of stock',{reason:'out_of_stock',note:'Key item out of stock'});liveRefund(o,null,'Key item out of stock','cancelled')}catch(_){}toast('Key item missing: order cancelled and refunded, as the customer asked')}
+       else{const out=((res&&res.items)||[]).map((it,ix)=>it.in_stock===false&&!(it.swap&&it.swap.accepted)&&o.order_items[ix]?o.order_items[ix].id:null).filter(Boolean);
+         if(out.length)liveRefund(o,out,'Out of stock','out_of_stock');toast('Accepted. Customer told about stock straight away.')}
        try{window.P33&&P33.notifyCustomer&&P33.notifyCustomer(o,'accepted')}catch(_){}refresh()}})}
   function proofSheet(o){if(!ensure(o))return toast('Could not load this order');modal(`<h3>Proof of delivery · ${esc(o.order_number)}</h3><p class="mut">Take a doorstep photo or type the name of the person who took it. One is needed to mark it delivered.</p>
      <label class="mut">Doorstep photo</label><input type="file" id="pd_p" accept="image/*" capture="environment"><label class="mut" style="display:block;margin-top:10px">Or name of person</label><input type="text" id="pd_n" autocomplete="off" placeholder="e.g. Sam">
