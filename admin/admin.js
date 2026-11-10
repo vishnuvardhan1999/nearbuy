@@ -108,7 +108,7 @@ const API=MOCK?{
   async signOut(){await sb.auth.signOut()},
   async shops(){const {data,error}=await sb.from('shops').select('*').order('created_at',{ascending:false}).limit(2000);if(error)throw error;return data},
   async listingStats(){const out=[];for(let f=0;f<50000;f+=1000){const {data,error}=await sb.from('shop_listings').select('shop_id,active,stock').range(f,f+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out},
-  async orders(){const {data,error}=await sb.from('orders').select('*,order_items(sku,name,image,unit_price,qty),order_events(status,note,at)').order('created_at',{ascending:false}).limit(1000);if(error)throw error;
+  async orders(){const {data,error}=await sb.from('orders').select('*,order_items(id,sku,name,image,unit_price,qty),order_events(status,note,at)').order('created_at',{ascending:false}).limit(1000);if(error)throw error;
     data.forEach(o=>o.order_events?.sort((a,b)=>a.at<b.at?-1:1));return data},
   async promos(){const {data,error}=await sb.from('promotions').select('*').order('priority',{ascending:false}).order('created_at',{ascending:false});if(error)throw error;return data},
   async subscribers(){const {data,error}=await sb.from('subscribers').select('id,email,postcode,source,created_at').order('created_at',{ascending:false}).limit(5000);if(error)throw error;return data},
@@ -175,9 +175,9 @@ function authView(){const m=ST.authMsg,pw=ST.authMode==='password';
 // =================== layout ===================
 const pending=()=>ST.shops.filter(s=>s.status==='pending').length;
 function shell(){const p=page(),[title]=PAGES[p],u=ST.user;
-  const nav=(k)=>{const [l,i]=PAGES[k];const n=k==='approvals'?pending():0;return `<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${n?`<em>${n}</em>`:''}</a>`};
+  const nav=(k)=>{const [l,i]=PAGES[k];const n=k==='approvals'?pending():k==='support'?(+window.NBAdmin?.supportUnread?.()||0):0;return `<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${n?`<em>${n}</em>`:''}</a>`};
   return `<div class="L"><aside class="side" id="side"><a class="brand" href="#overview"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Admin</small></a>
-   <nav aria-label="Admin sections"><div class="grp">Marketplace</div>${['overview','approvals','shops','orders','import','partners'].filter(k=>PAGES[k]).map(nav).join('')}<div class="grp">Growth</div>${['promotions','subscribers'].map(nav).join('')}<div class="grp">System</div>${nav('settings')}</nav>
+   <nav aria-label="Admin sections"><div class="grp">Marketplace</div>${['overview','approvals','shops','orders','support','import','partners'].filter(k=>PAGES[k]).map(nav).join('')}<div class="grp">Growth</div>${['promotions','subscribers'].map(nav).join('')}<div class="grp">System</div>${nav('settings')}</nav>
    <div class="me"><span class="av">${esc((u.email||'?')[0].toUpperCase())}</span><div><b>Administrator</b><small>${esc(u.email)}</small></div><button data-a="logout" title="Sign out" aria-label="Sign out">${svg('out')}</button></div></aside>
    <div class="scrim" data-a="menu"></div>
    <div class="main"><header class="top"><button class="ib menu-b" data-a="menu" aria-label="Open menu">${svg('menu')}</button><h1>${esc(title)}</h1>
@@ -330,6 +330,7 @@ function drawer(){const d=ST.ui.drawer;if(!d)return '';
      ${o.status==='placed'?'<p class="mut" style="margin:0;font-size:13px">Accept or reject the order first. Refunds are for accepted, completed or cancelled orders.</p>':left>0?`<p class="mut" style="margin:0 0 8px;font-size:13px">Refunds are paid as ShopNip wallet credit the customer spends on ShopNip, never back to a card.</p>
      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="mi"><i>£</i><input id="wr_amt" type="number" step="0.01" min="0.01" max="${left}" value="${left.toFixed(2)}" aria-label="Refund amount"></span><input id="wr_why" class="inp" maxlength="200" placeholder="Reason (shown to customer)" style="flex:1;min-width:160px;padding:9px 10px;border:1px solid #d7dde4;border-radius:10px;font:inherit">
      <button class="btn sm" data-a="wref" data-id="${esc(o.id)}">Refund to wallet</button></div><small class="mut">Up to ${gbp(left)}</small>`:'<p class="mut" style="margin:0;font-size:13px">Fully refunded.</p>'}`})()}</div></div>`}
+     ${window.NBAdmin?.refundsHTML?.(o)||''}
      <div class="sec-t">Timeline</div><div class="tl">${(o.order_events||[]).map(e=>`<div><i></i><b>${esc((OST[e.status]||[e.status])[0])}${e.by_role==='admin'?' <span class="chip">Admin</span>':''}</b><span class="mut">${fmtDT(e.at)}${e.note?' · '+esc(e.note):''}</span></div>`).join('')||'<span class="mut">No events</span>'}</div>
      <div class="sec-t">Change status (admin)</div><div class="ostbox"><select class="sel" id="ostsel" aria-label="New status">${Object.entries(OST).map(([k,[l]])=>`<option value="${k}" ${k===o.status?'disabled':''} ${k===(ST.ui.ostPick||'')?'selected':''}>${esc(l)}${k===o.status?' (current)':''}</option>`).join('')}</select>
       <button class="btn sm" data-a="ostgo" data-id="${esc(o.id)}">Change status…</button></div>
