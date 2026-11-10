@@ -27,7 +27,7 @@ const D=MOCK?{
   async refund(o,amt,reason){const {data,error}=await sb.rpc('refund_order_to_wallet',{p_order:o.id,p_amount:amt,p_reason:reason||null});if(error)throw error;
     o.refunded_to_wallet=data?.refunded_total??o.refunded_to_wallet;return data}
 };
-function refundable(o){return r2(Math.max(0,(+o.total||0)-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0)))}
+function refundable(o){return r2(Math.max(0,(o.status==='completed'?(+o.total||0):(+o.wallet_applied||0))-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0)))}
 async function load(force){if(W.loaded&&!force)return W;try{const r=await D.load();W.balance=r.balance;W.tx=r.tx;W.err=''}catch(e){W.err=e.message}W.loaded=true;return W}
 
 // ---------- My Wallet page ----------

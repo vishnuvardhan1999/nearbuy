@@ -6,6 +6,7 @@
 --                             never be refunded twice.
 --   * refund_order_lines()    shop owner or admin refunds whole order / chosen lines to the customer's ShopNip wallet,
 --                             capped at what the customer has actually paid.
+--   * refund_order_to_wallet() (manual refund button) now uses the same cap.
 --   * support_cases           problems raised by customers ("Report a problem") and sellers (Support tab).
 --   * support_replies         the conversation on a case.
 --   * take_support_case() / reply_support_case() / resolve_support_case()   admin actions, one owner per case.
@@ -137,6 +138,34 @@ begin
 end $$;
 revoke all on function refund_order_lines(uuid,uuid[],text,text) from public, anon;
 grant execute on function refund_order_lines(uuid,uuid[],text,text) to authenticated;
+
+-- Manual "Refund to wallet" (seller inbox + admin): same cap as above, replacing the total-based cap from migration 010.
+create or replace function refund_order_to_wallet(p_order uuid, p_amount numeric, p_reason text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := auth.uid(); v_o orders%rowtype; v_max numeric(10,2); v_bal numeric(10,2); v_amt numeric(10,2);
+begin
+  if v_uid is null then raise exception 'Please log in'; end if;
+  select * into v_o from orders where id = p_order for update;
+  if not found then raise exception 'Order not found'; end if;
+  if not (is_admin() or exists (select 1 from shops where id = v_o.shop_id and owner_id = v_uid)) then
+    raise exception 'Only the shop or ShopNip admin can refund this order'; end if;
+  if v_o.customer_id is null then raise exception 'This order has no customer account to refund to'; end if;
+  v_amt := round(coalesce(p_amount,0), 2);
+  if v_amt <= 0 then raise exception 'Refund amount must be more than £0'; end if;
+  v_max := order_refundable_left(p_order);
+  if v_max <= 0 then raise exception 'Nothing to refund: the customer hasn''t paid for this order yet'; end if;
+  if v_amt > v_max then raise exception 'You can refund at most £% on this order (what the customer has paid)', v_max; end if;
+
+  v_bal := wallet_post(v_o.customer_id, v_amt, 'refund', v_o.id,
+                       coalesce(nullif(trim(p_reason),''), 'Refund for order ' || coalesce(v_o.order_number, v_o.id::text)), v_uid);
+  update orders set refunded_to_wallet = refunded_to_wallet + v_amt, updated_at = now() where id = v_o.id;
+  insert into order_events(order_id, status, note, by_user)
+  values (v_o.id, 'refunded_to_wallet', '£' || v_amt::text || ' refunded to ShopNip wallet' || coalesce(' · ' || nullif(left(trim(p_reason),200),''), ''), v_uid);
+  return jsonb_build_object('order_id', v_o.id, 'refunded', v_amt, 'refunded_total', v_o.refunded_to_wallet + v_amt,
+                            'refundable_left', v_max - v_amt, 'customer_balance', v_bal);
+end $$;
+revoke all on function refund_order_to_wallet(uuid,numeric,text) from public, anon;
+grant execute on function refund_order_to_wallet(uuid,numeric,text) to authenticated;
 
 -- 2. Support cases ---------------------------------------------------------------------
 create table if not exists support_cases (
