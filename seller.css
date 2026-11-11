@@ -220,3 +220,8 @@ tr.flash td{animation:flash 1.2s 3}
 .dealg{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}.dealc>div{flex:1;min-width:0}.dealc b{overflow-wrap:anywhere}.dealc img{flex:none}
 .dl>.main{min-width:0}
 .dealc img{width:56px;height:56px;object-fit:contain;border-radius:10px;background:#f6f5f1}
+.runs{display:grid;gap:12px}.run{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+.runh{display:flex;justify-content:space-between;align-items:center;gap:8px}.run .addr{margin:8px 0 4px;font-weight:700}
+.runa{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.runa .btn{flex:1;min-height:48px;justify-content:center}
+.run img{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:8px}
+.st.picking{background:#e0f2fe;color:#075985}

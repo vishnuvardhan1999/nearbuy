@@ -298,7 +298,7 @@ PAGES.counter=()=>{const O=D.O.filter(o=>OPEN.includes(o.status)),col=(t,f)=>{co
    <button class="btn ghost sm" data-k27="fs">Full screen</button><a class="btn ghost sm" href="#overview">Exit</a></div>
    <div class="pin"><b>Collection PIN</b><input id="p27pin" inputmode="numeric" maxlength="4" placeholder="••••" value="${esc(pin)}" autocomplete="off" aria-label="Customer collection PIN">
     ${pin.length===4?(m.length?m.map(o=>`<div class="match"><span><b>${esc(o.order_number)}</b> · ${o.order_items.reduce((a,i)=>a+i.qty,0)} items · ${gbp(o.total)}</span><button class="btn" data-collect="${esc(o.id)}">Hand over &amp; complete</button></div>`).join(''):'<div class="match" style="background:#fef3f2;color:#7a271a">No order waiting with that PIN</div>'):''}</div>
-   <div class="cols">${col('New',o=>o.status==='placed')}${col('Preparing',o=>o.status==='accepted')}${col('Ready / out',o=>['ready','out_for_delivery'].includes(o.status))}</div></div>`};
+   <div class="cols">${col('New',o=>o.status==='placed')}${col('Preparing',o=>['accepted','picking'].includes(o.status))}${col('Ready / out',o=>['ready','out_for_delivery'].includes(o.status))}</div></div>`};
 const card=o=>`<div class="oc ${o.status==='placed'?'new':''}"><div class="top"><b>${esc(o.order_number)}</b>${chip(o.status)}</div><div class="mut">${o.fulfilment==='delivery'?'Delivery':'Collect'} · ${ago(o.created_at)} · ${gbp(o.total)}</div>
   <ul>${o.order_items.map(i=>`<li>${i.qty} × ${esc(i.name)}</li>`).join('')}</ul>${o.note?`<div class="mut" style="font-size:13px;margin-bottom:8px">Note: ${esc(o.note)}</div>`:''}<div class="acts">${actBtns(o,'')}</div></div>`;
 setInterval(()=>{if(location.hash==='#counter'&&!document.activeElement?.id?.startsWith('p27pin'))rr()},30000);

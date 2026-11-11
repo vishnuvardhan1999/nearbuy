@@ -29,15 +29,19 @@ const idx=q=>'index.html?'+[keep(),q].filter(Boolean).join('&');
 const regURL=()=>'#register';
 const home=()=>'/'+(MOCK?'?'+keep():'');
 const when=t=>new Date(t).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const hmOf=t=>{const d=new Date(t);return isNaN(d)?'':d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
 const ago=t=>{const m=Math.round((Date.now()-Date.parse(t))/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
 const pct=(r,t)=>r>0&&t!=null?Math.round((r-t)/r*100):null;
 const LOW=3;
 // order status machine (same as p3.js)
-const LBL={placed:'New',accepted:'Accepted',ready:'Waiting for collection',out_for_delivery:'Out for delivery',completed:'Completed',cancelled:'Cancelled',rejected:'Rejected'};
-const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','out_for_delivery','completed']};
-const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready']],delivery:[['out_for_delivery','Out for delivery']]},ready:[['completed','Collected']],out_for_delivery:[['completed','Delivered']]};
+const LBL={placed:'New',accepted:'Accepted',picking:'Picking',ready:'Waiting for collection',out_for_delivery:'Out for delivery',completed:'Completed',cancelled:'Cancelled',rejected:'Rejected'};
+const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','picking','out_for_delivery','completed']};
+const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready']],delivery:[['picking','Start picking']]},picking:[['out_for_delivery','Out for delivery']],ready:[['completed','Collected']],out_for_delivery:[['completed','Delivered']]};
 const nexts=o=>{const n=NEXT[o.status];return !n?[]:Array.isArray(n)?n:(n[o.fulfilment]||[])};
-const OPEN=['placed','accepted','ready','out_for_delivery'],DEAD=['cancelled','rejected'];
+const OPEN=['placed','accepted','picking','ready','out_for_delivery'],DEAD=['cancelled','rejected'];
+const ownDriver=()=>{const d=D.shop&&D.shop.delivery_options||{};return !!(d.delivery&&d.delivery_by!=='shopnip')};
+const mapTo=o=>o.delivery_lat!=null?`https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([o.delivery_address,o.delivery_postcode].filter(Boolean).join(', '))}`;
+function jpegBlob(dataUrl){const bin=atob(String(dataUrl).split(',')[1]||'');const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type:'image/jpeg'})}
 const chip=s=>`<span class="st ${esc(s)}">${esc(LBL[s]||s)}</span>`;
 const D={user:null,shop:null,L:[],O:[],cat:null,ui:{oq:'',of:'open',pq:'',pf:'all',pn:60,drawer:null,cat:false,newIds:new Set()}};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s||'');
@@ -53,7 +57,8 @@ const API=MOCK?{
   async createShop(r){const x={...r,id:'s'+Date.now(),owner_id:'u1',status:'pending'};M.shops.push(x);return x},
   async saveShop(s){const x=M.shops.find(z=>z.id===s.id);Object.assign(x,s);if(s.bluepark_customer_email&&s._tradeChanged)x.status='pending';return x},async upload(f){return URL.createObjectURL(f)},
   async walletRefund(id,amt,why){const o=M.O.find(x=>x.id===id),left=(o.status==='completed'?(+o.total||0):(+o.wallet_applied||0))-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0);if(!(amt>0))throw new Error('Refund amount must be more than £0');if(amt>left+1e-9)throw new Error('You can refund at most '+gbp(left)+' on this order');o.refunded_to_wallet=Math.round(((+o.refunded_to_wallet||0)+amt)*100)/100;o.order_events.push({status:'refunded_to_wallet',at:new Date().toISOString(),note:gbp(amt)+' refunded to ShopNip wallet'+(why?' · '+why:'')})},
-  async status(id,st,note,cancel){const o=M.O.find(x=>x.id===id);if(DEAD.includes(st))o.order_items.forEach(i=>{const l=M.L.find(x=>x.id===i.listing_id);if(l)l.stock+=i.qty});o.status=st;if(note)o.reject_reason=note;if(st==='cancelled'){if(!cancel||!cancel.reason)throw new Error('Choose a cancellation reason');window.CancelBox&&CancelBox.apply(o,cancel,'seller')}o.order_events.push({status:st,at:new Date().toISOString(),note})},
+  async status(id,st,note,cancel){const o=M.O.find(x=>x.id===id);if(DEAD.includes(st))o.order_items.forEach(i=>{const l=M.L.find(x=>x.id===i.listing_id);if(l)l.stock+=i.qty});if(st==='completed'&&o.fulfilment==='delivery'&&!o.proof_name&&!o.proof_photo)throw new Error('Add a doorstep photo or the name of who took it before marking this delivered');o.status=st;if(note)o.reject_reason=note;if(st==='cancelled'){if(!cancel||!cancel.reason)throw new Error('Choose a cancellation reason');window.CancelBox&&CancelBox.apply(o,cancel,'seller')}o.order_events.push({status:st,at:new Date().toISOString(),note})},
+  async deliver(id,{photo,name}={}){const o=M.O.find(x=>x.id===id);if(!photo&&!name)throw new Error('Add a photo or a name first');o.proof_photo=photo||null;o.proof_name=name||null;o.proof_at=new Date().toISOString();o.status='completed';o.order_events.push({status:'completed',at:o.proof_at,note:name?'Delivered to '+name:'Doorstep photo saved'})},
   live(){}
 }:{
   async session(){return sb?(await sb.auth.getSession()).data.session:null},
@@ -64,7 +69,8 @@ const API=MOCK?{
   async createShop(r){const {data,error}=await sb.from('shops').insert({...r,owner_id:D.user.id}).select().single();if(error)throw error;try{await sb.rpc('backfill_shop_listings',{p_shop:data.id})}catch(_){}return data},
   async myShop(){const {data,error}=await sb.from('shops').select('*').eq('owner_id',D.user.id).maybeSingle();if(error)throw error;return data},
   async listings(){const out=[];for(let f=0;;f+=1000){const {data,error}=await sb.from('shop_listings').select('*').eq('shop_id',D.shop.id).order('updated_at',{ascending:false}).range(f,f+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out},
-  async orders(){const {data,error}=await sb.from('orders').select('*,order_items(*),order_events(status,note,at)').eq('shop_id',D.shop.id).order('created_at',{ascending:false}).limit(200);if(error)throw error;data.forEach(o=>o.order_events?.sort((a,b)=>a.at<b.at?-1:1));return data},
+  async orders(){const {data,error}=await sb.from('orders').select('*,order_items(*),order_events(status,note,at)').eq('shop_id',D.shop.id).order('created_at',{ascending:false}).limit(200);if(error)throw error;data.forEach(o=>o.order_events?.sort((a,b)=>a.at<b.at?-1:1));
+    await Promise.all(data.filter(o=>o.proof_path).map(async o=>{try{const {data:s}=await sb.storage.from('delivery-proof').createSignedUrl(o.proof_path,3600);if(s&&s.signedUrl)o.proof_photo=s.signedUrl}catch(_){}}));return data},
   async updListing(id,ch){const {error}=await sb.from('shop_listings').update({...ch,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error},
   async addListing(l){const {data,error}=await sb.from('shop_listings').insert(l).select().single();if(error)throw error;return data},
   async saveShop(s){const id=s.id,r={...s};delete r.id;delete r._tradeChanged;const {data,error}=await sb.from('shops').update(r).eq('id',id).select().single();if(error)throw error;return data},
@@ -72,6 +78,9 @@ const API=MOCK?{
     const {error}=await sb.storage.from('shop-media').upload(path,f,{upsert:true,contentType:f.type});if(error)throw error;return sb.storage.from('shop-media').getPublicUrl(path).data.publicUrl},
   async walletRefund(id,amt,why){const {error}=await sb.rpc('refund_order_to_wallet',{p_order:id,p_amount:amt,p_reason:why||null});if(error)throw error},
   async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error;mailEv(id,st)},
+  async deliver(id,{photo,name}={}){if(!photo&&!name)throw new Error('Add a photo or a name first');let path=null;
+    if(photo){path=`${D.shop.id}/${id}/proof.jpg`;const {error}=await sb.storage.from('delivery-proof').upload(path,jpegBlob(photo),{upsert:true,contentType:'image/jpeg'});if(error)throw error}
+    const {error}=await sb.rpc('save_delivery_proof',{p_order:id,p_path:path,p_name:name||null});if(error)throw error;mailEv(id,'completed')},
   live(shopId,cb){if(D.ch)sb.removeChannel(D.ch);D.ch=sb.channel('seller-orders-'+shopId).on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:'shop_id=eq.'+shopId},cb).subscribe()}
 };
 async function catalog(){if(!D.cat)D.cat=await fetch('products.json').then(r=>r.json()).catch(()=>[]);return D.cat}
@@ -89,7 +98,9 @@ async function seed(){const c=(await catalog()).filter(p=>p.images?.length),step
       stock:stock[n%stock.length],active:n%11!==5,source:n%4?'wholesale':'manual',updated_at:new Date(Date.now()-n*36e5*5).toISOString()})}
   const L=M.L,cust=['Sam Patel','Priya Shah','Jo King','Tom Reed','Aisha Khan','Ben Carter','Lucy Moore','Raj Mehta','Emma Wilson','Dan Hughes'];
   const mk=(n,st,f,items,mins,ci,note)=>{const sub=items.reduce((t,[l,q])=>t+L[l].retail_price*q,0),fee=f==='delivery'?3.99:0,t0=Date.now()-mins*60000,steps=STEPS[f],path=DEAD.includes(st)?['placed',st]:steps.slice(0,steps.indexOf(st)+1);
+    const dist=f==='delivery'?Math.round((1.1+n*0.15)*10)/10:null,prep=15,travel=dist?Math.max(5,Math.ceil(dist*3)):null;
     M.O.push({id:'o'+n,order_number:'NB-'+(1000+n),collection_pin:f==='collect'?String(3100+n*37).slice(-4):null,shop_id:'s1',customer_name:cust[ci],customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?(20+n)+' Bushey Mill Lane, Watford':null,delivery_postcode:f==='delivery'?'WD24 7QS':null,
+      delivery_lat:dist?51.666787+dist/69:null,delivery_lng:dist?-0.366431:null,shop_lat:dist?51.666787:null,shop_lng:dist?-0.366431:null,distance_miles:dist,prep_minutes:dist?prep:null,travel_minutes:travel,promised_at:dist?new Date(t0+(prep+travel)*60000).toISOString():null,driver:dist?'shop':null,
       note:note||null,status:st,subtotal:sub,delivery_fee:fee,total:sub+fee,payment_method:f==='delivery'?'pay_on_delivery':'pay_on_collection',created_at:new Date(t0).toISOString(),reject_reason:st==='rejected'?'Out of stock, sorry':null,
       order_items:items.map(([l,q])=>({listing_id:L[l].id,sku:L[l].sku,name:L[l].name,image:L[l].image,unit_price:L[l].retail_price,qty:q})),order_events:path.map((s,i)=>({status:s,at:new Date(t0+i*11*60000).toISOString()}))})};
   const hr=new Date().getHours()*60+new Date().getMinutes(),td=m=>Math.min(m,Math.max(1,hr-5));  // keep "today" orders on today
@@ -105,8 +116,8 @@ async function load(){const s=await API.session();D.user=s?.user||null;D.shop=nu
 async function boot(){try{if(MOCK)await seed();await load()}catch(e){console.warn(e);toast(e.message||'Could not load your shop')}
   if(sb)sb.auth.onAuthStateChange(async ev=>{if(ev==='SIGNED_OUT'||ev==='SIGNED_IN'){await load().catch(()=>{});render()}});
   addEventListener('hashchange',()=>{D.ui.drawer=null;if(!AUTH()&&!fromAuth())D.ui.amsg='';render();scrollTo(0,0)});render()}
-const DASH=['overview','orders','products','deals','settings'];
-function page(){const h=location.hash.slice(1);if(h==='dash')return 'overview';return DASH.includes(h)?h:''}
+const DASH=['overview','orders','runs','products','deals','settings'];
+function page(){const h=location.hash.slice(1);if(h==='dash')return 'overview';if(h==='runs'&&!ownDriver())return 'overview';return DASH.includes(h)?h:''}
 const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?h:''};
 const fromAuth=()=>/access_token=|type=signup|type=magiclink/.test(location.hash);
 // after login / email confirmation: dashboard if there is a shop, otherwise shop registration
@@ -207,8 +218,8 @@ function landing(){const signed=!!D.user,has=!!D.shop,cat=(D.cat||[]).filter(p=>
   ${window.NBFooter?NBFooter({seller:1}):''}
   <div class="stick">${has?`<a class="btn coral" href="#dash">Seller dashboard</a>`:signed?`<a class="btn coral" href="${RG}">Register your shop</a>`:`<a class="btn ghost" href="${LI}">Sign in</a><a class="btn coral" href="${SU}">Start selling</a>`}</div>`}
 // =================== DASHBOARD ===================
-const TITLE={overview:'Overview',orders:'Orders',products:'Products & stock',deals:'Deals',settings:'Shop settings'};
-const NAV=[['overview','grid'],['orders','orders'],['products','box'],['deals','tag'],['settings','cog']];
+const TITLE={overview:'Overview',orders:'Orders',runs:'Today’s deliveries',products:'Products & stock',deals:'Deals',settings:'Shop settings'};
+const navItems=()=>{const n=[['overview','grid'],['orders','orders']];if(ownDriver())n.push(['runs','pin']);n.push(['products','box'],['deals','tag'],['settings','cog']);return n};
 const newCount=()=>D.O.filter(o=>o.status==='placed').length;
 function gate(){const brand=`<a class="brand" href="${home()}"><span class="mark">S</span><span>Shop<b>Nip</b></span></a>`;
   if(!D.user)return `<div class="gate"><div class="card">${brand}<h2>Seller sign in</h2><p>Sign in with your shop owner account to manage orders, products and your shop.</p>
@@ -220,11 +231,12 @@ function dash(p){
   const s=D.shop,n=newCount(),link=(k,ic)=>`<a href="#${k}" class="${p===k?'on':''}">${svg(ic)}${TITLE[k]}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`;
   const side=`<aside class="side" id="side"><div class="sb-h"><a class="brand" href="${home()}" style="color:#fff"><span class="mark">S</span><span>Shop<b>Nip</b></span><small>Seller</small></a></div>
    ${s?`<div class="shopcard"><span class="lg">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>${esc(s.name)}</b><small><i class="${esc(s.status)}"></i>${statusLabel(s.status)}</small></div></div>`:''}
-   <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${NAV.map(([k,i])=>link(k,i)).join('')}`:''}</nav>
+   <nav aria-label="Dashboard">${s?`<div class="grp">Shop</div>${navItems().map(([k,i])=>link(k,i)).join('')}`:''}</nav>
    <div class="sb-f">${s&&s.status==='approved'?`<a href="/index.html${MOCK?'?'+keep():''}#shop=${esc(s.id)}" target="_blank" rel="noopener">${svg('ext')}View my shop</a>`:''}<a href="#" data-a="logout">${svg('out')}Sign out</a><small>ShopNip · Suman Bros (Wholesale) Limited</small></div></aside>`;
   const tb=`<header class="tb"><div class="in"><button class="ib menu-b" data-a="menu" aria-label="Menu">${svg('menu')}</button><h1>${TITLE[p]}</h1>
    ${s?`<a class="ib" href="#orders" aria-label="${n} new orders">${svg('bell')}${n?'<span class="dot"></span>':''}</a>`:''}<span class="av">${esc((D.user.email||'?')[0].toUpperCase())}</span><div class="who"><b>${esc(s?.name||'')}</b><small>${esc(D.user.email)}</small></div></div></header>`;
-  const bn=s?`<nav class="bnav" aria-label="Dashboard sections">${[['overview','grid','Overview'],['orders','orders','Orders'],['products','box','Products'],['settings','cog','Settings']].map(([k,i,l])=>`<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}</a>`).join('')}<a href="#" data-a="menu" class="${['deals','payouts'].includes(p)?'on':''}">${svg('dots')}More</a></nav>`:'';
+  const phone=ownDriver()?[['overview','grid','Overview'],['runs','pin','Deliveries'],['orders','orders','Orders'],['products','box','Products']]:[['overview','grid','Overview'],['orders','orders','Orders'],['products','box','Products'],['settings','cog','Settings']];
+  const bn=s?`<nav class="bnav" aria-label="Dashboard sections">${phone.map(([k,i,l])=>`<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}${k==='runs'&&D.O.filter(o=>o.fulfilment==='delivery'&&['accepted','picking','out_for_delivery'].includes(o.status)).length?`<span class="cnt">${D.O.filter(o=>o.fulfilment==='delivery'&&['accepted','picking','out_for_delivery'].includes(o.status)).length}</span>`:''}</a>`).join('')}<a href="#" data-a="menu" class="${['deals','settings','payouts'].includes(p)?'on':''}">${svg('dots')}More</a></nav>`:'';
   return `<div class="dl">${side}<div class="main">${tb}<div class="pg">${statusBanner(p)}${(PAGES[p]||PAGES.overview)()}</div><footer class="dfoot">ShopNip · a trading name of Suman Bros (Wholesale) Limited</footer></div>${bn}${drawer()}${catModal()}</div>`}
 function statusBanner(p){const s=D.shop;if(!s)return '';
   if(s.status==='pending')return `<div class="bnr">${svg('clock')}<div><b>Your shop is awaiting approval</b>We review new shops within a working day. You can set prices and stock now; customers will see your shop once it’s approved.</div></div>`;
@@ -232,7 +244,7 @@ function statusBanner(p){const s=D.shop;if(!s)return '';
 const PAGES={};
 PAGES.overview=()=>{const O=D.O,L=D.L,t0=new Date();t0.setHours(0,0,0,0);const wk=new Date(t0);wk.setDate(wk.getDate()-((wk.getDay()+6)%7));
   const ok=o=>!DEAD.includes(o.status),today=O.filter(o=>Date.parse(o.created_at)>=+t0),rev=O.filter(o=>ok(o)&&Date.parse(o.created_at)>=+wk).reduce((a,o)=>a+ +o.total,0);
-  const live=L.filter(l=>l.active&&+l.retail_price>0).length,low=L.filter(l=>l.active&&l.stock<=LOW),pend=O.filter(o=>o.status==='placed').length,prog=O.filter(o=>['accepted','ready','out_for_delivery'].includes(o.status)).length;
+  const live=L.filter(l=>l.active&&+l.retail_price>0).length,low=L.filter(l=>l.active&&l.stock<=LOW),pend=O.filter(o=>o.status==='placed').length,prog=O.filter(o=>['accepted','picking','ready','out_for_delivery'].includes(o.status)).length,runs=O.filter(o=>o.fulfilment==='delivery'&&['accepted','picking','out_for_delivery'].includes(o.status)).length;
   const days=[...Array(7)].map((_,i)=>{const d=new Date(t0);d.setDate(d.getDate()-6+i);const e=+d+864e5;return{d,v:O.filter(o=>ok(o)&&Date.parse(o.created_at)>=+d&&Date.parse(o.created_at)<e).reduce((a,o)=>a+ +o.total,0)}}),mx=Math.max(1,...days.map(x=>x.v));
   const kpi=(c,ic,l,v,s,h,pf)=>`<a class="kpi ${c}" href="#${h}" ${pf?`data-pf="${pf}"`:''}><div class="kh">${l}<span class="ic">${svg(ic)}</span></div><b>${v}</b><small>${s}</small></a>`;
   const hi=new Date().getHours();
@@ -247,12 +259,13 @@ PAGES.overview=()=>{const O=D.O,L=D.L,t0=new Date();t0.setHours(0,0,0,0);const w
    <div class="cards"><div class="card"><div class="chd"><h3>Sales, last 7 days</h3><span class="mut" style="font-size:13px;font-weight:700">${gbp(days.reduce((a,x)=>a+x.v,0))}</span></div><div class="cb"><div class="chart">${days.map((x,i)=>`<div class="${i===6?'today':''}" title="${gbp(x.v)}"><em>${x.v?gbp0(x.v):''}</em><i style="height:${Math.max(3,x.v/mx*100)}%"></i><small>${x.d.toLocaleDateString('en-GB',{weekday:'short'})}</small></div>`).join('')}</div></div></div>
     <div class="card"><div class="chd"><h3>Needs attention</h3></div><div class="cb" style="display:grid;gap:10px">
      ${pend?`<a class="tg" href="#orders" style="text-decoration:none"><span><b>${pend} new order${pend>1?'s':''}</b><small>Accept or reject so customers aren’t kept waiting</small></span>${svg('arrow')}</a>`:''}
+     ${ownDriver()&&runs?`<a class="tg" href="#runs" style="text-decoration:none"><span><b>${runs} delivery${runs>1?'s':''} to run</b><small>Address, distance and the customer’s phone</small></span>${svg('arrow')}</a>`:''}
      ${prog?`<a class="tg" href="#orders" style="text-decoration:none"><span><b>${prog} in progress</b><small>Mark ready, out for delivery or complete</small></span>${svg('arrow')}</a>`:''}
      ${low.length?`<a class="tg" href="#products" data-pf="low" style="text-decoration:none"><span><b>${low.length} product${low.length>1?'s':''} low on stock</b><small>${esc(low.slice(0,2).map(l=>l.name.split(/[–,]/)[0].trim()).join(', '))}${low.length>2?'…':''}</small></span>${svg('arrow')}</a>`:''}
      ${!pend&&!prog&&!low.length?`<div class="empty" style="padding:16px">${svg('check')}<b>All clear</b>Nothing needs your attention.</div>`:''}</div></div></div></div>`};
 const FIL={open:['Open',o=>OPEN.includes(o.status)],new:['New',o=>o.status==='placed'],done:['Completed',o=>o.status==='completed'],cancelled:['Cancelled',o=>DEAD.includes(o.status)],all:['All',()=>true]};
 const nItems=o=>o.order_items.reduce((a,i)=>a+i.qty,0);
-const actBtns=(o,cls='sm')=>nexts(o).map(([s,l])=>`<button class="btn ${cls} ${s==='rejected'?'ghost danger':''}" data-st="${s}" data-id="${esc(o.id)}">${l}</button>`).join('')+(['accepted','ready','out_for_delivery'].includes(o.status)?`<button class="btn ghost ${cls} danger" data-st="cancelled" data-id="${esc(o.id)}">Cancel</button>`:'');
+const actBtns=(o,cls='sm')=>nexts(o).map(([s,l])=>`<button class="btn ${cls} ${s==='rejected'?'ghost danger':''}" data-st="${s}" data-id="${esc(o.id)}">${l}</button>`).join('')+(['accepted','picking','ready','out_for_delivery'].includes(o.status)?`<button class="btn ghost ${cls} danger" data-st="cancelled" data-id="${esc(o.id)}">Cancel</button>`:'');
 PAGES.orders=()=>{const u=D.ui,q=u.oq.toLowerCase(),L=D.O.filter(FIL[u.of][1]).filter(o=>!q||(o.order_number+' '+o.customer_name+' '+(o.customer_phone||'')).toLowerCase().includes(q));
   return `<div class="ph"><div><h2>Orders</h2><p>${D.O.length} orders · customers pay you on collection or delivery</p></div><div class="acts"><span class="live"><i></i>${MOCK?'Live updates (preview)':'Live: new orders appear automatically'}</span>
    ${'Notification' in window&&Notification.permission==='default'?`<button class="btn ghost sm" data-a="notif">${svg('bell')}Enable alerts</button>`:''}${MOCK?`<button class="btn ghost sm" data-a="sim">${svg('plus')}Simulate order</button>`:''}</div></div>
@@ -280,6 +293,13 @@ function verifyBox(){const u=D.ui,m=u.vq?vMatch(u.vq):null;
      :`<p style="margin:12px 0 0;color:#e11d48">No open click &amp; collect order matches “${esc(u.vq)}”. Check the number or PIN with the customer.</p>`):''}</div></div>`}
 async function collect(id){const o=D.O.find(x=>x.id===id);if(!o)return;try{if(o.status==='accepted')await API.status(id,'ready');await API.status(id,'completed','Collected (verified)');D.O=await API.orders();D.ui.vq='';toast(o.order_number+' collected · completed');rerender()}catch(e){toast(e.message||'Could not complete order')}}
 document.addEventListener('submit',e=>{if(e.target.dataset.a!=='vform')return;e.preventDefault();D.ui.vq=(document.getElementById('vq')?.value||'').trim();rerender()});
+PAGES.runs=()=>{const start=new Date();start.setHours(0,0,0,0);
+  const L=D.O.filter(o=>o.fulfilment==='delivery'&&!DEAD.includes(o.status)&&(o.status!=='completed'||Date.parse(o.created_at)>=+start)&&o.status!=='placed').slice().sort((a,b)=>Date.parse(a.promised_at||a.created_at)-Date.parse(b.promised_at||b.created_at));
+  const card=o=>{const late=o.promised_at&&!['completed','rejected','cancelled'].includes(o.status)&&Date.now()>Date.parse(o.promised_at)+15*60000;
+    const proof=o.status==='completed'?(o.proof_name||o.proof_photo?'<p class="mut">'+(o.proof_name?'Handed to '+esc(o.proof_name):'Doorstep photo saved')+'</p>'+(o.proof_photo?'<img src="'+esc(o.proof_photo)+'" alt="Doorstep photo">':''):''):'<div class="runa">'+(o.status!=='out_for_delivery'?'<button class="btn" data-st="out_for_delivery" data-id="'+esc(o.id)+'">Out for delivery</button>':'')+'<button class="btn" data-st="completed" data-id="'+esc(o.id)+'">Delivered</button></div>';
+    return '<article class="run"><div class="runh"><b>'+esc(o.order_number)+'</b>'+chip(o.status)+'</div><p class="addr">'+esc(o.delivery_address||'')+(o.delivery_postcode?', '+esc(o.delivery_postcode):'')+'</p><p class="mut">'+(o.distance_miles!=null?(+o.distance_miles).toFixed(1)+' mi · ':'')+(o.promised_at?'Promised '+hmOf(o.promised_at):'')+(late?' · running late':'')+'</p><div class="runa"><a class="btn ghost" href="tel:'+esc(o.customer_phone)+'">'+svg('phone')+'Call '+esc(o.customer_phone||'')+'</a><a class="btn ghost" href="'+mapTo(o)+'" target="_blank" rel="noopener">'+svg('pin')+'Map</a></div>'+proof+'</article>'};
+  const body=L.length?'<div class="runs">'+L.map(card).join('')+'</div>':'<div class="card"><div class="empty">'+svg('pin')+'<b>No deliveries to run</b>Accepted delivery orders for today show up here.</div></div>';
+  return '<div class="ph"><div><h2>Today’s deliveries</h2><p>Your own driver. Address, distance and a map for each drop.</p></div></div>'+body};
 function timeline(o){const steps=STEPS[o.fulfilment]||STEPS.collect,ev={};(o.order_events||[]).forEach(e=>ev[e.status]=e);const end=DEAD.includes(o.status),ix=steps.indexOf(o.status);
   let list=steps.map((s,i)=>({s,done:end?!!ev[s]:i<=ix,cur:!end&&i===ix,at:ev[s]?.at}));if(end){list=list.filter(x=>x.done);list.push({s:o.status,done:true,cur:true,bad:true,at:ev[o.status]?.at,note:ev[o.status]?.note||o.reject_reason})}
   return `<ol class="tl">${list.map(x=>`<li class="${x.done?'d':''} ${x.cur?'c':''} ${x.bad?'bad':''}"><i></i><b>${x.s==='placed'?'Placed':LBL[x.s]}</b>${x.at?`<small>${when(x.at)}</small>`:''}${x.note?`<small>“${esc(x.note)}”</small>`:''}</li>`).join('')}</ol>`}
@@ -287,7 +307,7 @@ function drawer(){const o=D.ui.drawer&&D.O.find(x=>x.id===D.ui.drawer);if(!o)ret
   return `<div class="drw on"><div class="bg" data-a="close"></div><div class="pn2" role="dialog" aria-label="Order ${esc(o.order_number)}"><div class="dh"><div style="flex:1"><h3>${esc(o.order_number)}</h3><small class="mut">${when(o.created_at)}</small></div>${chip(o.status)}<button class="ib" data-a="close" aria-label="Close">${svg('x')}</button></div>
    <div class="db"><div class="card"><div class="cb">${timeline(o)}</div></div>
     <div class="card"><div class="chd"><h3>Customer</h3><a href="tel:${esc(o.customer_phone)}">Call</a></div><div class="cb"><div class="kv"><span>Name</span><b>${esc(o.customer_name)}</b></div><div class="kv"><span>Phone</span><a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a></div>
-     <div class="kv"><span>${o.fulfilment==='delivery'?'Deliver to':'Fulfilment'}</span><span style="color:var(--txt);text-align:right">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+', '+(o.delivery_postcode||'')):'Click & collect in store'}</span></div>${o.fulfilment==='collect'&&o.collection_pin?`<div class="kv"><span>Collection PIN</span><b style="font-size:16px;letter-spacing:.06em">${esc(o.collection_pin)}</b></div>`:''}${o.note?`<div class="kv"><span>Note</span><span style="color:var(--txt);text-align:right">“${esc(o.note)}”</span></div>`:''}${window.CancelBox?CancelBox.html(o):''}</div></div>
+     <div class="kv"><span>${o.fulfilment==='delivery'?'Deliver to':'Fulfilment'}</span><span style="color:var(--txt);text-align:right">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+', '+(o.delivery_postcode||'')):'Click & collect in store'}</span></div>${o.fulfilment==='delivery'&&o.distance_miles!=null?`<div class="kv"><span>Distance</span><b>${(+o.distance_miles).toFixed(1)} mi</b></div>`:''}${o.fulfilment==='delivery'?`<div class="kv"><span>Map</span><a href="${mapTo(o)}" target="_blank" rel="noopener">Open directions</a></div>`:''}${o.promised_at?`<div class="kv"><span>Promised</span><b>${hmOf(o.promised_at)}</b></div>`:''}${o.proof_name||o.proof_photo?`<div class="kv"><span>Proof</span><span>${o.proof_name?esc(o.proof_name):'Doorstep photo'}</span></div>${o.proof_photo?`<img src="${esc(o.proof_photo)}" alt="Doorstep photo" style="width:100%;border-radius:12px;margin-top:8px">`:''}`:''}${o.fulfilment==='collect'&&o.collection_pin?`<div class="kv"><span>Collection PIN</span><b style="font-size:16px;letter-spacing:.06em">${esc(o.collection_pin)}</b></div>`:''}${o.note?`<div class="kv"><span>Note</span><span style="color:var(--txt);text-align:right">“${esc(o.note)}”</span></div>`:''}${window.CancelBox?CancelBox.html(o):''}</div></div>
     <div class="card"><div class="chd"><h3>Items · ${nItems(o)}</h3></div><div class="cb">${o.order_items.map(i=>`<div class="oi"><img class="pimg" src="${esc(i.image||'icon-192.png')}" alt="" data-fb><span>${i.qty} × ${esc(i.name)}</span><b>${gbp(i.unit_price*i.qty)}</b></div>`).join('')}
      <div class="kv"><span>Subtotal</span><span>${gbp(o.subtotal??o.total)}</span></div>${+o.delivery_fee?`<div class="kv"><span>Delivery</span><span>${gbp(o.delivery_fee)}</span></div>`:''}<div class="kv tot"><span style="color:var(--txt)">Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</span><span>${gbp(o.total)}</span></div></div></div>${`<div class="card wrefc"><div class="chd"><h3>Refund to ShopNip wallet</h3></div><div class="cb">${(()=>{const left=Math.max(0,Math.round(((o.status==='completed'?(+o.total||0):(+o.wallet_applied||0))-(+o.refunded_to_wallet||0)-(o.wallet_reversed?(+o.wallet_applied||0):0))*100)/100);
      return `${+o.wallet_applied?`<div class="kv"><span>Paid from customer wallet${o.wallet_reversed?' (returned)':''}</span><span>${gbp(o.wallet_applied)}</span></div>`:''}${+o.refunded_to_wallet?`<div class="kv"><span>Already refunded to wallet</span><b style="color:#15803d">${gbp(o.refunded_to_wallet)}</b></div>`:''}
@@ -325,7 +345,8 @@ PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
     <label class="fld"><span>Shop name</span><input name="name" required value="${esc(s.name||'')}"></label>
     <label class="fld"><span>Phone</span><input name="phone" type="tel" value="${esc(s.phone||'')}"></label>
     <label class="fld"><span>Address</span><input name="address" required value="${esc(s.address||'')}"></label>
-    <label class="fld"><span>Postcode</span><input name="postcode" required value="${esc(s.postcode||'')}"><small class="mut" id="pcok">${s.lat?'Location set ✓':''}</small></label>
+    <label class="fld"><span>Postcode</span><input name="postcode" required value="${esc(s.postcode||'')}"><small class="mut" id="pcok">${s.lat?(s.location_source==='device'?'Precise location set ✓':'Location set from postcode ✓'):''}</small></label>
+    <p class="mut"><button type="button" class="btn ghost sm" data-a="shophere">Use this device’s location</button> Saves the exact spot, not only the postcode centre.</p>
     <div class="fld"><span>Opening hours</span>${HoursPicker.html('opening_hours',s.opening_hours)}</div>
     <label class="fld"><span>Wholesale account email</span><input name="bluepark_customer_email" type="email" value="${esc(s.bluepark_customer_email||'')}"><small class="mut">Products ordered with this account are listed automatically. Changing it sends your shop for re-approval.</small></label></div></div>
    ${(()=>{const al=(d.order_alerts||{}),mob=esc(al.mobile||'');return `<div class="card fs"><div class="chd"><h3>New order alerts</h3></div><div class="cb">
@@ -338,7 +359,8 @@ PAGES.settings=()=>{const s=D.shop,d=s.delivery_options||{};
    <div class="cards"><div class="card fs"><div class="chd"><h3>Collection &amp; delivery</h3></div><div class="cb">
      <label class="tg"><span><b>Click &amp; collect</b><small>Customers collect and pay in store</small></span><span class="sw"><input type="checkbox" name="collect" ${d.collect!==false?'checked':''}><i></i></span></label>
      <label class="tg"><span><b>Local delivery</b><small>You deliver; customers pay on delivery</small></span><span class="sw"><input type="checkbox" name="delivery" ${d.delivery?'checked':''}><i></i></span></label>
-     <div class="row2"><label class="fld"><span>Radius (miles)</span><input name="delivery_radius_miles" type="number" min="0" step="0.5" value="${+(d.delivery_radius_miles??5)||0}"></label><label class="fld"><span>Delivery fee (£)</span><input name="delivery_fee" type="number" min="0" step="0.01" value="${(+(d.delivery_fee??0)).toFixed(2)}"></label></div></div></div>
+     <div class="row2"><label class="fld"><span>Radius (miles)</span><input name="delivery_radius_miles" type="number" min="0" step="0.5" value="${+(d.delivery_radius_miles??5)||0}"></label><label class="fld"><span>Delivery fee (£)</span><input name="delivery_fee" type="number" min="0" step="0.01" value="${(+(d.delivery_fee??0)).toFixed(2)}"></label></div>
+     <label class="fld"><span>Time to pack an order (minutes)</span><input name="prep_minutes" type="number" min="5" max="90" step="1" value="${+(d.prep_minutes||15)}"><small class="mut">Added to the drive time to give the customer a promised time.</small></label></div></div>
     <div class="card fs"><div class="chd"><h3>Branding</h3></div><div class="cb">
      <div class="upl"><span class="lgp">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="">`:esc(s.name[0])}</span><div><b>Logo</b><small class="mut">Square, at least 256px</small></div><label class="btn ghost sm">Upload<input type="file" accept="image/*" data-up="logo" hidden></label></div>
      <div class="upl"><span class="cvp">${s.cover_url?`<img src="${esc(s.cover_url)}" alt="">`:''}</span><div><b>Cover image</b><small class="mut">Wide, shown on your shop page</small></div><label class="btn ghost sm">Upload<input type="file" accept="image/*" data-up="cover" hidden></label></div></div></div></div>
@@ -375,6 +397,8 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
   if(d.st){e.stopPropagation();setStatus(d.id,d.st);return}
   if(d.collect){e.preventDefault();e.stopPropagation();collect(d.collect);return}
   if(d.a==='vclear'){e.preventDefault();D.ui.vq='';rerender();return}
+  if(d.a==='shophere'){e.preventDefault();if(!navigator.geolocation)return toast('Type the postcode and we will use its centre');
+    navigator.geolocation.getCurrentPosition(p=>{const i=document.querySelector('#setf [name=postcode]');if(i){i.dataset.lat=p.coords.latitude;i.dataset.lng=p.coords.longitude;i.dataset.src='device'}const ok=document.querySelector('#pcok');if(ok)ok.textContent='Precise location saved. Press Save changes.';toast('Precise location ready to save')},()=>toast('We could not get this device’s location. The postcode centre will be used.'));return}
   if(d.of){D.ui.of=d.of;rerender();return}if(d.pf){D.ui.pf=d.pf;D.ui.pn=60;rerender();return}
   if(d.a==='pmore'){D.ui.pn+=60;rerender();return}
   if(d.a==='addcat'){D.ui.cat=true;D.ui.cq='';rerender();catalog().then(rerender);return}
@@ -384,7 +408,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
   if(d.o&&!e.target.closest('button,a')){D.ui.drawer=d.o;rerender()}});
 document.addEventListener('input',e=>{const t=e.target;if(t.id==='oq'){D.ui.oq=t.value;rerender()}else if(t.id==='pq'){D.ui.pq=t.value;D.ui.pn=60;rerender()}else if(t.id==='cq'){D.ui.cq=t.value;rerender()}});
 document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.f){saveField(t);return}
-  if(t.name==='postcode'&&t.form?.id==='setf'){const pc=t.value.trim();try{const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc)).then(r=>r.json());if(r.result){t.dataset.lat=r.result.latitude;t.dataset.lng=r.result.longitude;t.value=r.result.postcode;$('#pcok').textContent='Location found ✓'}else $('#pcok').textContent='Postcode not found'}catch{}}
+  if(t.name==='postcode'&&t.form?.id==='setf'){const pc=t.value.trim();try{const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc)).then(r=>r.json());if(r.result){t.dataset.lat=r.result.latitude;t.dataset.lng=r.result.longitude;t.dataset.src='postcode';t.value=r.result.postcode;$('#pcok').textContent='Location found from postcode ✓'}else $('#pcok').textContent='Postcode not found'}catch{}}
   if(t.dataset.up&&t.files[0]){const f=t.files[0];if(f.size>5e6)return toast('Image must be under 5MB');try{toast('Uploading…');const url=await API.upload(f,t.dataset.up),k=t.dataset.up+'_url';const s=await API.saveShop({id:D.shop.id,[k]:url});D.shop={...D.shop,...s,[k]:url};toast('Image updated');rerender()}catch(er){toast(er.message||'Upload failed')}}});
 document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'||f.hasAttribute('data-authf')){e.preventDefault();const F=new FormData(f),su=f.dataset.mode==='signup',b=f.querySelector('button');b.disabled=true;b.textContent='Please wait…';D.ui.busy=true;D.ui.amsg='';
    try{const email=F.get('email').trim(),pw=F.get('pw');if(su){const w=(F.get('want')||'').trim();try{if(w)localStorage.nb_want=w;else delete localStorage.nb_want}catch(_){}}const r=su?await API.signUp(email,pw,(F.get('name')||'').trim()):await API.signIn(email,pw);
@@ -394,22 +418,25 @@ document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'|
   if(f.id==='regf'){e.preventDefault();const F=new FormData(f),b=f.querySelector('button[type=submit]');b.disabled=true;b.textContent='Submitting…';
    try{const pc=(F.get('postcode')||'').trim();const j=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\s+/g,''))).then(r=>r.json()).catch(()=>({}));if(!j.result)throw new Error('We could not find that UK postcode.');
     const del=!!F.get('delivery'),col=!!F.get('collect');if(!col&&!del)throw new Error('Choose click & collect, delivery or both.');
-    const hrs=f.querySelector('[name=r_hours],#r_hours');const r={name:F.get('name').trim(),address:F.get('address').trim(),postcode:j.result.postcode,lat:j.result.latitude,lng:j.result.longitude,phone:(F.get('phone')||'').trim(),opening_hours:(hrs?hrs.value:(F.get('opening_hours')||'')).trim(),bluepark_customer_email:F.get('trade').trim().toLowerCase(),requested_products:(F.get('want')||'').trim()||null,delivery_options:{collect:col,delivery:del,delivery_radius_miles:del?3:0,delivery_fee:del?2.5:0}};
-    let x;try{x=await API.createShop(r)}catch(er){if(!/requested_products/.test(er.message||''))throw er;delete r.requested_products;x=await API.createShop(r)}
+    const hrs=f.querySelector('[name=r_hours],#r_hours');    const r={name:F.get('name').trim(),address:F.get('address').trim(),postcode:j.result.postcode,lat:j.result.latitude,lng:j.result.longitude,location_source:'postcode',location_set_at:new Date().toISOString(),phone:(F.get('phone')||'').trim(),opening_hours:(hrs?hrs.value:(F.get('opening_hours')||'')).trim(),bluepark_customer_email:F.get('trade').trim().toLowerCase(),requested_products:(F.get('want')||'').trim()||null,delivery_options:{collect:col,delivery:del,delivery_radius_miles:del?3:0,delivery_fee:del?2.5:0,prep_minutes:15}};
+    const tryCreate=async()=>{try{return await API.createShop(r)}catch(er){const m=er.message||'';if(/location_source|location_set_at/.test(m)){delete r.location_source;delete r.location_set_at;return tryCreate()}if(/requested_products/.test(m)&&('requested_products' in r)){delete r.requested_products;return tryCreate()}throw er}};
+    const x=await tryCreate();
     try{delete localStorage.nb_want}catch(_){}D.ui.amsg='';await load().catch(()=>{});if(!D.shop)D.shop=x;toast('Shop submitted for approval');location.hash='overview'}
    catch(er){b.disabled=false;b.textContent='Submit for approval';D.ui.aok=false;D.ui.amsg=er.message||'Could not register';render()}return}
   if(f.id==='setf'){e.preventDefault();const F=new FormData(f),s=D.shop,pcI=f.postcode;
    const alertMobile=(F.get('alert_mobile')||'').trim();
    const order_alerts={sms:!!F.get('alert_sms'),whatsapp:!!F.get('alert_whatsapp'),call:!!F.get('alert_call'),mobile:alertMobile};
    if((order_alerts.sms||order_alerts.whatsapp||order_alerts.call)&&!(window.P33&&P33.toE164(alertMobile))){toast('Enter a UK mobile number for order alerts, for example 07700 900123');return}
+   const prep=Math.min(90,Math.max(5,+F.get('prep_minutes')||15));
    const r={id:s.id,name:F.get('name').trim(),phone:F.get('phone').trim(),address:F.get('address').trim(),postcode:F.get('postcode').trim().toUpperCase(),opening_hours:F.get('opening_hours').trim(),bluepark_customer_email:F.get('bluepark_customer_email').trim().toLowerCase(),
-    delivery_options:{...(s.delivery_options||{}),collect:!!F.get('collect'),delivery:!!F.get('delivery'),delivery_radius_miles:+F.get('delivery_radius_miles')||0,delivery_fee:+F.get('delivery_fee')||0,order_alerts}};
-   if(pcI.dataset.lat){r.lat=+pcI.dataset.lat;r.lng=+pcI.dataset.lng}
+    delivery_options:{...(s.delivery_options||{}),collect:!!F.get('collect'),delivery:!!F.get('delivery'),delivery_radius_miles:+F.get('delivery_radius_miles')||0,delivery_fee:+F.get('delivery_fee')||0,prep_minutes:prep,order_alerts}};
+   if(pcI.dataset.lat){r.lat=+pcI.dataset.lat;r.lng=+pcI.dataset.lng;r.location_source=pcI.dataset.src||'device';r.location_set_at=new Date().toISOString()}
+   else if(!s.lat){try{const g=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(r.postcode)).then(x=>x.json());if(g.result){r.lat=g.result.latitude;r.lng=g.result.longitude;r.postcode=g.result.postcode;r.location_source='postcode';r.location_set_at=new Date().toISOString()}}catch(_){}}
    if(r.bluepark_customer_email!==(s.bluepark_customer_email||'')){if(!confirm('Changing your wholesale email sends your shop for re-approval. Continue?'))return;r._tradeChanged=true}
-   try{const x=await API.saveShop(r);D.shop={...s,...x};toast('Shop settings saved');rerender()}catch(er){toast(er.message||'Could not save')}}});
+   try{let x;try{x=await API.saveShop(r)}catch(er){if(!/location_source|location_set_at/.test(er.message||''))throw er;delete r.location_source;delete r.location_set_at;x=await API.saveShop(r)}D.shop={...s,...x};toast('Shop settings saved');rerender()}catch(er){toast(er.message||'Could not save')}}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(D.ui.drawer||D.ui.cat)){D.ui.drawer=null;D.ui.cat=false;rerender()}});
 if('serviceWorker' in navigator&&!MOCK)navigator.serviceWorker.register('sw.js').catch(()=>{});
-window.NBSeller={D,API,render,rerender,PAGES,NAV,TITLE,DASH,I,M,MOCK,sb,catalog,svg,esc,gbp,gbp0,toast,keep,LOW,DEAD,OPEN,LBL,chip,nexts,actBtns,when,ago};
+window.NBSeller={D,API,render,rerender,PAGES,TITLE,DASH,I,M,MOCK,sb,catalog,svg,esc,gbp,gbp0,toast,keep,LOW,DEAD,OPEN,LBL,chip,nexts,actBtns,when,ago};
 if(!MOCK)catalog().then(()=>{if(!page())rerender()});else catalog();
 boot();
 })();
