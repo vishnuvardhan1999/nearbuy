@@ -54,6 +54,18 @@ function refund(num,amount,reason){
   return get(num)}
 
 /* ---------- order lifecycle ---------- */
+function db(){return (window.NBSeller&&NBSeller.sb)||(typeof sb!=='undefined'?sb:null)}
+function liveOrder(num){const cur=window.P3&&P3.cur&&P3.cur();if(cur&&cur.order_number===num)return cur;
+  const bag=window.P3&&P3.orders&&P3.orders();return ((bag&&bag.list)||[]).find(o=>o.order_number===num)||null}
+function absorb(m){if(!m||!m.order_number)return null;const ex=get(m.order_number)||{};
+  const win=['picking','out_for_delivery','completed','rejected','cancelled','ready'];
+  const proof=(m.proof_name||m.proof_path||m.proof_photo||ex.proof)?Object.assign({},ex.proof||{},{name:m.proof_name||(ex.proof&&ex.proof.name)||null,path:m.proof_path||(ex.proof&&ex.proof.path)||null,photo:m.proof_photo||(ex.proof&&ex.proof.photo)||null,at:m.proof_at?Date.parse(m.proof_at):(ex.proof&&ex.proof.at)||Date.now()}):null;
+  const patch={id:m.id||ex.id,shop_id:m.shop_id||ex.shop_id,shop_name:(m.shops&&m.shops.name)||ex.shop_name,fulfilment:m.fulfilment||ex.fulfilment,status:win.includes(m.status)?m.status:(ex.status||m.status),placed_at:ex.placed_at||Date.parse(m.created_at)||Date.now(),deadline:ex.deadline||(Date.parse(m.created_at)||Date.now())+T.accept,total:ex.total!=null&&+ex.total<=+m.total?+ex.total:+m.total,total_at_place:ex.total_at_place||+m.total,delivery_fee:+(m.delivery_fee??ex.delivery_fee)||0,delivery_window:m.delivery_window||ex.delivery_window||(String(m.note||'').match(/^Delivery window: ([^\n]+)/)||[])[1]||null,driver:m.driver||ex.driver||(m.fulfilment==='delivery'?'shop':null),distance_miles:m.distance_miles!=null?+m.distance_miles:ex.distance_miles,promised_at:m.promised_at?Date.parse(m.promised_at):(ex.promised_at||null),late_notified:m.late_notified_at?Date.parse(m.late_notified_at):(ex.late_notified||null),items:ex.items&&ex.items.length?ex.items:(m.order_items||[]).map(i=>({name:i.name,qty:i.qty,unit_price:+i.unit_price,listing_id:i.listing_id})),notices:ex.notices||[],refunds:ex.refunds||[],pref:ex.pref||'ask',proof};
+  if(ex.status===patch.status&&ex.promised_at===patch.promised_at&&ex.late_notified===patch.late_notified&&ex.distance_miles===patch.distance_miles&&(ex.proof&&ex.proof.photo)===(patch.proof&&patch.proof.photo)&&(ex.proof&&ex.proof.name)===(patch.proof&&patch.proof.name))return ex;
+  const o=put(m.order_number,patch);
+  if(o.proof&&o.proof.path&&!o.proof.photo){const c=db();if(c)c.storage.from('delivery-proof').createSignedUrl(o.proof.path,3600).then(({data})=>{if(data&&data.signedUrl)put(m.order_number,{proof:Object.assign({},get(m.order_number).proof,{photo:data.signedUrl})})}).catch(()=>{})}
+  return get(m.order_number)}
+function tellLate(o){if(!o||!o.id||o.late_sent)return;const c=db();if(!c)return;put(o.num,{late_sent:true});c.rpc('note_delivery_late',{p_order:o.id}).then(({error})=>{if(error)put(o.num,{late_sent:false})}).catch(()=>put(o.num,{late_sent:false}))}
 function promisedAt(o){
   if(o.promised_at)return o.promised_at;
   const w=o.delivery_window;if(w){const m=String(w).match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/);if(m){const d=new Date(o.placed_at||Date.now());d.setHours(+m[3],+m[4],0,0);if(d.getTime()<(o.placed_at||0))d.setDate(d.getDate()+1);return d.getTime()}}
@@ -137,7 +149,7 @@ function tick(){
       if(now>=o.deadline){const r=timeoutDecline(o.num);if(r&&onSeller){toast(`${o.num} declined: no reply in time. The customer has been refunded.`);if(r.paused)toast('Shop paused after '+r.missed+' missed orders. Unpause when you’re ready.')}}
     }
     if(o.fulfilment==='delivery'&&!['completed','rejected','cancelled'].includes(o.status)&&o.promised_at&&now>o.promised_at+T.late&&!o.late_notified){
-      put(o.num,{late_notified:now});notify(o.num,`Sorry, your delivery is running late (promised by ${hm(o.promised_at)}). The shop has been told and it’s still on its way.`,'warn')}
+      put(o.num,{late_notified:now});notify(o.num,`Sorry, your delivery is running late (promised by ${hm(o.promised_at)}). The shop has been told and it’s still on its way.`,'warn');tellLate(get(o.num))}
     if(o.case&&o.case.status==='open'&&o.case.owner==='shop'&&now>o.case.respond_by){const c=Object.assign({},o.case,{owner:'shopnip',taken_at:now});c.log=(c.log||[]).concat([{at:now,who:'shopnip',msg:'No reply from the shop, ShopNip has taken over'}]);put(o.num,{case:c});notify(o.num,'The shop didn’t reply in time, so ShopNip now owns your case and will sort it.','info')}
   });
 }
@@ -193,12 +205,12 @@ function custInit(){
   const onPlacedView=()=>{const n=document.querySelector('.done-c');if(!n||!pending)return;const mm=n.textContent.match(/NB-\d+/);if(!mm)return;const num=mm[0];if(get(num)){pending=null;return}
     const m=window.P2&&P2.M&&(P2.M.orders||[]).find(o=>o.order_number===num);
     const sub=pending.items.reduce((t,i)=>t+lineTotal(i),0),fee=m?+m.delivery_fee||0:0,total=m?+m.total:sub+fee;
-    onPlaced(Object.assign({num,subtotal:sub,delivery_fee:fee,total,total_at_place:total,driver:m&&m.delivery_window?'shopnip':pending.driver},pending));pending=null;
+    onPlaced(Object.assign({num,subtotal:sub,delivery_fee:fee,total,total_at_place:total,id:m&&m.id,distance_miles:m&&m.distance_miles!=null?+m.distance_miles:pending.distance_miles,promised_at:m&&m.promised_at?Date.parse(m.promised_at):pending.promised_at,driver:(m&&m.driver)||(m&&m.delivery_window?'shopnip':pending.driver)},pending));pending=null;
     n.insertAdjacentHTML('beforeend',`<div class="rel" id="relplaced" style="text-align:left"><div class="n">The shop has ${FAST?'1 minute (test mode)':'15 minutes'} to accept and check every item. You’ll see it here straight away.</div></div>`)};
   // order detail
   const decorateOrder=()=>{const sec=[...document.querySelectorAll('#view section.sec')].find(s=>s.querySelector('a[data-t=orders]'));if(!sec)return;
-    const num=(sec.querySelector('h2')||{}).textContent;if(!num)return;let o=get(num.trim());
-    if(!o){const m=window.P2&&P2.M&&(P2.M.orders||[]).find(x=>x.order_number===num.trim());if(m&&isMock()){o=put(m.order_number,{shop_id:m.shop_id,shop_name:m.shops&&m.shops.name,fulfilment:m.fulfilment,status:m.status,placed_at:Date.parse(m.created_at),deadline:Date.parse(m.created_at)+T.accept,total:+m.total,total_at_place:+m.total,delivery_fee:+m.delivery_fee||0,delivery_window:m.delivery_window,pref:'ask',items:(m.order_items||[]).map(i=>({name:i.name,qty:i.qty,unit_price:+i.unit_price,listing_id:i.listing_id})),notices:[],refunds:[]});put(o.num,{promised_at:promisedAt(o)})}}
+    const num=(sec.querySelector('h2')||{}).textContent;if(!num)return;const live=liveOrder(num.trim());if(live)absorb(live);let o=get(num.trim());
+    if(!o){const m=window.P2&&P2.M&&(P2.M.orders||[]).find(x=>x.order_number===num.trim());if(m&&isMock()){o=absorb(m)||put(m.order_number,{shop_id:m.shop_id,shop_name:m.shops&&m.shops.name,fulfilment:m.fulfilment,status:m.status,placed_at:Date.parse(m.created_at),deadline:Date.parse(m.created_at)+T.accept,total:+m.total,total_at_place:+m.total,delivery_fee:+m.delivery_fee||0,delivery_window:m.delivery_window,pref:'ask',items:(m.order_items||[]).map(i=>({name:i.name,qty:i.qty,unit_price:+i.unit_price,listing_id:i.listing_id})),notices:[],refunds:[]});if(!get(o.num).promised_at)put(o.num,{promised_at:promisedAt(get(o.num))})}}
     if(!o)return;let box=sec.querySelector('#relbox');if(!box){box=document.createElement('div');box.id='relbox';const anchor=sec.querySelector('.panel');sec.insertBefore(box,anchor||null)}
     const html=custOrderHTML(get(o.num));if(box._h!==html){box.innerHTML=html;box._h=html}
     const r=get(o.num);syncP2(r);
@@ -219,7 +231,7 @@ function custInit(){
     if(t.dataset.rprob)problemModal(t.dataset.rprob)},true);
 }
 function syncP2(o){if(!o||!window.P2||!P2.M||!P2.M.orders)return;const m=P2.M.orders.find(x=>x.order_number===o.num);if(!m)return;
-  const map={picking:'accepted'};const s=map[o.status]||o.status;if(m.status!==s&&s){m.status=s;(m.order_events=m.order_events||[]).push({status:s,at:new Date().toISOString(),note:o.reject_reason})}
+  const s=o.status;if(m.status!==s&&s){m.status=s;(m.order_events=m.order_events||[]).push({status:s,at:new Date().toISOString(),note:o.reject_reason})}
   if(o.total!=null&&+o.total<=+m.total)m.total=o.total;if(o.reject_reason)m.reject_reason=o.reject_reason}
 function custOrderHTML(o){
   const done=['completed','rejected','cancelled'].includes(o.status);const keyOut=(o.items||[]).some(i=>i.key&&i.in_stock===false);
@@ -256,7 +268,8 @@ function sellerInit(){
   const same=(o,r)=>r&&(!r.items||!r.items.length||!o.order_items||!o.order_items.length||r.items[0].name===o.order_items[0].name);
   const sget=o=>{const r=get(o.order_number);return same(o,r)?r:null};
   const refresh=async()=>{try{D.O=await API.orders()}catch(_){}S.rerender()};
-  const ensure=o=>{let r=get(o.order_number);if(r&&!same(o,r))return null;if(!r){r=put(o.order_number,{shop_id:o.shop_id,shop_name:D.shop&&D.shop.name,fulfilment:o.fulfilment,status:o.status,placed_at:o.status==='placed'?Date.now():Date.parse(o.created_at),deadline:(o.status==='placed'?Date.now():Date.parse(o.created_at))+T.accept,total:+o.total,total_at_place:+o.total,delivery_fee:+o.delivery_fee||0,delivery_window:o.delivery_window,driver:o.fulfilment==='delivery'?'shop':null,pref:'ask',items:o.order_items.map(i=>({name:i.name,qty:i.qty,unit_price:+i.unit_price,listing_id:i.listing_id})),notices:[],refunds:[],escal:o.status==='placed'?[]:['sound','text','call']});put(r.num,{promised_at:promisedAt(r)})}return get(o.order_number)};
+  const ensure=o=>{let r=get(o.order_number);if(r&&!same(o,r))return null;if(!r){r=put(o.order_number,{id:o.id,shop_id:o.shop_id,shop_name:D.shop&&D.shop.name,fulfilment:o.fulfilment,status:o.status,placed_at:o.status==='placed'?Date.now():Date.parse(o.created_at),deadline:(o.status==='placed'?Date.now():Date.parse(o.created_at))+T.accept,total:+o.total,total_at_place:+o.total,delivery_fee:+o.delivery_fee||0,delivery_window:o.delivery_window,driver:o.driver||(o.fulfilment==='delivery'?'shop':null),distance_miles:o.distance_miles!=null?+o.distance_miles:null,promised_at:o.promised_at?Date.parse(o.promised_at):null,pref:'ask',items:o.order_items.map(i=>({name:i.name,qty:i.qty,unit_price:+i.unit_price,listing_id:i.listing_id})),notices:[],refunds:[],escal:o.status==='placed'?[]:['sound','text','call']});if(!get(r.num).promised_at)put(r.num,{promised_at:promisedAt(get(r.num))})}
+    else{const dist=o.distance_miles!=null?+o.distance_miles:r.distance_miles,prom=o.promised_at?Date.parse(o.promised_at):r.promised_at,drv=o.driver||r.driver;if(r.id!==o.id||r.distance_miles!==dist||r.promised_at!==prom||r.driver!==drv)put(o.order_number,{id:o.id,distance_miles:dist,driver:drv,promised_at:prom})}return get(o.order_number)};
   // real wallet refund (server caps it at what was paid and never refunds a line twice)
   const liveRefund=(o,ids,why,src)=>{if(!window.DESK||!o||!o.id)return;DESK.refundLines(o.id,ids,why,src).then(x=>{if(x&&+x.credited>0)toast(gbp(x.credited)+' refunded to the customer’s ShopNip wallet')}).catch(er=>toast('Refund not recorded: '+(er.message||er)))};
   // pull customer-tab orders into the mock seller inbox
@@ -269,7 +282,7 @@ function sellerInit(){
     const sh=D.shop&&shop(D.shop.id);if(sh&&D.shop.delivery_options&&!!D.shop.delivery_options.paused!==!!sh.paused){D.shop.delivery_options.paused=sh.paused;ch=true}
     if(ch)await refresh()};
   // seed REL for existing placed orders so escalation runs
-  const seed=()=>D.O.filter(o=>o.status==='placed').forEach(ensure);
+  const seed=()=>D.O.filter(o=>o.status==='placed'||(o.fulfilment==='delivery'&&['accepted','picking','out_for_delivery'].includes(o.status))).forEach(ensure);
   setInterval(async()=>{seed();tick();await sync();decorate()},4000);
   subs.add(()=>{sync();decorate()});
   // intercept Accept / Reject / Delivered / Ready
@@ -278,6 +291,7 @@ function sellerInit(){
     if(s==='rejected'){e.stopImmediatePropagation();e.preventDefault();const why=prompt('Reason for declining (the customer sees this and is refunded straight away):','Out of stock, sorry');if(why===null)return;
       try{await API.status(o.id,'rejected',why)}catch(er){return toast(er.message||'Could not decline')}liveRefund(o,null,why,'declined');if(ensure(o))decline(o.order_number,why);putShop(o.shop_id,{missed:0});toast('Declined. The customer has been told and refunded now.');refresh();return}
     if(s==='completed'&&o.fulfilment==='delivery'){e.preventDefault();e.stopImmediatePropagation();proofSheet(o);return}
+    if(s==='picking'){setTimeout(()=>{if(ensure(o))stage(o.order_number,'picking')},0)}
     if(s==='out_for_delivery'){setTimeout(()=>{if(ensure(o))stage(o.order_number,'out_for_delivery')},0)}
     if(s==='ready'){setTimeout(()=>{if(ensure(o))stage(o.order_number,'ready')},0)}
     if(s==='completed'){setTimeout(()=>{if(ensure(o))setStatus(o.order_number,'completed')},0)}},true);
@@ -300,7 +314,7 @@ function sellerInit(){
     return `<div class="rel">${o.status==='placed'?`<div class="n warn"><b>Accept by ${hm(r.deadline)}</b> (${Math.ceil(left/60000)} min left). Alerts so far: ${(r.escal||[]).map(x=>({sound:'sound',text:'SMS/WhatsApp',call:'phone call'}[x])).join(' → ')||'none'}. No reply means we decline it and refund the customer.</div>`:''}
      ${r.items&&r.items.some(i=>i.in_stock!==undefined)?`<h4>Stock check</h4>${itemsHTML(r,false)}`:''}
      ${r.pref?`<p class="mut">Customer’s choice if something’s out: <b>${esc(PREFS[r.pref])}</b>${r.cancel_if_key?' · cancel if a key item is missing':''}</p>`:''}
-     ${del&&!['rejected','cancelled'].includes(o.status)?`<h4>Delivery status</h4>${stepper(Object.assign({},r,{status:r.status==='picking'?'picking':o.status}))}<p class="mut">Promised by ${hm(r.promised_at)} · ${r.driver==='shop'?'your own driver':'ShopNip driver'} <a href="#" data-rel="driver" data-id="${esc(o.id)}">change</a></p>`:''}
+     ${del&&!['rejected','cancelled'].includes(o.status)?`<h4>Delivery status</h4>${stepper(Object.assign({},r,{status:r.status==='picking'?'picking':o.status}))}<p class="mut">Promised by ${hm(r.promised_at)}${r.distance_miles!=null?' · '+(+r.distance_miles).toFixed(1)+' mi':''} · ${r.driver==='shop'?'your own driver':'ShopNip driver'} <a href="#" data-rel="driver" data-id="${esc(o.id)}">change</a></p>${o.delivery_lat!=null?`<p class="mut"><a href="https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}" target="_blank" rel="noopener">Open directions</a></p>`:''}`:''}
      ${o.status==='accepted'&&r.status!=='picking'?`<button class="bt g" data-rel="picking" data-id="${esc(o.id)}">Start picking</button>`:''}
      ${r.proof?`<h4>Proof of delivery</h4><p class="mut">${r.proof.name?'Handed to '+esc(r.proof.name):'Doorstep photo'} · ${hm(r.proof.at)}</p>${r.proof.photo?`<img class="pf" src="${esc(r.proof.photo)}" alt="">`:''}`:''}
      ${r.case?`<h4>Problem ${esc(r.case.id)}</h4><div class="n ${r.case.status==='resolved'?'good':'warn'}">${esc(r.case.note)}<small>${r.case.status==='resolved'?'Sorted':r.case.owner==='shopnip'?'ShopNip has taken this over':'You own this case. Reply by '+hm(r.case.respond_by)}</small></div>${r.case.photo?`<img class="pf" src="${esc(r.case.photo)}" alt="">`:''}${r.case.status==='open'&&r.case.owner==='shop'?`<div class="row"><button class="bt" data-rel="resend" data-id="${esc(o.id)}">Resend item</button><button class="bt g" data-rel="refund" data-id="${esc(o.id)}">Refund it</button></div>`:''}`:''}
@@ -329,7 +343,7 @@ function sellerInit(){
      <div class="row"><button class="bt" id="pd_go">Mark delivered</button><button class="bt g" data-x>Back</button></div>`,m=>{
      m.querySelector('#pd_go').onclick=async()=>{const f=m.querySelector('#pd_p').files[0],n=m.querySelector('#pd_n').value.trim();if(!f&&!n)return toast('Add a photo or a name first');
        let ph=null;try{if(f)ph=await photo(f)}catch(_){}
-       try{await API.status(o.id,'completed',n?'Delivered to '+n:'Delivered · photo saved')}catch(er){return toast(er.message||'Could not update')}
+       try{if(API.deliver)await API.deliver(o.id,{photo:ph,name:n||null});else await API.status(o.id,'completed',n?'Delivered to '+n:'Delivered · photo saved')}catch(er){return toast(er.message||'Could not update')}
        proof(o.order_number,{photo:ph,name:n||null});stage(o.order_number,'completed');m.remove();toast('Delivered. Proof saved on the order.');refresh()}})}
 }
 

@@ -2,8 +2,8 @@
 const mailEv=(id,ev)=>{try{if(typeof sb!=='undefined'&&sb&&id&&sb.functions)sb.functions.invoke('order-email',{body:{order_id:id,event:ev}}).catch(()=>{})}catch(e){}};/* fire-and-forget order email (supabase/functions/order-email); never blocks checkout */
 (function(){
 const {A,DB,M,MOCK,Q,toast}=P2;
-const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','out_for_delivery','completed']};
-const LBL={placed:'Placed',accepted:'Accepted',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:'Completed',cancelled:'Cancelled',rejected:'Rejected'};
+const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','picking','out_for_delivery','completed']};
+const LBL={placed:'Placed',accepted:'Accepted',picking:'Picking',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:'Completed',cancelled:'Cancelled',rejected:'Rejected'};
 const O={mine:[],inbox:[],cur:null,shops:{},fil:'open',newIds:new Set(),ch:null};
 const B=()=>S.basket; const bShop=()=>B()[0]?.shop_id||null;
 const sub=()=>B().reduce((a,b)=>a+b.price*b.qty,0);
@@ -26,6 +26,14 @@ function deliveryWindows(s,at=new Date()){
     for(const [a,b] of ranges)for(let start=Math.ceil(a/30)*30;start+120<=b;start+=120){if(!k&&start<=mins)continue;
       const time=range(start,start+120);out.push({id:iso+'|'+start,label:(k===0?'Today':k===1?'Tomorrow':dateLabel)+', '+time,value:dateLabel+', '+time});}}
   return out}
+/* Same sums as place_order: 20 mph, pack time 5–90 minutes (shop setting, default 15). */
+function trip(dist,prepMin){const prep=Math.min(90,Math.max(5,+prepMin||15)),travel=Math.max(5,Math.ceil((+dist||0)*60/20)),at=Date.now()+(prep+travel)*60000;
+  return {prep,travel,at,hm:new Date(at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}}
+function windowEnd(slot){if(!slot||!slot.id||!slot.id.includes('|'))return null;const [iso,start]=String(slot.id).split('|'),mins=(+start||0)+120;
+  const [y,mo,da]=iso.split('-').map(Number),day=da+Math.floor(mins/1440),hh=Math.floor((mins%1440)/60),mm=mins%60,want=Date.UTC(y,mo-1,day,hh,mm);
+  const wall=d=>{const p={};new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).forEach(x=>p[x.type]=x.value);return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute)};
+  let t=want;for(let i=0;i<3;i++)t+=want-wall(new Date(t));return new Date(t).toISOString()}
+function hmOf(t){const n=new Date(t);return isNaN(n)?'' :n.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
 function windowPicker(){if(CO.f!=='delivery'||deliveryBy(CO.shop)!=='shopnip')return '';const slots=deliveryWindows(CO.shop);
   if(!slots.some(w=>w.value===CO.window))CO.window='';
   return `<div class="panel"><h3 class="ft">ShopNip delivery window</h3><p class="hint">Pick when you want your order dropped off. All times are UK time.</p><label class="fl"><span>Delivery window (required)</span><select id="c_window" required><option value="">Choose a delivery window…</option>${slots.map(w=>`<option value="${esc(w.value)}" ${CO.window===w.value?'selected':''}>${esc(w.label)}</option>`).join('')}</select></label>${slots.length?'':'<p class="hint">No delivery windows in the next three days. Choose click &amp; collect if offered, or check with the shop.</p>'}</div>`}
@@ -35,10 +43,16 @@ const D=MOCK?{
   async shop(id){return M.shops.find(s=>s.id===id)},
   async place(a){const lines=a.items.map(i=>{const l=M.listings.find(x=>x.id===i.listing_id);if(!l||!l.active)throw new Error('An item is no longer available');if(l.stock<i.qty)throw new Error(`Only ${l.stock} left of ${l.name}`);return {l,q:i.qty}});
     lines.forEach(x=>x.l.stock-=x.q);const s=M.shops.find(x=>x.id===a.shop),prior=M.orders.some(o=>o.customer_id===(A.user?.id||'u1')&&!['cancelled','rejected'].includes(o.status)),fee=a.fulfilment==='delivery'&&prior?+(s.delivery_options.delivery_fee||0):0,st=lines.reduce((t,x)=>t+x.l.retail_price*x.q,0);
-    const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(2001+M.orders.length),collection_pin:a.fulfilment==='collect'?String(crypto.getRandomValues(new Uint16Array(1))[0]%10000).padStart(4,'0'):null,shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,delivery_window:a.delivery_window||null,note:a.note,
+    let dist=null,prep=null,travel=null,prom=null,driver=null;
+    if(a.fulfilment==='delivery'){if(s.lat==null||a.lat==null)throw new Error('This shop has not set its location yet');
+      dist=Math.round(miles({lat:+s.lat,lng:+s.lng},{lat:+a.lat,lng:+a.lng})*100)/100;const rad=+(s.delivery_options.delivery_radius_miles||0);
+      if(dist>rad)throw new Error('Sorry, '+(a.postcode||'that address')+' is outside this shop\'s delivery area');
+      const tr=trip(dist,s.delivery_options.prep_minutes);prep=tr.prep;travel=tr.travel;prom=new Date(tr.at).toISOString();driver=s.delivery_options.delivery_by==='shopnip'?'shopnip':'shop';
+      if(driver==='shopnip'&&a.window_end)prom=a.window_end}
+    const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(2001+M.orders.length),collection_pin:a.fulfilment==='collect'?String(crypto.getRandomValues(new Uint16Array(1))[0]%10000).padStart(4,'0'):null,shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,delivery_lat:a.lat??null,delivery_lng:a.lng??null,shop_lat:s.lat??null,shop_lng:s.lng??null,distance_miles:dist,prep_minutes:prep,travel_minutes:travel,promised_at:prom,driver,delivery_window:a.delivery_window||null,note:(a.note||'').replace(/\s*\[\[window:[^\]]+\]\]/g,''),
       payment_method:a.fulfilment==='delivery'?'pay_on_delivery':'pay_on_collection',status:'placed',subtotal:st,delivery_fee:fee,total:st+fee,created_at:new Date().toISOString(),
       order_items:lines.map(x=>({listing_id:x.l.id,sku:x.l.sku,name:x.l.name,image:x.l.image,unit_price:x.l.retail_price,qty:x.q})),order_events:[{status:'placed',at:new Date().toISOString()}],shops:{name:s.name,phone:s.phone,address:s.address}};
-    M.orders.unshift(o);const wu=window.WAL?WAL.spend(o,a.useWallet):0;return {id:o.id,order_number:o.order_number,total:o.total,collection_pin:o.collection_pin,wallet_applied:wu,amount_due:o.total-wu,delivery_window:o.delivery_window}},
+    M.orders.unshift(o);const wu=window.WAL?WAL.spend(o,a.useWallet):0;return {id:o.id,order_number:o.order_number,total:o.total,collection_pin:o.collection_pin,wallet_applied:wu,amount_due:o.total-wu,delivery_window:o.delivery_window,distance_miles:dist,prep_minutes:prep,travel_minutes:travel,promised_at:prom,driver}},
   async mine(){return M.orders.filter(o=>o.customer_id==='u1')},
   async inbox(){return M.orders.filter(o=>o.shop_id===A.shop?.id)},
   async get(id){return M.orders.find(o=>o.id===id)},
@@ -110,13 +124,16 @@ V.basket=function(){
 const CO={f:'collect',shop:null,deliv:null,err:'',useW:true,window:''};
 async function prepCheckout(){if(window.WAL&&A.user)await WAL.load();CO.shop=await D.shop(bShop());const d=CO.shop?.delivery_options||{};CO.deliv=null;CO.phoneErr='';CO.window='';if(!d.delivery)CO.f='collect';
   if(A.user&&!O.loaded){try{O.mine=await D.mine();O.loaded=true;O.orderErr=false}catch(e){O.orderErr=true}}
-  if(d.delivery){if(!S.me)CO.deliv={ok:false,why:'Set your postcode to check delivery'};else if(CO.shop.lat==null)CO.deliv={ok:true};else{const mi=miles(S.me,CO.shop);CO.deliv={ok:mi<=(+d.delivery_radius_miles||0),mi,why:`You're ${mi.toFixed(1)} mi away; ${esc(CO.shop.name)} delivers within ${+d.delivery_radius_miles||0} mi`}}}
+  CO.here=null;
+  if(d.delivery){if(CO.shop.lat==null)CO.deliv={ok:false,why:'This shop has not set its location yet'};else if(!S.me)CO.deliv={ok:false,why:'Set your postcode to check delivery'};else{const mi=miles(S.me,CO.shop);CO.deliv={ok:mi<=(+d.delivery_radius_miles||0),mi,why:`You're ${mi.toFixed(1)} mi away; ${esc(CO.shop.name)} delivers within ${+d.delivery_radius_miles||0} mi`}}}
   if(d.collect===false)CO.f=CO.deliv?.ok?'delivery':'collect';}
 V.checkout=function(){
   if(!B().length)return V.basket();if(!CO.shop)return '<div class="empty">Loading…</div>';
   if(!A.user)return `<section class="sec narrow"><div class="sh"><h2>Checkout</h2></div><div class="noshops"><div class="ic">${svg('account')}</div><h4>Log in to place your order</h4><p>We need an account so you can track your order and the shop can contact you.</p><button class="btn" data-o="login">Log in or sign up</button></div></section>`;
   const s=CO.shop,d=s.delivery_options||{},shopFee=+(d.delivery_fee||0),welcome=CO.f==='delivery'&&welcomeOn(),fee=CO.f==='delivery'?(welcome?0:shopFee):0,u=window.CK?CK.get():{};
   const wbal=window.WAL&&A.user?+WAL.state.balance||0:0,wuse=CO.useW&&wbal>0?Math.min(wbal,sub()+fee):0,due=Math.max(0,sub()+fee-wuse);
+  const eta=CO.f==='delivery'&&CO.deliv?.ok&&CO.deliv.mi!=null?trip(CO.deliv.mi,d.prep_minutes):null;
+  const slot=eta&&deliveryBy(s)==='shopnip'?deliveryWindows(s).find(w=>w.value===CO.window):null;
   const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
   const openPhrase=hs&&!hs.unknown&&!hs.open?String(hs.label||'').replace(/^Opens\s+(?:at\s+)?/,''):'';
   const closed=openPhrase?`<div class="alert hours-wait" role="status">Shop opens ${esc(openPhrase)}; order will be ready after opening.</div>`:'';
@@ -129,13 +146,13 @@ V.checkout=function(){
   <div class="panel"><h3 class="ft">Your details</h3>
    ${fld('c_name','Name','required autocomplete="name"',u.name||A.profile?.full_name||'')}${fld('c_phone','Mobile number <span class="req" title="required">*</span>','required type="tel" inputmode="tel" autocomplete="tel" aria-required="true" aria-describedby="phone_err"',u.phone||'')}
    <p class="${CO.phoneErr?'field-err':'hint'}" id="phone_err">${CO.phoneErr?esc(CO.phoneErr):'Required, so the shop can reach you about this order.'}</p>
-   ${CO.f==='delivery'?fld('c_addr','Delivery address','required autocomplete="street-address"',u.addr||'')+fld('c_pc','Postcode','required autocomplete="postal-code" style="text-transform:uppercase"',S.pc||''):''}
+   ${CO.f==='delivery'?fld('c_addr','Delivery address','required autocomplete="street-address"',u.addr||'')+fld('c_pc','Postcode','required autocomplete="postal-code" style="text-transform:uppercase"',CO.here?.pc||S.pc||'')+`<p class="hint"><button type="button" class="btn ghost" data-o="here">Use my location</button> ${CO.here?.src==='device'?'Precise location saved for this order.':''}</p>`:''}
    <label class="fl"><span>Note for the shop (optional)</span><textarea id="c_note" rows="2" maxlength="500" placeholder="e.g. I'll collect after 5pm"></textarea></label></div>
   ${windowPicker()}
   ${CO.f==='delivery'&&deliveryBy(s)==='shop'?'<p class="hint">The shop will deliver your order with their own drivers.</p>':''}
   <div class="panel"><h3 class="ft">Payment</h3><div class="opt on">${svg('tag')}<span><b>${CO.f==='delivery'?'Pay on delivery':'Pay on collection'}</b><small>${due>0?'Pay the shop by card or cash. No payment is taken now.':'Fully paid with your ShopNip wallet.'}</small></span></div>${wbal>0?`<label class="wopt"><input type="checkbox" id="usewallet" ${CO.useW?'checked':''}><span><b>Use wallet balance (${gbp(wbal)})</b><small>${CO.useW?gbp(wuse)+' from your ShopNip wallet'+(due>0?', '+gbp(due)+' left to pay':', nothing left to pay'):'Your ShopNip credit from refunds'}</small></span></label>`:''}</div>
   <div class="panel"><h3 class="ft">Summary · ${esc(s.name)}</h3>${B().map(b=>`<div class="line"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)}</span></div>`).join('')}
-   ${CO.f==='delivery'&&deliveryBy(s)==='shopnip'?`<div class="line"><span>Delivery window</span><b id="cowindow">${esc(CO.window||'Choose a window above')}</b></div>`:''}<div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${welcome?(shopFee?`<div class="line"><span>Delivery</span><span><s>${gbp(shopFee)}</s></span></div>`:'')+`<div class="line"><span>Free delivery on your first order</span><b>Free</b></div>`:(fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:'')}${wuse>0?`<div class="line"><span>Order total</span><span>${gbp(sub()+fee)}</span></div><div class="line wline"><span>ShopNip wallet</span><span>−${gbp(wuse)}</span></div>`:''}<div class="line tot"><b>Total to pay ${CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(due)}</b></div></div>
+   ${CO.f==='delivery'&&deliveryBy(s)==='shopnip'?`<div class="line"><span>Delivery window</span><b id="cowindow">${esc(CO.window||'Choose a window above')}</b></div>`:''}${eta?`<div class="line"><span>${deliveryBy(s)==='shopnip'&&slot?'Trip':'Promised by'}</span><b>${deliveryBy(s)==='shopnip'&&slot?hmOf(windowEnd(slot)):eta.hm}</b></div><p class="hint">${CO.deliv.mi.toFixed(1)} miles from the shop. ${eta.prep} min to pack and ${eta.travel} min to drive.${deliveryBy(s)==='shopnip'&&slot?' Promised by the end of the window you pick.':''}</p>`:''}<div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${welcome?(shopFee?`<div class="line"><span>Delivery</span><span><s>${gbp(shopFee)}</s></span></div>`:'')+`<div class="line"><span>Free delivery on your first order</span><b>Free</b></div>`:(fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:'')}${wuse>0?`<div class="line"><span>Order total</span><span>${gbp(sub()+fee)}</span></div><div class="line wline"><span>ShopNip wallet</span><span>−${gbp(wuse)}</span></div>`:''}<div class="line tot"><b>Total to pay ${CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(due)}</b></div></div>
   <button class="btn full big" id="placebtn">Place order · ${gbp(due)}</button><p class="hint c">The shop will confirm your order. You can cancel until it’s accepted.</p></form></section>`};
 const fld=(id,l,a,v)=>`<label class="fl"><span>${l}</span><input id="${id}" ${a} value="${esc(v)}"></label>`;
 /* click & collect code: order number + PIN the customer quotes at the shop */
@@ -145,7 +162,7 @@ window.P3CODE=ccode;
 V.placed=function(r){const rate=window.Social?Social.rateHTML(O.lastShopId,O.lastShop||'this shop',r.id,'placed'):'';
   return `<section class="sec narrow"><div class="done-c"><div class="tick">${svg('check')}</div><h2>Order placed!</h2><p>Your order number is</p><div class="ono">${esc(r.order_number)}</div>${ccode({...r,fulfilment:O.lastF},true)}
   <p class="hint">${esc(O.lastShop||'The shop')} has been notified and will confirm shortly. Total ${gbp(r.total)}${+r.wallet_applied?`, ${gbp(r.wallet_applied)} paid from your ShopNip wallet, ${gbp(r.amount_due)} left`:''} to pay ${O.lastF==='delivery'?'on delivery':'on collection'}.</p>
-  ${r.delivery_window?`<p><b>Delivery window: ${esc(r.delivery_window)}</b></p>`:''}${rate}
+  ${r.delivery_window?`<p><b>Delivery window: ${esc(r.delivery_window)}</b></p>`:''}${r.promised_at?`<p><b>Promised by ${hmOf(r.promised_at)}</b>${r.distance_miles!=null?' · '+Number(r.distance_miles).toFixed(1)+' miles from the shop':''}</p>`:''}${rate}
   <button class="btn full big" data-o="open" data-id="${esc(r.id)}">Track order</button><button class="btn ghost full" data-t="home" style="margin-top:8px">Keep shopping</button></div></section>`};
 const chip=s=>`<span class="ost ${s}">${LBL[s]||s}</span>`;
 V.orders=function(){
@@ -160,7 +177,11 @@ function timeline(o){const steps=STEPS[o.fulfilment]||STEPS.collect,ev={};(o.ord
   if(end){list=list.filter(x=>x.done);list.push({s:o.status,done:true,cur:true,bad:true,at:ev[o.status]?.at,note:ev[o.status]?.note||o.reject_reason})}
   return `<ol class="tl">${list.map(x=>`<li class="${x.done?'d':''} ${x.cur?'c':''} ${x.bad?'bad':''}"><i></i><div><b>${LBL[x.s]}</b>${x.at?`<small>${when(x.at)}</small>`:''}${x.note?`<small>“${esc(x.note)}”</small>`:''}</div></li>`).join('')}</ol>`}
 function odetail(o,owner){const it=o.order_items||[];
-  return `<div class="panel">${timeline(o)}</div>
+  const prom=o.promised_at&&o.fulfilment==='delivery'&&!['rejected','cancelled'].includes(o.status);const late=prom&&o.status!=='completed'&&Date.now()>Date.parse(o.promised_at)+15*60000;
+  const proofBit=(o.proof_name||o.proof_photo)?('<p class="hint">'+(o.proof_name?'Handed to '+esc(o.proof_name):'Left at the door')+'</p>'+(o.proof_photo?'<img src="'+esc(o.proof_photo)+'" alt="Doorstep photo" style="max-width:100%;border-radius:12px">':'')):'';
+  const promBit=prom?'<p class="hint" style="margin:8px 0 0">'+(o.status==='completed'?'Delivered':'Promised by '+hmOf(o.promised_at))+(o.distance_miles!=null?' · '+Number(o.distance_miles).toFixed(1)+' mi from the shop':'')+(o.driver==='shop'?' · shop’s own driver':'')+'</p>':'';
+  const lateBit=late?'<div class="alert" role="status">Sorry, your delivery is running late (promised by '+hmOf(o.promised_at)+'). The shop has been told and it’s still on its way.</div>':'';
+  return `<div class="panel">${timeline(o)}${promBit}${lateBit}${proofBit}</div>
   <div class="panel"><h3 class="ft">${o.fulfilment==='delivery'?'Delivery to':'Collect from'}</h3><p class="hint" style="font-size:14px;color:var(--txt)">${o.fulfilment==='delivery'?esc((o.delivery_address||'')+' '+(o.delivery_postcode||'')):esc((o.shops?.name||'')+', '+(o.shops?.address||A.shop?.address||''))}</p>
    ${o.fulfilment==='delivery'&&orderWindow(o)?`<p><b>Delivery window: ${esc(orderWindow(o))}</b></p>`:''}
    ${owner?`<div class="line"><span>Customer</span><span>${esc(o.customer_name)}</span></div><div class="line"><span>Phone</span><a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a></div>`:o.shops?.phone?`<div class="line"><span>Shop phone</span><a href="tel:${esc(o.shops.phone)}">${esc(o.shops.phone)}</a></div>`:''}
@@ -172,7 +193,7 @@ V.order=function(id){const o=O.cur;if(!o||o.id!==id){D.get(id).then(x=>{O.cur=x;
   return `<section class="sec narrow"><div class="sh"><h2>${esc(o.order_number)}</h2><a href="#" data-t="orders">All orders</a></div><div class="oc-m" style="margin-top:-8px">${esc(o.shops?.name||'')} · ${when(o.created_at)}</div>
   ${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o,true)}${odetail(o,false)}${o.status==='completed'&&window.Social?Social.rateHTML(o.shop_id,o.shops?.name||'this shop',o.id,'done'):''}${o.status==='placed'?`<button class="btn ghost full" data-o="cancel" data-id="${esc(o.id)}">Cancel order</button>`:''}</section>`};
 // owner inbox
-const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready to collect']],delivery:[['out_for_delivery','Out for delivery']]},ready:[['completed','Collected · complete']],out_for_delivery:[['completed','Delivered · complete']]};
+const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready to collect']],delivery:[['picking','Start picking']]},picking:[['out_for_delivery','Out for delivery']],ready:[['completed','Collected · complete']],out_for_delivery:[['completed','Delivered · complete']]};
 const nexts=o=>{const n=NEXT[o.status];return !n?[]:Array.isArray(n)?n:n[o.fulfilment]};
 V.inbox=function(){if(!A.shop)return V.myshop();if(!O.iloaded){loadInbox();return '<div class="empty">Loading orders…</div>'}
   const open=O.inbox.filter(o=>!['completed','cancelled','rejected'].includes(o.status)),L=O.fil==='open'?open:O.inbox.filter(o=>!open.includes(o));
@@ -185,8 +206,8 @@ V.inbox=function(){if(!A.shop)return V.myshop();if(!O.iloaded){loadInbox();retur
    <div class="oc-m">${when(o.created_at)} · ${o.fulfilment==='delivery'?'Delivery':'Collect'} · ${o.order_items.reduce((a,i)=>a+i.qty,0)} items · <b>${gbp(o.total)}</b></div>${o.cancel_reason&&window.CancelBox?`<div class="oc-n">${CancelBox.html(o)}</div>`:''}
    <div class="oc-i">${o.order_items.map(i=>`${i.qty}× ${esc(i.name.slice(0,48))}`).join('<br>')}</div>${o.note?`<div class="oc-n">“${esc(o.note)}”</div>`:''}
    <div class="acts">${nexts(o).map(([s,l])=>`<button class="btn ${s==='rejected'?'ghost':''}" data-o="st" data-id="${esc(o.id)}" data-v="${s}">${l}</button>`).join('')}
-   ${['accepted','ready','out_for_delivery'].includes(o.status)?`<button class="btn ghost" data-o="st" data-id="${esc(o.id)}" data-v="cancelled">Cancel</button>`:''}${window.WAL&&o.status!=='placed'&&WAL.refundable(o)>0?`<button class="btn ghost" data-o="wrefund" data-id="${esc(o.id)}">Refund to wallet</button>`:''}<a class="btn ghost" href="tel:${esc(o.customer_phone)}">Call</a></div>${+o.refunded_to_wallet?`<span class="wref-tag">${gbp(o.refunded_to_wallet)} refunded to customer’s ShopNip wallet</span>`:''}</div>`).join('')||'<div class="empty">No orders here yet</div>'}</div></section>`};
-const _my=V.myshop;V.myshop=function(){const h=_my();if(!A.shop)return h;const n=O.inbox.filter(o=>o.status==='placed').length,op=O.inbox.filter(o=>['placed','accepted','ready','out_for_delivery'].includes(o.status)).length;
+   ${['accepted','picking','ready','out_for_delivery'].includes(o.status)?`<button class="btn ghost" data-o="st" data-id="${esc(o.id)}" data-v="cancelled">Cancel</button>`:''}${window.WAL&&o.status!=='placed'&&WAL.refundable(o)>0?`<button class="btn ghost" data-o="wrefund" data-id="${esc(o.id)}">Refund to wallet</button>`:''}<a class="btn ghost" href="tel:${esc(o.customer_phone)}">Call</a></div>${+o.refunded_to_wallet?`<span class="wref-tag">${gbp(o.refunded_to_wallet)} refunded to customer’s ShopNip wallet</span>`:''}</div>`).join('')||'<div class="empty">No orders here yet</div>'}</div></section>`};
+const _my=V.myshop;V.myshop=function(){const h=_my();if(!A.shop)return h;const n=O.inbox.filter(o=>o.status==='placed').length,op=O.inbox.filter(o=>['placed','accepted','picking','ready','out_for_delivery'].includes(o.status)).length;
   return h.replace('<div class="stats">',`<button class="tile ${n?'hot':''}" data-o="inbox">${svg('orders')}<span><b>Orders inbox${n?` · ${n} new`:''}</b><small>${op} open order${op===1?'':'s'}</small></span></button><div class="stats">`)};
 
 // ---------- loaders, realtime ----------
@@ -204,6 +225,11 @@ function startLive(){if(MOCK||!sb)return;if(A.shop)D.live('shop_id=eq.'+A.shop.i
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]');if(!el)return;e.preventDefault();const a=el.dataset.o,i=+el.dataset.i;
   if(a==='inc'||a==='dec'){const b=B()[i];if(a==='inc'){if(b.stock!=null&&b.qty>=b.stock)return toast(`Only ${b.stock} in stock`);b.qty++}else if(--b.qty<1)B().splice(i,1);saveB();return render()}
   if(a==='clear'){S.basket=[];saveB();return render()}
+  if(a==='here'){if(!navigator.geolocation){toast('Type your postcode instead.');return}
+    navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lng=p.coords.longitude;let pc=S.pc||'';
+      try{const j=await fetch('https://api.postcodes.io/postcodes?lon='+lng+'&lat='+lat+'&limit=1').then(r=>r.json());if(j.result&&j.result[0])pc=j.result[0].postcode}catch(_){}
+      CO.here={lat,lng,pc,src:'device'};if(CO.shop&&CO.shop.lat!=null){const mi=miles({lat,lng},CO.shop),rad=+(CO.shop.delivery_options?.delivery_radius_miles||0);CO.deliv={ok:mi<=rad,mi,why:`You're ${mi.toFixed(1)} mi away; ${CO.shop.name} delivers within ${rad} mi`}}
+      render()},()=>toast('We could not get your location. Type your postcode instead.'));return}
   if(a==='checkout'){CO.err='';await prepCheckout();return route('checkout')}
   if(a==='login'){P3.after=B().length?'checkout':'orders';P2.A.tab='login';return route('account')}
   if(a==='open'){O.cur=null;return route('order',el.dataset.id)}
@@ -219,9 +245,12 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
     M.orders.unshift({id,order_number:'NB-'+(2001+M.orders.length),shop_id:A.shop.id,customer_id:'u9',customer_name:'Tom Reed',customer_phone:'07700 900456',fulfilment:'delivery',delivery_address:'4 Mill Lane',delivery_postcode:'LE1 6AB',status:'placed',subtotal:l.reduce((t,x)=>t+x.retail_price,0),delivery_fee:2.5,total:l.reduce((t,x)=>t+x.retail_price,0)+2.5,payment_method:'pay_on_delivery',created_at:new Date().toISOString(),order_items:l.map(x=>({listing_id:x.id,name:x.name,image:x.image,unit_price:x.retail_price,qty:1})),order_events:[{status:'placed',at:new Date().toISOString()}]});
     return onOwnerChange({eventType:'INSERT',new:{id}})}
 });
-document.addEventListener('change',e=>{if(e.target.id==='c_window'){CO.window=e.target.value;const t=$('#cowindow');if(t)t.textContent=CO.window||'Choose a window above';return}if(e.target.name==='ful'){CO.f=e.target.value;CO.window='';render()}if(e.target.id==='usewallet'){CO.useW=e.target.checked;render()}});
+document.addEventListener('change',e=>{if(e.target.id==='c_window'){CO.window=e.target.value;const t=$('#cowindow');if(t)t.textContent=CO.window||'Choose a window above';return}if(e.target.name==='ful'){CO.f=e.target.value;CO.window='';render()}if(e.target.id==='usewallet'){CO.useW=e.target.checked;render()}
+  if(e.target.id==='c_pc'){const v=e.target.value.trim();if(CO.here?.src==='device'&&CO.here.pc&&v.replace(/\s/g,'').toUpperCase()===CO.here.pc.replace(/\s/g,'').toUpperCase())return;
+    lookupPostcode(v).then(g=>{CO.here={lat:g.lat,lng:g.lng,pc:g.pc,src:'postcode'};if(CO.shop&&CO.shop.lat!=null){const mi=miles({lat:g.lat,lng:g.lng},CO.shop),rad=+(CO.shop.delivery_options?.delivery_radius_miles||0);CO.deliv={ok:mi<=rad,mi,why:`You're ${mi.toFixed(1)} mi away`}}if(cur[0]==='checkout')render()}).catch(()=>{})}});
 document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')return;e.preventDefault();e.stopImmediatePropagation();const btn=$('#placebtn'),v=id=>($('#'+id)?.value||'').trim();CO.err='';
-  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:v('c_pc').toUpperCase(),note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0)};
+  const pcRaw=v('c_pc').toUpperCase();const pin=CO.here&&CO.here.pc&&pcRaw.replace(/\s/g,'')===CO.here.pc.replace(/\s/g,'').toUpperCase()?CO.here:null;
+  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0)};
   CO.phoneErr='';if(!a.phone){CO.phoneErr='Mobile number is required.';CO.err=CO.phoneErr;return render()}
   if(!/^[0-9+\s()-]{10,16}$/.test(a.phone)){CO.phoneErr='Enter a valid UK mobile number, for example 07700 900123.';CO.err=CO.phoneErr;return render()}
   btn.disabled=true;btn.textContent='Placing order…';
@@ -233,9 +262,9 @@ async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_op
   if(a.fulfilment==='collect'&&d.collect===false)throw new Error('This shop does not offer click & collect');
   if(a.fulfilment==='delivery'&&deliveryBy(shop)==='shopnip'){
     const slot=deliveryWindows(shop).find(w=>w.value===a.delivery_window);if(!slot)throw new Error('Choose an available delivery window before placing your order');
-    a.delivery_window=slot.value;a.note='Delivery window: '+slot.value+(a.note?'\n'+a.note:'');
+    a.delivery_window=slot.value;a.window_end=windowEnd(slot);a.note='Delivery window: '+slot.value+(a.note?'\n'+a.note:'')+(a.window_end?'\n[[window:'+a.window_end+']]':'');
   }else a.delivery_window=null;
-  if(a.fulfilment==='delivery'){const g=await lookupPostcode(a.postcode).catch(()=>{throw new Error('We could not find that postcode.')});a.lat=g.lat;a.lng=g.lng;a.postcode=g.pc}
+  if(a.fulfilment==='delivery'){if(a.lat==null||a.lng==null){const g=await lookupPostcode(a.postcode).catch(()=>{throw new Error('We could not find that postcode.')});a.lat=g.lat;a.lng=g.lng;a.postcode=g.pc}}
   window.CK&&CK.set({name:a.name,phone:a.phone,addr:a.address});
   const alertItems=B().map(b=>({name:b.name,qty:b.qty,unit_price:b.price}));
   const r=await D.place(a);
@@ -245,10 +274,12 @@ async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_op
   catch(_){ }
   r.delivery_window=a.delivery_window;O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
 
-window.P3={cur:()=>O.cur,deliveryBy,deliveryWindows,orderWindow,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),after:null,async init(){
+window.P3={cur:()=>O.cur,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
+      const dist=f==='delivery'&&s.lat!=null?1.4:null,prep=dist?15:null,travel=dist?Math.max(5,Math.ceil(dist*3)):null;
       M.orders.push({id:'o'+n,order_number:'NB-'+(2000+n),collection_pin:f==='collect'?String(4800+n*7):null,shop_id:s.id,customer_id:cust==='Priya Shah'?'u1':'u'+n,customer_name:cust,customer_phone:'07700 900'+(100+n),fulfilment:f,delivery_address:f==='delivery'?'22 Granby Street':null,delivery_postcode:f==='delivery'?'LE1 6FB':null,
+       delivery_lat:dist?52.636:null,delivery_lng:dist?-1.13:null,shop_lat:dist?s.lat:null,shop_lng:dist?s.lng:null,distance_miles:dist,prep_minutes:prep,travel_minutes:travel,promised_at:dist?new Date(t0+(prep+travel)*60000).toISOString():null,driver:dist?(s.delivery_options.delivery_by==='shopnip'?'shopnip':'shop'):null,
        note:n===3?'Please gift wrap the balloon box':null,status:st,subtotal:st2,delivery_fee:fee,total:st2+fee,payment_method:f==='delivery'?'pay_on_delivery':'pay_on_collection',created_at:new Date(t0).toISOString(),shops:{name:s.name,phone:s.phone,address:s.address},
        order_items:items.map(([l,q])=>({listing_id:l.id,sku:l.sku,name:l.name,image:l.image,unit_price:l.retail_price,qty:q})),order_events:ev.map((e,i)=>({status:e,at:new Date(t0+i*9*60000).toISOString()}))})};
      mk(3,'placed','collect',[[L[3],1],[L[1],2]],4,'Sam Patel',['placed']);mk(2,'accepted','delivery',[[L[0],3]],38,'Priya Shah',['placed','accepted']);mk(1,'completed','collect',[[L[4],2]],1500,'Jo King',['placed','accepted','ready','completed'])}

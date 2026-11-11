@@ -125,11 +125,13 @@ V.register=function(){
     ${field('s_name','Shop name','required maxlength="80" placeholder="e.g. Corner News & Stationers"',s.name)}
     ${field('s_addr','Street address','required autocomplete="street-address" placeholder="12 High Street, Town"',s.address)}
     <div class="two">${field('s_pc','Postcode','required autocomplete="postal-code" placeholder="LE1 5YA" style="text-transform:uppercase"',s.postcode)}${field('s_phone','Phone','type="tel" autocomplete="tel" placeholder="0116 123 4567"',s.phone)}</div>
+    <p class="hint"><button type="button" class="btn ghost" data-act="shophere">Use this shop’s location</button> <span id="s_hereok">${s.location_source==='device'?'Precise location saved':''}</span></p>
     <div class="fl"><span>Opening hours</span>${HoursPicker.html('s_hours',s.opening_hours)}</div></div>
    <div class="panel"><h3 class="ft">How customers get their order</h3>
     <label class="tog"><input type="checkbox" id="s_col" ${d.collect!==false?'checked':''}><span><b>Click &amp; collect</b><small>Customers pick up in store</small></span></label>
     <label class="tog"><input type="checkbox" id="s_del" ${d.delivery?'checked':''}><span><b>Local delivery</b><small>You deliver nearby</small></span></label>
-    <div class="two" id="delx">${field('s_rad','Delivery radius (miles)','type="number" min="0.5" max="25" step="0.5"',d.delivery_radius_miles??3)}${field('s_fee','Delivery fee (£)','type="number" min="0" step="0.01"',d.delivery_fee??2.5)}</div></div>
+    <div class="two" id="delx">${field('s_rad','Delivery radius (miles)','type="number" min="0.5" max="25" step="0.5"',d.delivery_radius_miles??3)}${field('s_fee','Delivery fee (£)','type="number" min="0" step="0.01"',d.delivery_fee??2.5)}</div>
+    ${field('s_prep','Time to pack an order (minutes)','type="number" min="5" max="90" step="1"',d.prep_minutes??15)}<p class="hint">Added to the drive time so customers see a promised time.</p></div>
    <div class="panel"><h3 class="ft">Wholesale account</h3>
     ${field('s_trade','Trade account email','type="email" required placeholder="The email you order wholesale with"',s.bluepark_customer_email)}
     <p class="hint">Products you buy wholesale with this email are added to your shop automatically after they ship.</p>
@@ -215,17 +217,21 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
     await refresh();if(MOCK)A.profile={role,full_name:v('f_name')};A.authPage=false;route('account');toast('Welcome to ShopNip')});
   if(f.dataset.form==='shop')return busy($('#s_submit'),async()=>{
     const pc=await lookupPostcode(v('s_pc')).catch(()=>{throw new Error('We could not find that UK postcode.')});
-    const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:pc.lat,lng:pc.lng,phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),requested_products:v('s_want')||null,
-      delivery_options:{...(A.shop?.delivery_options||{}),collect:$('#s_col').checked,delivery:$('#s_del').checked,delivery_radius_miles:+v('s_rad')||0,delivery_fee:+v('s_fee')||0}};
+    const pin=f.querySelector('#s_pc');const precise=pin&&pin.dataset.lat;
+    const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:precise?+pin.dataset.lat:pc.lat,lng:precise?+pin.dataset.lng:pc.lng,location_source:precise?(pin.dataset.src||'device'):'postcode',location_set_at:new Date().toISOString(),phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),requested_products:v('s_want')||null,
+      delivery_options:{...(A.shop?.delivery_options||{}),collect:$('#s_col').checked,delivery:$('#s_del').checked,delivery_radius_miles:+v('s_rad')||0,delivery_fee:+v('s_fee')||0,prep_minutes:Math.min(90,Math.max(5,+v('s_prep')||15))}};
     if(!rec.delivery_options.collect&&!rec.delivery_options.delivery)throw new Error('Choose click & collect, delivery or both.');
     if(A.shop?.id)rec.id=A.shop.id;
     for(const k of ['logo','cover']){const file=$('#s_'+k).files[0];if(file){if(file.size>5e6)throw new Error('Images must be under 5 MB.');rec[k+'_url']=await DB.upload(file,k)}}
-    const isNew=!A.shop;try{A.shop=await DB.saveShop(rec)}catch(er){if(!/requested_products/.test(er.message||''))throw er;delete rec.requested_products;A.shop=await DB.saveShop(rec)}/* column added by migrations/010 */
+    const isNew=!A.shop;const save=async()=>{try{return await DB.saveShop(rec)}catch(er){if(/location_source|location_set_at/.test(er.message||'')){delete rec.location_source;delete rec.location_set_at;return DB.saveShop(rec)}if(/requested_products/.test(er.message||'')){delete rec.requested_products;return DB.saveShop(rec)}throw er}};
+    A.shop=await save();/* location columns: 20261111220000_precise_deliveries.sql */
     if(isNew){const n=await DB.backfill(A.shop.id);A.listings=await DB.listings();toast(n?`Shop submitted. ${n} products added from your wholesale orders.`:'Shop submitted for approval')}else toast('Saved');
     route('myshop')})});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-act]');if(!el)return;e.preventDefault();const a=el.dataset.act,val=el.dataset.v;
   if(a==='details'){A.editDet=!A.editDet;return route('account')}
   if(a==='loc')return askPostcode(true);
+  if(a==='shophere'){if(!navigator.geolocation){toast('Type the postcode and we will use its centre');return}
+    navigator.geolocation.getCurrentPosition(p=>{const i=document.querySelector('#s_pc');if(i){i.dataset.lat=p.coords.latitude;i.dataset.lng=p.coords.longitude;i.dataset.src='device'}const ok=document.querySelector('#s_hereok');if(ok)ok.textContent='Precise location saved. Submit the form to keep it.';toast('Precise location ready to save')},()=>toast('We could not get this device’s location. The postcode centre will be used.'));return}
   if(a==='tab'){A.tab=val;A.msg='';return route('account')}
   if(a==='go')return go(val);
   if(a==='logout'){await DB.signOut();A.user=null;A.shop=null;A.profile=null;A.editDet=false;toast('Logged out');return route('account')}
