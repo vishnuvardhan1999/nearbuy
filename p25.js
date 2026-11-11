@@ -219,7 +219,7 @@ $('#sf').addEventListener('submit',e=>{const q=$('#q').value.trim();if(!q)return
 // ---------- header: All products (desktop link, mega menu, mobile nav row) ----------
 function headerNav(){const top=$('header.top');if(!top||$('.mnav'))return;
   const mg=top.querySelector('.mega .mgi');if(mg&&!mg.querySelector('.mg-all'))mg.insertAdjacentHTML('afterbegin','<div class="mi mg-all"><a href="/products" data-go="/products">All products</a></div>');
-  top.insertAdjacentHTML('beforeend',`<nav class="mnav" aria-label="Browse"><div class="mnav-in"><a href="/products" data-go="/products" class="on">${svg('bag')}All products</a>${CATS.map(([l],i)=>`<a href="/category/${slug(l)}" data-cat="${i}">${esc(l)}</a>`).join('')}</div></nav>`)}
+  top.insertAdjacentHTML('beforeend',`<nav class="mnav" aria-label="Browse"><div class="mnav-in"><a href="/products" data-go="/products" class="on">${svg('bag')}All products</a>${CATS.map(([l],i)=>(typeof catStocked==='function'&&!catStocked(i))?'':`<a href="/category/${slug(l)}" data-cat="${i}">${esc(l)}</a>`).join('')}</div></nav>`)}
 const syncNav=()=>{document.querySelectorAll('.navall,.mnav a[data-go],.mg-all a').forEach(a=>a.classList.toggle('cur',cur[0]==='products'));
   document.querySelectorAll('.mnav a[data-cat]').forEach(a=>a.classList.toggle('cur',cur[0]==='cat'&&String(cur[1])===a.dataset.cat))};
 const _r2=route;window.route=route=function(...a){const r=_r2.apply(this,a);headerNav();syncNav();document.body.classList.remove('pf-open');if(cur[0]!=='products'&&!$('#sheet.on'))document.body.style.overflow='';return r};

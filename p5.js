@@ -130,7 +130,7 @@ function chrome(){const top=$('.top');if(!top||$('.ticker'))return;
   const items=[['bag','Free click & collect'],['bolt','Local delivery from shops that deliver'],['lock','Pay at the shop']];/* p25: shorter ticker */
   const one=items.map(([i,t,l])=>`<span ${l?`data-plink="${l}" class="tk-l"`:''}>${svg(i)}${t}</span>`).join('<i>•</i>');
   top.insertAdjacentHTML('afterbegin',`<div class="ticker" role="marquee" aria-label="Announcements"><div class="tk">${one}<i>•</i>${one}<i>•</i></div></div>`);
-  const mm=CATS.map(([l,t],i)=>{const ps=CAT().filter(p=>p.images?.length&&t(p));const thumbs=[0,7,15,23].map(k=>ps[k]).filter(Boolean);
+  const mm=CATS.map(([l,t],i)=>{if(typeof catStocked==='function'&&!catStocked(i))return '';const ps=CAT().filter(p=>p.images?.length&&t(p));const thumbs=[0,7,15,23].map(k=>ps[k]).filter(Boolean);
     return `<div class="mi"><button data-cat="${i}">${l}</button><div class="mp"><div class="mpl"><b>${l}</b><a href="#" data-cat="${i}">Shop all ${l.toLowerCase()} ${svg('arrow')}</a><a href="#" data-plink="max:5">Under £5</a><a href="#" data-plink="q:pack">Bundle & save</a></div>
      <div class="mpg">${thumbs.map(p=>`<a href="#" data-cat="${i}"><img loading="lazy" decoding="async" src="${esc(p.images[0])}" alt=""><span>${esc(p.name.split(/[,–-]/)[0].slice(0,34))}</span></a>`).join('')}</div></div></div>`}).join('');
   top.insertAdjacentHTML('beforeend',`<nav class="mega desk" aria-label="Categories"><div class="wrap mgi">${mm}<span class="mgs"></span><a href="#" class="mgd" data-plink="#search">${svg('fire')}Deals</a></div></nav>`)}

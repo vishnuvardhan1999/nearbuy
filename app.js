@@ -57,8 +57,21 @@ function pick(test,n=12,seed=1){const pool=S.products.filter(p=>has(p)&&test(p))
   for(let k=0;k<step&&out.length<n;k++)for(let i=(k*7+seed)%step;i<pool.length&&out.length<n;i+=step){const p=pool[i],f=p.name.toLowerCase().split(/[\s–-]+/).slice(0,2).join(' ');if(fam.has(f)||out.includes(p))continue;fam.add(f);out.push(p)}
   return out}
 const kw=(...w)=>p=>{const s=(p.name+' '+p.category).toLowerCase();return w.some(x=>s.includes(x))};
-const CATS=[['Stationery',kw('pen ','pens','pencil','notebook')],['Party',kw('balloon','party')],['Art & craft',p=>p.category==='Art & Craft'],['Gift wrap',kw('gift wrap','gift bag','wrapping')],
- ['Packaging',p=>/Packaging|Mailing|Envelopes|postal/i.test(p.category)],['Tapes',p=>/Tapes/.test(p.category)],['Household',p=>p.category==='House Hold'],['Toys',p=>/Toys/.test(p.category)]];
+/* Listings store the wholesaler's fine category ("Craft Essentials", "Plates & Bowls"), not the old department string ("Art & Craft", "House Hold"). */
+const DEPT_ALIAS={'Art & craft':['art & craft','art and craft'],'Household':['household','house hold'],'Toys':['toys','summer toys']};
+let _deptSrc=null,_deptCache={};
+function deptSet(label){const src=window.SUBC||null;if(src!==_deptSrc){_deptSrc=src;_deptCache={}}if(_deptCache[label])return _deptCache[label];
+  const want=DEPT_ALIAS[label];if(!want)return _deptCache[label]=null;const names=new Set(want);
+  ((src&&src.tree)||[]).forEach(([d,tiles])=>{const k=String(d||'').toLowerCase().replace(/\s+/g,' ').trim();if(!want.includes(k)&&!want.includes(k.replace(/ & /g,' and ')))return;names.add(k);
+    tiles.forEach(([t,fs])=>{names.add(String(t).toLowerCase());(fs||[]).forEach(f=>names.add(String(f).toLowerCase()))})});return _deptCache[label]=names}
+const inDept=label=>p=>{const names=deptSet(label);if(!names)return false;const c=String(p.category||'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(names.has(c)||(label==='Toys'&&/\btoys?\b/.test(c)))return true;const tile=window.SUBC&&SUBC.tile&&SUBC.tile[p.sku];return !!(tile&&names.has(String(tile).toLowerCase()))};
+const CATS=[['Stationery',kw('pen ','pens','pencil','notebook')],['Party',kw('balloon','party')],['Art & craft',inDept('Art & craft')],['Gift wrap',kw('gift wrap','gift bag','wrapping')],
+ ['Packaging',p=>/Packaging|Mailing|Envelopes|postal/i.test(p.category)],['Tapes',p=>/Tapes/.test(p.category)],['Household',inDept('Household')],['Toys',inDept('Toys')]];
+function catStocked(i){return !!(CATS[i]&&S.products.some(p=>has(p)&&CATS[i][1](p)))}
+function stockedNames(){const names=new Set(),tileOf={};((window.SUBC&&SUBC.tree)||[]).forEach(([,tiles])=>tiles.forEach(([t,fs])=>{(fs||[]).forEach(f=>{tileOf[f]=t});tileOf[t]=t}));
+  S.products.forEach(p=>{if(!has(p))return;const c=p.category||'';if(c)names.add(c);const tile=(window.SUBC&&SUBC.tile&&SUBC.tile[p.sku])||tileOf[c];if(tile)names.add(tile)});
+  ((window.SUBC&&SUBC.tree)||[]).forEach(([d,tiles])=>{if(tiles.some(([t])=>names.has(t)))names.add(d)});return names}
 const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to school',kw('pencil','notebook','ruler','eraser','sharpener','highlighter','glue stick','pencil case','exercise book'),5],
  ['Art & craft picks',p=>p.category==='Art & Craft'||kw('paint','glitter','craft','colouring')(p),2],['Party time',kw('balloon','party','banner','candle','napkin','gift bag'),4]];
 // ---------- templates ----------
@@ -110,7 +123,9 @@ function foot(){return `<footer class="foot"><div class="fcols"><div><a class="b
 function list(title,items){return `<section class="sec"><div class="sh"><h2>${esc(title)}</h2><span class="note" style="margin:0">${items.length} items</span></div>${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:`<div class="empty">${svg('search')}<br>No matches yet</div>`}</section>`}
 const V={home,
  search(q=$('#q').value.trim()){const t=q.toLowerCase();return list(q?`Results for “${q}”`:'All products',S.products.filter(p=>has(p)&&(!t||(p.name+' '+p.category).toLowerCase().includes(t))).slice(0,60))},
- cat(i){return list(CATS[i][0],S.products.filter(p=>has(p)&&CATS[i][1](p)).slice(0,60))},
+ cat(i){const name=CATS[i][0],items=S.products.filter(p=>has(p)&&CATS[i][1](p)).slice(0,60);
+  if(!items.length)return `<section class="sec"><div class="sh"><h2>${esc(name)}</h2></div><div class="empty">${svg('search')}<br><b>Nothing in ${esc(name)} right now</b><br><span class="note">No shops have listed products in this category.</span><br><a class="btn" href="/products" data-go="/products" style="margin-top:14px">Browse all categories</a></div></section>`;
+  return list(name,items)},
  sec(i){return list(SECTIONS[i][0],pick(SECTIONS[i][1],48,SECTIONS[i][2]))},
  basket(){if(!S.basket.length)return `<div class="empty">${svg('basket')}<br>Your basket is empty</div>`;const tot=S.basket.reduce((a,b)=>a+b.price*b.qty,0);
   return `<section class="sec"><div class="sh"><h2>Basket</h2></div><div class="panel">${S.basket.map((b,i)=>`<div class="line"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)} <a href="#" data-rm="${i}">✕</a></span></div>`).join('')}
