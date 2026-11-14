@@ -32,7 +32,7 @@ const asOffer=(p,o)=>({...p,listing_id:o.listing_id,shop_id:o.shop_id,price:o.pr
 function card(p){const o=p.offers||[],soon=p.demo&&!p.listing_id,s=!soon&&shopOf(p.shop_id),d=p.dist??dOf(s),on=NT().includes(p.sku);
   const meta=soon?'<div class="pmeta soonm">Not stocked near you yet</div>':o.length>1?`<div class="pmeta"><b>${o.length} shops nearby</b>${d!=null?' · nearest '+fmi(d):''}</div>`:s?`<div class="pmeta">${svg('store')}${esc(s.name)}${d!=null?' · '+fmi(d):''}</div>`:'';
   const price=soon?'':o.length>1?`<span class="pr"><small>From</small> ${gbp(p.price)}</span>`:`<span class="pr">${gbp(p.price)}</span>`;
-  const btn=soon?`<button class="ntf ${on?'on':''}" data-ntf="${esc(p.sku)}">${on?svg('check')+'Notified':'Notify me'}</button>`:`<button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button>`;
+  const btn=soon?`<button class="ntf ${on?'on':''}" data-ntf="${esc(p.sku)}">${on?svg('check')+'Notified':'Notify me'}</button>`:qtyBtn(p);
   return `<div class="pc ${soon?'soon':''}" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fb></div>
 <div class="pb"><div class="pn">${esc(p.name)}</div>${meta}<div class="pf">${price}${btn}</div></div></div>`}
 
@@ -54,6 +54,7 @@ async function ssheet(p){await P3.sheet(p);const el=$('#sheet'),on=NT().includes
 addEventListener('click',e=>{
   const n=e.target.closest('[data-ntf]');if(n){e.preventDefault();e.stopPropagation();notify(n.dataset.ntf);if(n.classList.contains('ntf2'))n.textContent=NT().includes(n.dataset.ntf)?'On your notify list':'Notify me when it’s nearby';return}
   const po=e.target.closest('[data-po]');if(po){e.preventDefault();e.stopPropagation();const g=$('#sheet')._g;gsheet(g,g.offers[+po.dataset.po]).then(()=>{$('#sheet .sh-card').scrollTop=1e4});return}
+  if(e.target.closest('.step,[data-step]'))return;
   const add=e.target.closest('.add[data-sku]');if(add){const g=grp(add.dataset.sku);if(g&&g.offers.length>1){e.preventDefault();e.stopPropagation();gsheet(g)}return}
   const c=e.target.closest('.pc[data-psku]');if(c){const g=grp(c.dataset.psku);if(g){e.preventDefault();e.stopPropagation();gsheet(g);return}
     const p=S.products.find(x=>x.sku===c.dataset.psku)||CAT.find(x=>x.sku===c.dataset.psku);if(p&&!c.dataset.lid){e.preventDefault();e.stopPropagation();ssheet({...p,demo:true})}return}

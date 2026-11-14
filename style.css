@@ -90,6 +90,15 @@ a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}svg{widt
 .pr{font-size:16px;font-weight:800;color:var(--navy);letter-spacing:-.3px}
 .add{width:34px;height:34px;border-radius:50%;border:0;background:var(--orange);color:#fff;display:grid;place-items:center;box-shadow:0 4px 10px rgba(255,107,74,.35);transition:.15s}
 .add svg{width:18px;height:18px;stroke-width:2.6}.add:active{transform:scale(.9)}.add.done{background:#22a35a;box-shadow:none}
+.step{display:inline-flex;align-items:center;flex:none;height:32px;border:1.5px solid #d7e3df;border-radius:999px;background:#fff;overflow:hidden}
+.step button{width:28px;height:32px;border:0;background:none;color:var(--navy);font:700 16px/1 inherit;padding:0;cursor:pointer}
+.step button:active{background:#eef5f3}.step .step-q{min-width:1.15em;padding:0 2px;text-align:center;font:700 13px inherit;color:var(--navy)}
+.bag-hop{position:fixed;left:0;top:0;z-index:80;width:32px;height:32px;margin:-16px 0 0 -16px;pointer-events:none;color:#0f766e}
+.bag-hop svg{width:32px;height:32px;display:block;filter:drop-shadow(0 4px 8px rgba(16,32,56,.28))}
+#tabs [data-t="basket"].bag-pop,button[data-t="basket"].bag-pop{animation:bag-pop .45s cubic-bezier(.2,.7,.3,1.4)}
+@keyframes bag-pop{0%,100%{transform:none}40%{transform:scale(1.18)}70%{transform:scale(.94)}}
+@media (max-width:360px){.step button{width:26px}.step .step-q{font-size:12px}.pf .pr{font-size:14px}}
+@media (prefers-reduced-motion:reduce){.bag-hop{display:none!important}#tabs [data-t="basket"].bag-pop,button[data-t="basket"].bag-pop{animation:none}}
 /* cta */
 .sell{margin-top:40px;border-radius:20px;padding:24px;color:#fff;background:radial-gradient(circle at 100% 0,#14b8a6 0,transparent 60%),var(--navy);display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden}
 .sell h3{margin:0;font-size:22px;font-weight:800;letter-spacing:-.4px}.sell p{margin:8px 0 0;font-size:14px;opacity:.85;line-height:1.5;max-width:520px}

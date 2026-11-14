@@ -198,7 +198,9 @@ async function loadShop(id){
     const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     const hit=((window.S&&S.shops)||[]).find(s=>sl(s.name)===id||sl(s.name)+'-'+String(s.id).slice(0,8)===id||String(s.id)===id);
     if(hit)id=hit.id}
-  A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(A.view.id):[];A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image],price:l.retail_price,shop_id:l.shop_id})});
+  A.view=await DB.shop(id);A.viewL=A.view?await DB.shopListings(A.view.id):[];
+  if(A.view&&S.L){const have=new Set(A.viewL.map(l=>l.sku));S.L.filter(x=>x.shop_id===A.view.id&&x.cat_only&&!have.has(x.sku)).forEach(x=>A.viewL.push(x))}
+  A.viewL.forEach(l=>{if(!S.products.find(p=>p.sku===l.sku&&p.shop_id===l.shop_id))S.products.push({listing_id:l.id,stock:l.stock,sku:l.sku,name:l.name,images:[l.image||l.images?.[0]],price:l.retail_price||l.price,shop_id:l.shop_id})});
   if(!A.view){$('#view').innerHTML='<div class="empty">Shop not found</div>';return}if(cur[0]==='shop')render()}
 
 // ---------- actions ----------
