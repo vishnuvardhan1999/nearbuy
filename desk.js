@@ -109,7 +109,7 @@ const TYPES=['Missing item','Wrong item','Damaged item','Not delivered','Somethi
 function custPanel(o){
   if(!o||!me())return '';
   if(!ready()){load().then(()=>{if(typeof cur!=='undefined'&&cur[0]==='order')rerender()});return ''}
-  const cs=DK.cases.filter(c=>c.order_id===o.id),open=cs.some(c=>c.status!=='resolved'),can=o.status!=='placed';
+  const cs=DK.cases.filter(c=>c.order_id===o.id),open=cs.some(c=>c.status!=='resolved'),can=!['placed','rejected','cancelled'].includes(o.status);
   if(!cs.length&&!can)return '';
   return `<div class="panel dk"><h3 class="ft">Help with this order</h3>${cs.map(c=>caseHTML(c,false)).join('')}
    ${!open&&can?`<button type="button" class="btn ghost full" data-dk="report">Report a problem</button><p class="hint" style="margin:8px 0 0">Send us a photo and a few words. ${REPLY}</p>`:''}</div>`}
