@@ -158,7 +158,7 @@ function authView(mode){const su=mode==='signup',brand=`<a class="brand" href="$
     <label><span>Email</span><input name="email" type="email" autocomplete="email" required></label>
     <label><span>Password</span><input name="pw" type="password" minlength="8" autocomplete="${su?'new':'current'}-password" required></label>
     ${su?`<label><span>What products would you like listed in your shop? <small>(optional)</small></span><textarea name="want" rows="3" maxlength="2000" placeholder="e.g. balloons, greeting cards, exercise books, parcel tape"></textarea></label>`:''}
-    <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a>, <a href="/seller-terms" target="_blank" rel="noopener">Seller Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>':''}</form>
+    <button class="btn ${su?'coral':''} lg" type="submit">${su?'Create seller account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>, <a href="/seller-terms" target="_blank" rel="noopener">Seller Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>':''}</form>
    <div class="alt">${su?'Already selling on ShopNip? <a href="#login">Seller sign in</a>':'New to ShopNip? <a href="#signup">Create a seller account</a>'}</div>
 </div></div>`}
 // in-page shop registration (#register): no cross-page hop to index.html
