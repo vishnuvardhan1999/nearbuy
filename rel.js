@@ -39,6 +39,8 @@ function dirty(cur,patch){if(!cur)return true;for(const k of Object.keys(patch))
 function put(num,patch){const s=st();const cur=s.orders[num];if(cur&&!dirty(cur,patch))return cur;const o=s.orders[num]=Object.assign(cur||{num},patch);save(s);emit();return o}
 function shop(id){return st().shops[id]||{paused:false,missed:0}}
 function putShop(id,patch){const s=st();s.shops[id]=Object.assign(s.shops[id]||{paused:false,missed:0},patch);save(s);emit();return s.shops[id]}
+function liveShop(sid){if(!sid)return null;const c=window.P3&&P3.checkoutShop&&P3.checkoutShop();if(c&&String(c.id)===String(sid))return c;const list=((window.S&&S.shops)||[]).concat((window.P2&&P2.M&&P2.M.shops)||[]);return list.find(s=>s&&String(s.id)===String(sid))||null}
+function livePaused(sid){const s=liveShop(sid),d=s&&s.delivery_options||{};return !!(d.paused||d.busy||(s&&(s.paused||s.busy)))}
 const subs=new Set();function emit(){subs.forEach(f=>{try{f()}catch(_){}})}
 addEventListener('storage',e=>{if(e.key===KEY)emit()});
 function notify(num,msg,kind){const o=get(num)||{num};const n=(o.notices||[]).concat([{at:Date.now(),msg,kind:kind||'info'}]);put(num,{notices:n});if(!onSeller)toast(msg)}
@@ -170,6 +172,9 @@ function timeoutDecline(num,from){const o=get(num);if(!o||o.status!=='placed'||o
   put(num,{timed_out:true});decline(num,'Not accepted within 15 minutes');
   const sid=o.shop_id||'s1',sh=shop(sid),missed=(sh.missed||0)+1;
   const pause=missed>=MISSED_PAUSE;putShop(sid,{missed,paused:pause||sh.paused,reason:pause?`Paused automatically after ${missed} missed orders`:sh.reason});
+  if(pause&&onSeller&&window.NBSeller&&NBSeller.API&&NBSeller.D&&NBSeller.D.shop&&String(NBSeller.D.shop.id)===String(sid)){
+    const dop=Object.assign({},NBSeller.D.shop.delivery_options||{},{paused:true});
+    NBSeller.API.saveShop({id:sid,delivery_options:dop}).then(x=>{NBSeller.D.shop=Object.assign({},NBSeller.D.shop,x||{},{delivery_options:dop})}).catch(()=>{})}
   return {missed,paused:pause}}
 function stage(num,s){const o=get(num);if(!o)return;setStatus(num,s);
   const msg={picking:'The shop is picking your items now.',out_for_delivery:o.driver==='shop'?'Out for delivery with the shop’s own driver.':'Out for delivery.',completed:'Delivered. Proof of delivery is saved on your order.',ready:'Ready to collect.'}[s];if(msg)notify(num,msg,'good')}
@@ -233,19 +238,19 @@ function custInit(){
   let pending=null;
   // checkout: substitution pref + key items, paused shop guard
   const decorateCheckout=()=>{const f=document.querySelector('form[data-form=order]');if(!f||f.querySelector('#relpref'))return;
-    const bk=(()=>{try{return JSON.parse(localStorage.nb_basket||'[]')}catch(_){return []}})();const sid=bk[0]&&bk[0].shop_id;const sh=sid&&shop(sid);
+    const bk=(()=>{try{return JSON.parse(localStorage.nb_basket||'[]')}catch(_){return []}})();
     const pay=[...f.querySelectorAll('.panel')].find(p=>/Payment/.test(p.textContent))||f.querySelector('.panel:last-of-type');
     const box=document.createElement('div');box.className='panel';box.id='relpref';
-    box.innerHTML=`${sh&&sh.paused?`<div class="alert" role="status">This shop is busy right now and isn’t taking orders. Please try again a little later.</div>`:''}<h3 class="ft">If something is out of stock</h3>
+    box.innerHTML=`<h3 class="ft">If something is out of stock</h3>
      <div class="rel" style="border:0;padding:0;margin:0">${Object.entries(PREFS).map(([k,l],i)=>`<label class="o"><input type="radio" name="relpref" value="${k}" ${k==='ask'?'checked':''}><span><b>${l}</b><br><span class="mut">${k==='refund'?'We take it off your total straight away.':k==='swap'?'Never dearer than what you chose.':'The shop checks with you before changing anything.'}</span></span></label>`).join('')}
      <p class="mut" style="margin:10px 0 4px">Need any of these? Tick an item to cancel the whole order if it’s out of stock.</p>
      ${bk.map((b,i)=>`<label class="o"><input type="checkbox" name="relkey" value="${i}"><span>${esc(b.qty+' × '+b.name)}</span></label>`).join('')}
      <p class="mut">The shop checks every item when they accept and you’re told straight away. Your total can only go down after you order.</p></div>`;
-    pay.parentNode.insertBefore(box,pay);
-    if(sh&&sh.paused){const b=f.querySelector('#placebtn');if(b){b.disabled=true;b.textContent='Shop is busy right now'}}};
+    if(pay&&pay.parentNode)pay.parentNode.insertBefore(box,pay);
+    if(livePaused(bk[0]&&bk[0].shop_id)){f.querySelectorAll('#placebtn,.placebtn').forEach(b=>{b.disabled=true;b.textContent='Shop is busy right now'})}};
   addEventListener('submit',e=>{const f=e.target;if(!f.dataset||f.dataset.form!=='order')return;
     const bk=(()=>{try{return JSON.parse(localStorage.nb_basket||'[]')}catch(_){return []}})();const sid=bk[0]&&bk[0].shop_id;
-    if(sid&&shop(sid).paused){e.preventDefault();e.stopImmediatePropagation();toast('This shop is busy right now. Please try again later.');return}
+    if(sid&&livePaused(sid)){e.preventDefault();e.stopImmediatePropagation();toast('This shop is busy right now. Please try again later.');return}
     const keys=[...f.querySelectorAll('input[name=relkey]:checked')].map(x=>+x.value);
     const ful=(f.querySelector('input[name=ful]:checked')||{}).value||'collect';
     pending={pref:(f.querySelector('input[name=relpref]:checked')||{}).value||'ask',cancel_if_key:keys.length>0,shop_id:sid,shop_name:bk[0]&&bk[0].shop_name,fulfilment:ful,delivery_window:(f.querySelector('#c_window')||{}).value||null,driver:ful==='delivery'?'shop':null,
@@ -355,7 +360,7 @@ function sellerInit(){
     const picked=pickTotal(r.total,o.total,r);if(picked!==+o.total){o.total=picked;redraw=true}if(picked!==+r.total)put(o.order_number,{total:picked,total_at_place:+r.total_at_place||picked});
     if(r.subtotal!=null){const sub=pickTotal(r.subtotal,o.subtotal,r);if(o.subtotal==null||sub!==+o.subtotal){o.subtotal=sub;redraw=true}if(sub!==+r.subtotal)put(o.order_number,{subtotal:sub})}
     if(!!o.awaiting_customer!==!!r.awaiting_customer){o.awaiting_customer=!!r.awaiting_customer;redraw=true}if(r.items&&o.order_items){o.order_items.forEach((it,ix)=>{const src=r.items.find(x=>x.id&&it.id&&x.id===it.id)||r.items[ix];if(!src)return;it.in_stock=src.in_stock;it.unavailable=!!(src.refunded||src.unavailable);it.is_key=!!(src.key||it.is_key);if(src.swap){it.swap_name=src.swap.name;it.swap_price=src.swap.price;it.swap_accepted=!!src.swap.accepted}})}}
-    const sh=D.shop&&shop(D.shop.id);if(sh&&D.shop.delivery_options&&!!D.shop.delivery_options.paused!==!!sh.paused){D.shop.delivery_options.paused=sh.paused;redraw=true}
+    const sh=D.shop&&shop(D.shop.id);if(sh&&D.shop.delivery_options&&!!D.shop.delivery_options.paused!==!!sh.paused){putShop(D.shop.id,{paused:!!D.shop.delivery_options.paused})}
     if(refetch)await refresh();else if(redraw)S.rerender()}finally{syncing=false}};
   // seed REL for existing placed orders so escalation runs
   const seed=()=>D.O.filter(o=>o.status==='placed'||(o.fulfilment==='delivery'&&['accepted','picking','out_for_delivery'].includes(o.status))).forEach(ensure);

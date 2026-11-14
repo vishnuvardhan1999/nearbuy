@@ -167,14 +167,25 @@ document.addEventListener('click',e=>{const x=e.target.closest('[data-x]');if(!x
 // ---------- views ----------
 V.basket=function(){
   if(!B().length)return `<div class="empty">${svg('basket')}<br><b>Your basket is empty</b><br><small>Add items from a shop near you</small><br><br><button class="btn" data-t="home">Start shopping</button></div>`;
-  const s=B()[0];return `<section class="sec basket-page"><div class="sh"><h2>Basket</h2><a href="#" data-o="clear">Clear</a></div>
-  <div class="bshop">${svg('store')}<div><small>Ordering from</small><b>${esc(s.shop_name)}</b></div><a href="#" data-shop="${esc(s.shop_id)}">View shop</a></div>
-  <div class="lst">${B().map((b,i)=>`<div class="li"><img src="${esc(bimg(b))}" alt="" data-fb><div class="lb"><div class="ln">${esc(b.name)}</div><div class="lm"><span>${gbp(b.price)} each</span></div>
-   <div class="lc"><div class="qty sm"><button data-o="dec" data-i="${i}">−</button><span>${b.qty}</span><button data-o="inc" data-i="${i}">+</button></div><b style="margin-left:auto">${gbp(b.price*b.qty)}</b></div></div></div>`).join('')}</div>
-  <div class="panel"><div class="line"><span>Subtotal</span><b>${gbp(sub())}</b></div><p class="hint">Delivery fee (if any) is added at checkout. Prices are confirmed by the shop when you order.</p>
-  <button class="btn full big" data-o="checkout">Go to checkout</button></div></section>`};
+  const s=B()[0],items=B(),n=items.reduce((a,b)=>a+b.qty,0),tot=sub();
+  return `<section class="sec basket-page"><div class="sh"><h2>Basket</h2><a href="#" data-o="clear">Clear</a></div>
+  <div class="bk-chip">${svg('store')}<span>Ordering from <b>${esc(s.shop_name)}</b></span><a href="#" data-shop="${esc(s.shop_id)}">View shop</a></div>
+  <div class="bk-layout"><div class="bk-items">${items.map((b,i)=>`<article class="bk-item">
+    <img src="${esc(bimg(b))}" alt="" data-fb>
+    <div class="bk-info"><h3 class="bk-name">${esc(b.name)}</h3><p class="bk-each">${gbp(b.price)} each</p>
+      <div class="bk-row"><div class="qty" role="group" aria-label="Quantity of ${esc(b.name)}"><button type="button" data-o="dec" data-i="${i}" aria-label="Remove one">−</button><span aria-live="polite">${b.qty}</span><button type="button" data-o="inc" data-i="${i}" aria-label="Add one">+</button></div>
+      <b class="bk-line">${gbp(b.price*b.qty)}</b>
+      <button type="button" class="bk-rm" data-o="rm" data-i="${i}" aria-label="Remove ${esc(b.name)}">${svg('bin')}</button></div></div>
+  </article>`).join('')}</div>
+  <aside class="bk-sum"><h3>Order summary</h3><p class="bk-sum-shop">${esc(s.shop_name)}</p>
+    <div class="line"><span>${n} item${n===1?'':'s'}</span><span>${gbp(tot)}</span></div>
+    <div class="line tot"><span>Subtotal</span><b>${gbp(tot)}</b></div>
+    <p class="hint">Delivery, if offered, is added at checkout. You pay the shop on collection or delivery. Prices are confirmed by the shop when you order.</p>
+    <button class="btn full big" data-o="checkout">Go to checkout</button></aside></div>
+  <div class="bk-bar" role="region" aria-label="Basket total"><div class="bk-bar-in"><small>${n} item${n===1?'':'s'}</small><b>${gbp(tot)}</b></div><button type="button" class="btn big" data-o="checkout">Go to checkout</button></div>
+</section>`};
 const CO={f:'collect',shop:null,deliv:null,err:'',useW:true,window:''};
-async function prepCheckout(){if(window.WAL&&A.user)await WAL.load();CO.shop=await D.shop(bShop());const d=CO.shop?.delivery_options||{};CO.deliv=null;CO.phoneErr='';CO.window='';if(!d.delivery)CO.f='collect';
+async function prepCheckout(){if(window.WAL&&A.user)await WAL.load();CO.shop=await D.shop(bShop());if(!CO.shop&&bShop())CO.shop=(S.shops||[]).find(s=>s.id===bShop())||null;const d=CO.shop?.delivery_options||{};CO.deliv=null;CO.phoneErr='';CO.window='';if(!d.delivery)CO.f='collect';
   if(A.user&&!O.loaded){try{O.mine=await D.mine();O.loaded=true;O.orderErr=false}catch(e){O.orderErr=true}}
   CO.here=null;
   if(d.delivery){if(CO.shop.lat==null)CO.deliv={ok:false,why:'This shop has not set its location yet'};else if(!S.me)CO.deliv={ok:false,why:'Set your postcode to check delivery'};else{const mi=miles(S.me,CO.shop);CO.deliv={ok:mi<=(+d.delivery_radius_miles||0),mi,why:`You're ${mi.toFixed(1)} mi away; ${esc(CO.shop.name)} delivers within ${+d.delivery_radius_miles||0} mi`}}}
@@ -188,9 +199,9 @@ V.checkout=function(){
   const slot=eta&&deliveryBy(s)==='shopnip'?deliveryWindows(s).find(w=>w.value===CO.window):null;
   const hs=window.ShopHours?ShopHours.status(s.opening_hours):null;
   const openPhrase=hs&&!hs.unknown&&!hs.open?String(hs.label||'').replace(/^Opens\s+(?:at\s+)?/,''):'';
-  const closed=openPhrase?`<div class="alert hours-wait" role="status">Shop opens ${esc(openPhrase)}; order will be ready after opening.</div>`:'';
+  const paused=!!((d&&d.paused)||s.paused);const closed=(!paused&&openPhrase)?`<div class="hours-wait" role="status">Shop opens ${esc(openPhrase)}; order will be ready after opening.</div>`:'';const busy=paused?`<div class="alert" role="status">This shop is busy right now and isn’t taking orders. Please try again a little later.</div>`:'';
   return `<section class="sec narrow checkout-pad"><div class="sh"><h2>Checkout</h2><a href="#" data-t="basket">Edit basket</a></div>
-  <form class="form" data-form="order">${closed}${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}
+  <form class="form checkout-form" data-form="order">${busy}${closed}${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}<div class="checkout-grid"><div class="checkout-main">
   <div class="panel"><h3 class="ft">How do you want it?</h3>
    <label class="opt ${d.collect===false?'dis':''}"><input type="radio" name="ful" value="collect" ${CO.f==='collect'?'checked':''} ${d.collect===false?'disabled':''}>${svg('bag')}<span><b>Click &amp; collect</b><small>${d.collect===false?'Not offered':`Free · ${esc(s.address||s.postcode||'')}`}</small></span></label>
    <label class="opt ${!d.delivery||!CO.deliv?.ok?'dis':''}"><input type="radio" name="ful" value="delivery" ${CO.f==='delivery'?'checked':''} ${!d.delivery||!CO.deliv?.ok?'disabled':''}>${svg('bolt')}<span><b>Local delivery${d.delivery?(welcomeOn()?' · Free on your first order':' · '+gbp(shopFee)):''}</b><small>${!d.delivery?'This shop doesn’t deliver':CO.deliv?.ok?`Within ${+d.delivery_radius_miles||0} mi${CO.deliv.mi!=null?' · you’re '+CO.deliv.mi.toFixed(1)+' mi away':''}`:CO.deliv?.why||''}</small></span></label>
@@ -203,9 +214,10 @@ V.checkout=function(){
   ${windowPicker()}
   ${CO.f==='delivery'&&deliveryBy(s)==='shop'?'<p class="hint">The shop will deliver your order with their own drivers.</p>':''}
   <div class="panel"><h3 class="ft">Payment</h3><div class="opt on">${svg('tag')}<span><b>${CO.f==='delivery'?'Pay on delivery':'Pay on collection'}</b><small>${due>0?'Pay the shop by card or cash. No payment is taken now.':'Fully paid with your ShopNip wallet.'}</small></span></div>${wbal>0?`<label class="wopt"><input type="checkbox" id="usewallet" ${CO.useW?'checked':''}><span><b>Use wallet balance (${gbp(wbal)})</b><small>${CO.useW?gbp(wuse)+' from your ShopNip wallet'+(due>0?', '+gbp(due)+' left to pay':', nothing left to pay'):'Your ShopNip credit from refunds'}</small></span></label>`:''}</div>
-  <div class="panel"><h3 class="ft">Summary · ${esc(s.name)}</h3>${B().map(b=>`<div class="line"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)}</span></div>`).join('')}
+  </div><aside class="checkout-sum"><div class="panel"><h3 class="ft">Summary · ${esc(s.name)}</h3>${B().map(b=>`<div class="line"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)}</span></div>`).join('')}
    ${CO.f==='delivery'&&deliveryBy(s)==='shopnip'?`<div class="line"><span>Delivery window</span><b id="cowindow">${esc(CO.window||'Choose a window above')}</b></div>`:''}${eta?`<div class="line"><span>${deliveryBy(s)==='shopnip'&&slot?'Trip':'Promised by'}</span><b>${deliveryBy(s)==='shopnip'&&slot?hmOf(windowEnd(slot)):eta.hm}</b></div><p class="hint">${CO.deliv.mi.toFixed(1)} miles from the shop. ${eta.prep} min to pack and ${eta.travel} min to drive.${deliveryBy(s)==='shopnip'&&slot?' Promised by the end of the window you pick.':''}</p>`:''}<div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${welcome?(shopFee?`<div class="line"><span>Delivery</span><span><s>${gbp(shopFee)}</s></span></div>`:'')+`<div class="line"><span>Free delivery on your first order</span><b>Free</b></div>`:(fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:'')}${wuse>0?`<div class="line"><span>Order total</span><span>${gbp(sub()+fee)}</span></div><div class="line wline"><span>ShopNip wallet</span><span>−${gbp(wuse)}</span></div>`:''}<div class="line tot"><b>Total to pay ${CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(due)}</b></div></div>
-  <button class="btn full big" id="placebtn">Place order · ${gbp(due)}</button><p class="hint c">By placing this order you agree to the <a href="/terms">Terms of Use</a>. The shop will confirm it, and you can cancel until it is accepted. After you order, the total can only go down.</p></form></section>`};
+  <button type="submit" class="btn full big placebtn" id="placebtn"${paused?' disabled':''}>${paused?'Shop is busy right now':`Place order · ${gbp(due)}`}</button><p class="hint c">By placing this order you agree to the <a href="/terms">Terms of Use</a>. The shop will confirm it, and you can cancel until it is accepted. After you order, the total can only go down.</p></aside></div>
+  <div class="bk-bar checkout-bar" role="region" aria-label="Order total"><div class="bk-bar-in"><small>Total to pay</small><b>${gbp(due)}</b></div><button type="submit" class="btn big placebtn"${paused?' disabled':''}>${paused?'Shop is busy right now':`Place order · ${gbp(due)}`}</button></div></form></section>`};
 const fld=(id,l,a,v)=>`<label class="fl"><span>${l}</span><input id="${id}" ${a} value="${esc(v)}"></label>`;
 /* click & collect code: order number + PIN the customer quotes at the shop */
 const ccode=(o,big)=>o&&o.fulfilment!=='delivery'&&o.collection_pin?`<div class="ccode${big?' big':''}"><small>Show or say this at the shop</small><b>${esc(o.order_number)} · PIN ${esc(o.collection_pin)}</b><span>Bring this when you collect</span></div>`:'';
@@ -290,6 +302,7 @@ function startLive(){if(A.user&&window.REL&&REL.startClocks)REL.startClocks(()=>
 // ---------- actions ----------
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]');if(!el)return;e.preventDefault();const a=el.dataset.o,i=+el.dataset.i;
   if(a==='inc'||a==='dec'){const b=B()[i];if(a==='inc'){if(b.stock!=null&&b.qty>=b.stock)return toast(`Only ${b.stock} in stock`);b.qty++}else if(--b.qty<1)B().splice(i,1);saveB();return render()}
+  if(a==='rm'){if(B()[i])B().splice(i,1);saveB();return render()}
   if(a==='clear'){S.basket=[];saveB();return render()}
   if(a==='here'){if(!navigator.geolocation){toast('Type your postcode instead.');return}
     navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lng=p.coords.longitude;let pc=S.pc||'';
@@ -319,11 +332,11 @@ document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')
   const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,sku:b.sku,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0)};
   CO.phoneErr='';if(!a.phone){CO.phoneErr='Mobile number is required.';CO.err=CO.phoneErr;return render()}
   if(!/^[0-9+\s()-]{10,16}$/.test(a.phone)){CO.phoneErr='Enter a valid UK mobile number, for example 07700 900123.';CO.err=CO.phoneErr;return render()}
-  btn.disabled=true;btn.textContent='Placing order…';
+  document.querySelectorAll('#placebtn,.placebtn').forEach(b=>{b.disabled=true;b.textContent='Placing order…'});
   try{const r=await placeOrder(a);scrollTo(0,0);route('placed',r)}
   catch(err){CO.err=err.message||String(err);render()}},true);
 // shared order-creation path (checkout form + p13 chat): geocode delivery postcode, place via RPC/mock, clear basket
-async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_options||{};if(!shop)throw new Error('Shop not found');
+async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_options||{};if(!shop)throw new Error('Shop not found');if(d.paused||shop.paused)throw new Error('This shop is busy right now and isn’t taking orders. Please try again a little later.');
   if(a.fulfilment==='delivery'&&!d.delivery)throw new Error('This shop does not offer delivery');
   if(a.fulfilment==='collect'&&d.collect===false)throw new Error('This shop does not offer click & collect');
   if(a.fulfilment==='delivery'&&deliveryBy(shop)==='shopnip'){
@@ -340,7 +353,7 @@ async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_op
   catch(_){ }
   r.delivery_window=a.delivery_window;r.status=r.status||'placed';r.created_at=r.created_at||new Date().toISOString();O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;O.lastPlaced=Object.assign({shops:{name:O.lastShop}},r);O.cur=O.lastPlaced;S.basket=[];saveB();O.loaded=false;startLive();return r}
 
-window.P3={cur:()=>O.cur,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q,el)=>addToBasket(p,q,el),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),syncSteppers:()=>window.syncSteppers&&window.syncSteppers(),after:null,async init(){
+window.P3={cur:()=>O.cur,checkoutShop:()=>CO.shop,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q,el)=>addToBasket(p,q,el),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),syncSteppers:()=>window.syncSteppers&&window.syncSteppers(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
       const dist=f==='delivery'&&s.lat!=null?1.4:null,prep=dist?15:null,travel=dist?Math.max(5,Math.ceil(dist*3)):null;
