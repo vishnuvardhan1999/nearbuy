@@ -57,20 +57,27 @@ function isMock(){
 }
 function onSeller(){return /seller\.html/i.test(location.pathname||'')}
 function toast(msg){if(typeof window.toast==='function')window.toast(msg)}
+function client(){return window.sb||(window.NBSeller&&NBSeller.sb)||null}
+function customerEvent(event){
+  const e=String(event||'').replace(/^customer_/,'');
+  if(e==='stock'||e==='ask')return 'out_of_stock';
+  if(e==='rejected')return 'declined';
+  return e;
+}
 
 async function notifyShop(shop,order,opts){
   try{
     const p=prefs(shop);
     const ch=channelsOn(p);
     if(!ch.length||!toE164(p.mobile))return {skipped:'no alerts'};
-    if(isMock()||!(window.sb&&window.sb.functions)){
+    if(isMock()||!(client()&&client().functions)){
       if(onSeller()||(opts&&opts.toast)){
         const last3=digits(p.mobile).slice(-3);
         toast('Order alert sent: '+listAnd(ch)+' to a number ending '+last3);
       }
       return {ok:true,mock:true,channels:ch};
     }
-    window.sb.functions.invoke('order-alert',{body:{order_id:order&&order.id,event:'placed'}}).catch(()=>{});
+    client().functions.invoke('order-alert',{body:{order_id:order&&order.id,event:'placed'}}).catch(()=>{});
     return {ok:true};
   }catch(e){return {error:String(e&&e.message||e)}}
 }
@@ -80,20 +87,23 @@ async function notifyShop(shop,order,opts){
 async function escalate(shop,order,step){
   try{
     const p=prefs(shop);
-    if(isMock()||!(window.sb&&window.sb.functions)){
+    if(isMock()||!(client()&&client().functions)){
       const ch=step==='call'?['phone call']:channelsOn({...p,call:false});
       if(onSeller()&&ch.length)toast((step==='call'?'Calling ':'Reminder sent by ')+listAnd(ch)+' to a number ending '+digits(p.mobile).slice(-3));
       return {ok:true,mock:true};
     }
-    window.sb.functions.invoke('order-alert',{body:{order_id:order&&order.id,event:step==='call'?'call':'reminder'}}).catch(()=>{});
+    client().functions.invoke('order-alert',{body:{order_id:order&&order.id,event:step==='call'?'call':'reminder'}}).catch(()=>{});
     return {ok:true};
   }catch(e){return {error:String(e&&e.message||e)}}
 }
-/* customer updates (accepted with stock check, declined, late). Mock: on-screen only. */
+/* Customer updates go through order-alert as SMS only — never WhatsApp. */
 async function notifyCustomer(order,event){
   try{
-    if(isMock()||!(window.sb&&window.sb.functions))return {ok:true,mock:true};
-    window.sb.functions.invoke('order-alert',{body:{order_id:order&&order.id,event:'customer_'+event}}).catch(()=>{});
+    const ev=customerEvent(event);
+    if(!order||!order.id||!ev)return {skipped:'no event'};
+    if(isMock()||!(client()&&client().functions))return {ok:true,mock:true};
+    // SMS only: the function's customer_* branch never sends WhatsApp.
+    client().functions.invoke('order-alert',{body:{order_id:order.id,event:'customer_'+ev}}).catch(()=>{});
     return {ok:true};
   }catch(e){return {error:String(e&&e.message||e)}}
 }
