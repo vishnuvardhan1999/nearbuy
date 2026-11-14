@@ -137,8 +137,8 @@ if(window.Social&&Social.boot){
 function syncChrome(){
   const page=(typeof cur!=='undefined'&&cur&&cur[0])||'';
   document.body.dataset.page=page;
-  const checkout=page==='checkout';
-  document.body.classList.toggle('nb-hide-chat',checkout);
+  const checkout=page==='checkout',basket=page==='basket';
+  document.body.classList.toggle('nb-hide-chat',checkout||basket);
   if(checkout){document.getElementById('p28inst')?.remove();document.body.classList.remove('nb-inst')}
   document.body.classList.toggle('nb-inst',!!document.getElementById('p28inst'));
 }
