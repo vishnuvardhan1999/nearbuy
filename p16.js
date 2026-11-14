@@ -67,7 +67,7 @@ V.account=function(...a){if(A.user&&A.authPage&&(LIVE||P.MOCK))return `<section 
   ${su?fld('f_name','Your name','autocomplete="name" value="" required'):''}${fld('f_email','Email','type="email" autocomplete="'+(su?'off':'email')+'" value="" required')}
   ${fld('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required'+(su?' placeholder="At least 8 characters"':''))}
   ${su?`<label class="fl"><span>Your postcode</span><input id="f_pc" autocomplete="postal-code" required maxlength="8" placeholder="e.g. WD18 0AA" value="${esc(S.pc||'')}" style="text-transform:uppercase"><small class="hint2">We show you shops near this postcode. Change it any time in your account settings.</small></label>`:''}
-  <button class="btn full">${su?'Create shopping account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
+  <button class="btn full">${su?'Create shopping account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
   <div class="or">${su?'Already have an account?':'New to ShopNip?'}</div>
   <button class="alt" data-acc="${su?'login':'new'}">${su?'Sign in instead':'Create a shopping account'}</button></div>
   ${window.Ninja?`<div style="margin:16px 0 0">${Ninja.toggleRow()}</div>`:''}</section>`};
