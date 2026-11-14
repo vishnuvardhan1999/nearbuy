@@ -24,10 +24,12 @@ function patch(){loadInfo();if(!on()||!document.body.classList.contains('dash'))
   document.querySelectorAll('tr[data-o]:not([data-fee])').forEach(tr=>{const o=D.O.find(x=>String(x.id)===tr.dataset.o);if(!o)return;tr.dataset.fee='1';const td=tr.querySelector('td.num');if(td&&!DEAD.includes(o.status))td.insertAdjacentHTML('beforeend',`<div class="mut" style="font-size:12px">Est. fee ${gbp(feeOf(o))}</div>`)});
   document.querySelectorAll('.kv.tot').forEach(k=>{const dr=k.closest('[data-oid],.drawer,.drw,.dr');const id=dr?.dataset?.oid||D.ui.drawer;const o=D.O.find(x=>String(x.id)===String(id));if(!o)return;
     const collect=o.fulfilment!=='delivery';
-    const html=`<div class="kv" data-sn-fee="1"><span>${collect?'ShopNip fee (click &amp; collect)':`Estimated ShopNip fee (${(+F.info.selling_pct).toFixed(1).replace(/\.0$/,'')}% of delivery subtotal)`}</span><span>${collect?'No fee':gbp(feeOf(o))}</span></div><div class="kv" data-sn-keep="1"><span>You keep (est.)</span><b>${gbp((+o.total||0)-feeOf(o))}</b></div>`;
-    const prev=k.parentNode.querySelector('[data-sn-fee]');
-    if(prev){const keep=k.parentNode.querySelector('[data-sn-keep]');if(keep)keep.remove();prev.outerHTML=html}else k.insertAdjacentHTML('afterend',html)})}
-new MutationObserver(()=>patch()).observe(document.getElementById('app'),{childList:true,subtree:true});
+    const feeTxt=collect?'No fee':gbp(feeOf(o)),keepTxt=gbp((+o.total||0)-feeOf(o));
+    const prev=k.parentNode.querySelector('[data-sn-fee]'),keep=k.parentNode.querySelector('[data-sn-keep]');
+    if(prev&&prev.getAttribute('data-sn-amt')===feeTxt&&keep&&keep.getAttribute('data-sn-amt')===keepTxt)return;
+    const html=`<div class="kv" data-sn-fee="1" data-sn-amt="${feeTxt}"><span>${collect?'ShopNip fee (click &amp; collect)':`Estimated ShopNip fee (${(+F.info.selling_pct).toFixed(1).replace(/\.0$/,'')}% of delivery subtotal)`}</span><span>${feeTxt}</span></div><div class="kv" data-sn-keep="1" data-sn-amt="${keepTxt}"><span>You keep (est.)</span><b>${keepTxt}</b></div>`;
+    if(prev){if(keep)keep.remove();prev.outerHTML=html}else k.insertAdjacentHTML('afterend',html)})}
+let _p31q=0;new MutationObserver(()=>{if(!_p31q)_p31q=requestAnimationFrame(()=>{_p31q=0;patch()})}).observe(document.getElementById('app'),{childList:true,subtree:true});
 /* products page: "Add my usual products" */
 const pp=PAGES.products;PAGES.products=()=>{const h=pp();const pend=D.shop&&D.shop.status!=='approved';
   const b=`<button class="btn ghost sm" data-a="usual" ${pend?'title="Available once your shop is approved"':''}>${svg('sync')}Add my usual products</button>`;
