@@ -20,7 +20,7 @@ const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "
 const gbp = (n: unknown) => "£" + (Number(n) || 0).toFixed(2);
 
 const STATUS: Record<string, { subject: string; head: string; body: (o: any) => string }> = {
-  accepted: { subject: "accepted", head: "Your order has been accepted", body: (o) => o.fulfilment === "delivery" ? "The shop is getting your order ready for delivery." : "The shop is getting your order ready. We’ll email you when it’s ready to collect." },
+  accepted: { subject: "accepted", head: "Your order has been accepted", body: (o) => o.awaiting_customer ? "The shop accepted your order but found something out of stock. The order is on hold until you choose what happens, or the shop contacts you. Your total will only go down." : o.fulfilment === "delivery" ? "The shop is getting your order ready for delivery." : "The shop is getting your order ready. We’ll email you when it’s ready to collect." },
   ready: { subject: "ready to collect", head: "Your order is ready to collect", body: () => "Bring your collection PIN and show it at the counter. You pay the shop when you collect." },
   out_for_delivery: { subject: "out for delivery", head: "Your order is out for delivery", body: () => "The shop is on its way. You pay the shop on delivery." },
   completed: { subject: "complete", head: "Your order is complete", body: (o) => o.fulfilment === "delivery" ? "Your order has been delivered. Thanks for shopping local." : "Your order has been collected. Thanks for shopping local." },
@@ -38,11 +38,24 @@ function layout(title: string, inner: string) {
 ShopNip is a trading name of Suman Bros (Wholesale) Limited, company no. 01802958, Crown House, Otterspool Way, Watford WD25 8HL.</td></tr>
 </table></td></tr></table></body></html>`;
 }
+function lineAmount(i: any) {
+  if (i.unavailable || i.refunded) return 0;
+  if (i.swap_accepted && i.swap_price != null) return Math.min(Number(i.swap_price), Number(i.unit_price)) * Number(i.qty || 0);
+  return Number(i.unit_price || 0) * Number(i.qty || 0);
+}
 function itemsTable(o: any) {
-  const rows = (o.order_items ?? []).map((i: any) => `<tr><td style="padding:6px 0">${esc(i.qty)} × ${esc(i.name)}</td><td align="right" style="padding:6px 0">${gbp(i.unit_price * i.qty)}</td></tr>`).join("");
+  const rows = (o.order_items ?? []).map((i: any) => {
+    const gone = i.unavailable || i.refunded || (i.in_stock === false && !i.swap_accepted);
+    const name = gone ? `<s>${esc(i.name)}</s>${i.unavailable || i.refunded ? " (taken off your total)" : " (out of stock)"}` : esc(i.name);
+    const swap = i.swap_name ? `<br><span style="color:#667085;font-size:13px">Swap: ${esc(i.swap_name)} ${gbp(i.swap_price)}${i.swap_accepted ? " ✓" : ""}</span>` : "";
+    return `<tr><td style="padding:6px 0">${esc(i.qty)} × ${name}${swap}</td><td align="right" style="padding:6px 0">${gbp(lineAmount(i))}</td></tr>`;
+  }).join("");
   const fee = Number(o.delivery_fee) || 0;
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e6e9ee;border-bottom:1px solid #e6e9ee;margin:14px 0;font-size:14px">${rows}
+  const orig = Number(o.total_at_place) || 0;
+  const wait = o.awaiting_customer ? `<p style="margin:0 0 12px;padding:10px 12px;background:#fff7e6;border-radius:10px;color:#8a5300;font-size:14px">The shop found something out of stock. This order is on hold until you choose what happens, or the shop contacts you.</p>` : "";
+  return `${wait}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e6e9ee;border-bottom:1px solid #e6e9ee;margin:14px 0;font-size:14px">${rows}
 ${fee ? `<tr><td style="padding:6px 0;color:#667085">Delivery</td><td align="right">${gbp(fee)}</td></tr>` : ""}
+${orig && orig > Number(o.total) ? `<tr><td style="padding:6px 0;color:#667085">Originally</td><td align="right"><s>${gbp(orig)}</s></td></tr>` : ""}
 <tr><td style="padding:8px 0;font-weight:700">Total</td><td align="right" style="font-weight:700">${gbp(o.total)}</td></tr></table>`;
 }
 const btn = (href: string, label: string) => `<p style="margin:18px 0 0"><a href="${href}" style="display:inline-block;background:#ff6b4a;color:#fff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:12px">${esc(label)}</a></p>`;
@@ -87,7 +100,7 @@ Deno.serve(async (req) => {
     const { data: u } = await user.auth.getUser();
     if (!u?.user) return json({ error: "sign in" }, 401);
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: o, error } = await admin.from("orders").select("*,shops(name,phone,address,owner_id),order_items(name,qty,unit_price)").eq("id", order_id).maybeSingle();
+    const { data: o, error } = await admin.from("orders").select("*,shops(name,phone,address,owner_id),order_items(name,qty,unit_price,in_stock,unavailable,swap_name,swap_price,swap_accepted)").eq("id", order_id).maybeSingle();
     if (error || !o) return json({ error: "order not found" }, 404);
     const isCustomer = o.customer_id === u.user.id, isOwner = o.shops?.owner_id === u.user.id;
     if (!isCustomer && !isOwner) return json({ error: "forbidden" }, 403);

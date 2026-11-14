@@ -1,7 +1,9 @@
-// ShopNip new-order alerts (Supabase Edge Function, Deno). Sends SMS, WhatsApp and/or a phone call through Twilio.
-// The browser calls this fire-and-forget after place_order. The caller must be signed in and be the order's
-// customer or the shop owner.
-// Events used by checkout and reliability (rel.js / p33.js): placed, reminder, call, customer_*.
+// ShopNip order alerts (Supabase Edge Function, Deno). Shop alerts may use SMS, WhatsApp and/or a phone call through Twilio.
+// Customer alerts (event customer_*) are SMS only — never WhatsApp.
+// The browser calls this fire-and-forget after place_order or a status change. The caller must be signed in and be the
+// order's customer or the shop owner.
+// Events: placed, reminder, call, customer_accepted, customer_ready, customer_out_for_delivery, customer_completed,
+// customer_declined (or customer_rejected), customer_out_of_stock, customer_cancelled.
 // Secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN (required to send). Optional: TWILIO_SMS_FROM, TWILIO_WHATSAPP_FROM,
 // TWILIO_CALLER_ID, SITE_URL. A channel whose From number is missing is skipped.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -57,10 +59,19 @@ function textBody(o: any, reminder = false) {
 }
 function customerBody(o: any, event: string) {
   const num = o?.order_number || "your order";
+  const shop = o?.shops?.name || "the shop";
   const track = `${SITE.replace(/\/$/, "")}/orders`;
-  if (event === "customer_accepted") return `Your ShopNip order ${num} has been accepted. The shop has checked your items. Track it: ${track}`;
-  const kind = event.slice("customer_".length).replace(/_/g, " ") || "updated";
-  return `ShopNip update on order ${num}: ${kind}. Track it: ${track}`;
+  const ev = event === "customer_rejected" || event === "customer_declined" ? "customer_declined"
+    : event === "customer_stock" ? "customer_out_of_stock"
+    : event;
+  if (ev === "customer_accepted") return `Your ShopNip order ${num} has been accepted by ${shop}. They have checked your items. Track it: ${track}`;
+  if (ev === "customer_ready") return `Your ShopNip order ${num} is ready to collect from ${shop}. Track it: ${track}`;
+  if (ev === "customer_out_for_delivery") return `Your ShopNip order ${num} is out for delivery. Track it: ${track}`;
+  if (ev === "customer_completed") return o?.fulfilment === "delivery" ? `Your ShopNip order ${num} has been delivered. Thanks for shopping local.` : `Your ShopNip order ${num} has been collected. Thanks for shopping local.`;
+  if (ev === "customer_declined") return `Sorry, ${shop} couldn’t take your ShopNip order ${num}. You have not been charged.`;
+  if (ev === "customer_cancelled") return `Your ShopNip order ${num} has been cancelled. You have not been charged.`;
+  if (ev === "customer_out_of_stock") return `${shop} found something out of stock on your ShopNip order ${num}. The order is on hold until you choose what happens, or the shop contacts you. Your total will only go down. Track it: ${track}`;
+  return `ShopNip update on order ${num}. Track it: ${track}`;
 }
 function sayMoney(n: unknown) {
   const v = Math.round((Number(n) || 0) * 100);
@@ -124,6 +135,7 @@ Deno.serve(async (req) => {
     const waFrom = Deno.env.get("TWILIO_WHATSAPP_FROM");
     const caller = Deno.env.get("TWILIO_CALLER_ID");
 
+    // Customer path: SMS only. Never WhatsApp, never a phone call.
     if (customerEvent) {
       const to = toE164(o.customer_phone);
       if (!to) return json({ ok: true, skipped: "no customer mobile" });

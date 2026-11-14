@@ -20,11 +20,13 @@ const ov=PAGES.overview;PAGES.overview=()=>{loadInfo();const h=ov();if(!on())ret
    `${t?(+i.month_trade_spend>=+i.waiver_spend?`Your Suman Bros spend this month is ${gbp(i.month_trade_spend)}, so the ${gbp(i.monthly_fee)} monthly fee is waived.`:`Spend ${gbp(i.waiver_spend)} with Suman Bros this month (so far ${gbp(i.month_trade_spend)}) and the ${gbp(i.monthly_fee)} monthly fee is waived.`):'Shops that buy wholesale from Suman Bros pay a lower rate.'}`+
    ` Estimated selling fees this month: <b>${gbp(est)}</b>. First ${i.free_listings} products are free to list.</div></div>`+h};
 /* orders list + order drawer: estimated fee per order */
-function patch(){if(!on()||!document.body.classList.contains('dash'))return;
+function patch(){loadInfo();if(!on()||!document.body.classList.contains('dash'))return;
   document.querySelectorAll('tr[data-o]:not([data-fee])').forEach(tr=>{const o=D.O.find(x=>String(x.id)===tr.dataset.o);if(!o)return;tr.dataset.fee='1';const td=tr.querySelector('td.num');if(td&&!DEAD.includes(o.status))td.insertAdjacentHTML('beforeend',`<div class="mut" style="font-size:12px">Est. fee ${gbp(feeOf(o))}</div>`)});
-  document.querySelectorAll('.kv.tot:not([data-fee])').forEach(k=>{const dr=k.closest('[data-oid],.drawer,.dr');const id=dr?.dataset?.oid||D.ui.drawer;const o=D.O.find(x=>String(x.id)===String(id));if(!o)return;k.dataset.fee='1';
+  document.querySelectorAll('.kv.tot').forEach(k=>{const dr=k.closest('[data-oid],.drawer,.drw,.dr');const id=dr?.dataset?.oid||D.ui.drawer;const o=D.O.find(x=>String(x.id)===String(id));if(!o)return;
     const collect=o.fulfilment!=='delivery';
-    k.insertAdjacentHTML('afterend',`<div class="kv"><span>${collect?'ShopNip fee (click &amp; collect)':`Estimated ShopNip fee (${(+F.info.selling_pct).toFixed(1).replace(/\.0$/,'')}% of delivery subtotal)`}</span><span>${collect?'No fee':gbp(feeOf(o))}</span></div><div class="kv"><span>You keep (est.)</span><b>${gbp((+o.total||0)-feeOf(o))}</b></div>`)})}
+    const html=`<div class="kv" data-sn-fee="1"><span>${collect?'ShopNip fee (click &amp; collect)':`Estimated ShopNip fee (${(+F.info.selling_pct).toFixed(1).replace(/\.0$/,'')}% of delivery subtotal)`}</span><span>${collect?'No fee':gbp(feeOf(o))}</span></div><div class="kv" data-sn-keep="1"><span>You keep (est.)</span><b>${gbp((+o.total||0)-feeOf(o))}</b></div>`;
+    const prev=k.parentNode.querySelector('[data-sn-fee]');
+    if(prev){const keep=k.parentNode.querySelector('[data-sn-keep]');if(keep)keep.remove();prev.outerHTML=html}else k.insertAdjacentHTML('afterend',html)})}
 new MutationObserver(()=>patch()).observe(document.getElementById('app'),{childList:true,subtree:true});
 /* products page: "Add my usual products" */
 const pp=PAGES.products;PAGES.products=()=>{const h=pp();const pend=D.shop&&D.shop.status!=='approved';

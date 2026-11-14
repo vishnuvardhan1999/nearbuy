@@ -1,5 +1,8 @@
 // ShopNip · Phase 3: basket (one shop), checkout (pay on collection/delivery), orders, owner inbox, realtime, product sheet.
-const mailEv=(id,ev)=>{try{if(typeof sb!=='undefined'&&sb&&id&&sb.functions)sb.functions.invoke('order-email',{body:{order_id:id,event:ev}}).catch(()=>{})}catch(e){}};/* fire-and-forget order email (supabase/functions/order-email); never blocks checkout */
+/* order-email is not deployed (live 404s). Leave false until it is. Customer texts go through order-alert (SMS only). */
+const ORDER_EMAIL=false;
+const mailEv=(id,ev)=>{try{if(ORDER_EMAIL&&typeof sb!=='undefined'&&sb&&id&&sb.functions)sb.functions.invoke('order-email',{body:{order_id:id,event:ev}}).catch(()=>{})}catch(e){}};
+const alertCust=(o,ev)=>{try{window.P33&&P33.notifyCustomer&&P33.notifyCustomer(o,ev)}catch(_){}};
 (function(){
 const {A,DB,M,MOCK,Q,toast}=P2;
 const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','picking','out_for_delivery','completed']};
@@ -17,6 +20,7 @@ function declineBox(o){const shop=(o.shops&&o.shops.name)||O.lastShop||'The shop
   return `<div class="accept-box bad decline-box"><b>${esc(title)}</b>${at?`<p>Declined by ${esc(shop)} at ${hmOf(at)}</p>`:''}${why?`<p>Reason: ${esc(why)}</p>`:''}<p>${esc(payMsg(o))}</p><button class="btn full" data-t="home">Browse nearby shops</button></div>`}
 function statusFollowup(o,shop){if(!o)return '';if(o.status==='placed')return acceptBox(o,shop);if(o.status==='rejected')return declineBox(o);
   if(o.status==='cancelled')return `<div class="accept-box bad decline-box"><b>Order cancelled</b><p>${esc(payMsg(o))}</p><button class="btn full" data-t="home">Browse nearby shops</button></div>`;
+  if(o.awaiting_customer)return `<div class="accept-box" style="background:#fff7e6;color:#8a5300"><b>The shop found something out of stock</b><p>They have not completed your order. Choose below what you would like to do, or the shop will contact you. Your total only goes down.</p></div>`;
   const lbl={accepted:'Accepted',picking:'The shop is picking your items',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:o.fulfilment==='delivery'?'Delivered':'Collected'}[o.status];
   if(!lbl)return '';
   return `<div class="accept-box good"><b>${esc(lbl)}</b><p>${esc(shop||(o.shops&&o.shops.name)||'The shop')} has updated your order.</p>${o.id&&window.cur&&cur[0]==='placed'?`<button class="btn full" data-o="open" data-id="${esc(o.id)}">Track order</button>`:''}</div>`}
@@ -85,7 +89,7 @@ const D=MOCK?{
   async mine(){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*)').eq('customer_id',A.user.id).order('created_at',{ascending:false}).limit(50);if(error)throw error;return data},
   async inbox(){const {data,error}=await sb.from('orders').select('*,order_items(*)').eq('shop_id',A.shop.id).order('created_at',{ascending:false}).limit(100);if(error)throw error;return data},
   async get(id){const {data,error}=await sb.from('orders').select('*,shops(name,phone,address),order_items(*),order_events(status,note,at)').eq('id',id).single();if(error)throw error;data.order_events?.sort((a,b)=>a.at<b.at?-1:1);return data},
-  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error;mailEv(id,st)},
+  async status(id,st,note,cancel){const {error}=await sb.rpc('update_order_status',{p_order:id,p_status:st,p_note:note||null,p_cancel_reason:cancel&&cancel.reason||null});if(error)throw error;mailEv(id,st);if(['accepted','ready','completed','rejected','cancelled','out_for_delivery'].includes(st))alertCust({id},st==='rejected'?'declined':st)},
   live(filter,cb){if(O.ch)sb.removeChannel(O.ch);O.ch=sb.channel('orders-'+filter).on('postgres_changes',{event:'*',schema:'public',table:'orders',filter},cb).subscribe()}
 };
 
@@ -236,8 +240,10 @@ function odetail(o,owner){const it=o.order_items||[];
    ${o.fulfilment==='delivery'&&orderWindow(o)?`<p><b>Delivery window: ${esc(orderWindow(o))}</b></p>`:''}
    ${owner?`<div class="line"><span>Customer</span><span>${esc(o.customer_name)}</span></div><div class="line"><span>Phone</span><a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a></div>`:o.shops?.phone?`<div class="line"><span>Shop phone</span><a href="tel:${esc(o.shops.phone)}">${esc(o.shops.phone)}</a></div>`:''}
    ${o.note?`<div class="line"><span>Note</span><span>${esc(o.note)}</span></div>`:''}${window.CancelBox?CancelBox.html(o):''}</div>
-  <div class="panel"><h3 class="ft">Items</h3>${it.map(i=>`<div class="oi"><img src="${esc(i.image||'icon-192.png')}" alt=""><span>${i.qty} × ${esc(i.name)}</span><b>${gbp(i.unit_price*i.qty)}</b></div>`).join('')}
+  <div class="panel"><h3 class="ft">Items</h3>${it.map((i,ix)=>{const p=window.REL&&REL.paintOrderItem?REL.paintOrderItem(i):null;const gone=i.unavailable||(i.in_stock===false&&!i.swap_accepted);const pending=o.awaiting_customer&&i.in_stock===false&&!i.unavailable&&!i.swap_accepted;const label=p?p.label:`${i.qty} × ${gone?`<s>${esc(i.name)}</s>`:esc(i.name)}${i.in_stock===false?' <span class="hint">· out of stock'+(i.unavailable?' , refunded':'')+'</span>':''}${i.swap_name?`<br><span class="hint">Swap: ${esc(i.swap_name)} ${gbp(i.swap_price)}${i.swap_accepted?' ✓':''}</span>`:''}`;const amt=p?p.amount:(window.REL&&REL.lineAmount?REL.lineAmount(i):(gone?0:i.unit_price*i.qty));
+    return `<div class="oi"><img src="${esc(i.image||'icon-192.png')}" alt=""><span>${label}</span>${pending?`<span class="row">${i.swap_name&&i.swap_price!=null&&+i.swap_price<=+i.unit_price?`<button class="btn sm" data-rc="swap" data-num="${esc(o.order_number)}" data-ix="${ix}">Swap</button>`:''}<button class="btn sm ghost" data-rc="refund" data-num="${esc(o.order_number)}" data-ix="${ix}">Take it off my total</button></span>`:`<b>${gbp(amt)}</b>`}</div>`}).join('')}
    <div class="line"><span>Subtotal</span><span>${gbp(o.subtotal??o.total)}</span></div>${+o.delivery_fee?`<div class="line"><span>Delivery</span><span>${gbp(o.delivery_fee)}</span></div>`:''}
+   ${+o.total_at_place&&+o.total<+o.total_at_place?`<div class="line"><span>Originally</span><span><s>${gbp(o.total_at_place)}</s></span></div>`:''}
    <div class="line tot"><b>Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</b><b>${gbp(o.total)}</b></div>${+o.wallet_applied?`<div class="line wline"><span>Paid from ShopNip wallet${o.wallet_reversed?' (returned)':''}</span><span>−${gbp(o.wallet_applied)}</span></div><div class="line"><span>Left to pay</span><b>${gbp(o.total-o.wallet_applied)}</b></div>`:''}${+o.refunded_to_wallet?`<div class="line wline"><span>Refunded to ShopNip wallet</span><span>${gbp(o.refunded_to_wallet)}</span></div>`:''}</div>`}
 V.order=function(id){const o=O.cur;if(!o||o.id!==id){D.get(id).then(x=>{O.cur=x;render()}).catch(e=>toast(e.message));return '<div class="empty">Loading…</div>'}
   const ended=['cancelled','rejected'].includes(o.status);
