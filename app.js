@@ -19,7 +19,7 @@ const DEMO_SHOPS=[{id:'d1',name:'Corner News & Stationers',postcode:'Sample',lat
  {id:'d2',name:'High Street Cards & Gifts',postcode:'Sample',demoMi:0.8,rating:4.6,mins:'30–45',opening_hours:'Mon-Fri 9am-5:30pm, Sat 10am-4pm, Sun closed',delivery_options:{collect:true,delivery:false},cat:'Party'},
  {id:'d3',name:'Village Post Office Store',postcode:'Sample',demoMi:1.4,rating:4.7,mins:'40–55',opening_hours:'Mon-Thu 9am-5pm, Fri closed, Sat 9am-1pm, Sun closed',delivery_options:{collect:true,delivery:true},cat:'Craft'}];
 
-const saveB=()=>{localStorage.nb_basket=JSON.stringify(S.basket);const n=S.basket.reduce((a,b)=>a+b.qty,0);document.querySelectorAll('[data-bc]').forEach(e=>{e.textContent=n;e.classList.toggle('hidden',!n)})};
+const saveB=()=>{localStorage.nb_basket=JSON.stringify(S.basket);const n=S.basket.reduce((a,b)=>a+b.qty,0);document.querySelectorAll('[data-bc]').forEach(e=>{e.textContent=n;e.classList.toggle('hidden',!n)});if(window.syncSteppers)syncSteppers();if(window.syncShopBasket)syncShopBasket()};
 const miles=(a,b)=>{const R=3958.8,r=x=>x*Math.PI/180,dLa=r(b.lat-a.lat),dLo=r(b.lng-a.lng),h=Math.sin(dLa/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 async function lookupPostcode(pc){const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\s+/g,'')));const j=await r.json();if(j.status!==200)throw new Error('Postcode not found');return{lat:j.result.latitude,lng:j.result.longitude,pc:j.result.postcode}}
 async function reversePc(lat,lng){try{const j=await (await fetch(`https://api.postcodes.io/postcodes?lon=${lng}&lat=${lat}&limit=1`)).json();return j.result?.[0]?.postcode||'Current location'}catch{return 'Current location'}}
@@ -75,8 +75,15 @@ function stockedNames(){const names=new Set(),tileOf={};((window.SUBC&&SUBC.tree
 const SECTIONS=[['Best sellers',p=>!/copier paper/i.test(p.name),3],['Back to school',kw('pencil','notebook','ruler','eraser','sharpener','highlighter','glue stick','pencil case','exercise book'),5],
  ['Art & craft picks',p=>p.category==='Art & Craft'||kw('paint','glitter','craft','colouring')(p),2],['Party time',kw('balloon','party','banner','candle','napkin','gift bag'),4]];
 // ---------- templates ----------
+function basketLine(lid,sku){return (S.basket||[]).find(x=>(lid&&String(x.listing_id)===String(lid))||(!lid&&sku&&x.sku===sku))}
+function qtyBtn(p){const lid=p.listing_id||'',sku=p.sku||'',q=basketLine(lid,sku)?.qty||0;
+  if(q>0)return `<div class="step" data-sku="${esc(sku)}" data-lid="${esc(lid)}" role="group" aria-label="Quantity in basket"><button type="button" class="step-minus" data-step="-1" aria-label="Remove one">−</button><span class="step-q" aria-live="polite">${q}</span><button type="button" class="step-plus" data-step="1" aria-label="Add one">+</button></div>`;
+  return `<button type="button" class="add" data-sku="${esc(sku)}" data-lid="${esc(lid)}" aria-label="Add to basket">${svg('plus')}</button>`}
+function syncSteppers(){document.querySelectorAll('.pc[data-psku],.pc[data-lid]').forEach(card=>{const pf=card.querySelector('.pf');if(!pf)return;const cur=pf.querySelector('.step,.add');if(!cur)return;const lid=card.dataset.lid||cur.dataset.lid||'',sku=card.dataset.psku||cur.dataset.sku||'',q=basketLine(lid,sku)?.qty||0;
+  if(q>0&&cur.classList.contains('step')){const n=cur.querySelector('.step-q');if(n&&n.textContent!==String(q))n.textContent=q;if(cur.dataset.lid!==lid)cur.dataset.lid=lid;return}
+  if(q===0&&cur.classList.contains('add'))return;cur.outerHTML=qtyBtn({listing_id:lid,sku})})}
 const pcard=p=>window.P4?P4.card(p):`<div class="pc" data-psku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}"><div class="pim"><img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fb></div>
-<div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add to basket">${svg('plus')}</button></div></div></div>`;
+<div class="pb"><div class="pn">${esc(p.name)}</div><div class="pf"><span class="pr">${gbp(p.price)}</span>${qtyBtn(p)}</div></div></div>`;
 const grads=['linear-gradient(135deg,#134e4a,#14b8a6)','linear-gradient(135deg,#ff6b4a,#f43f5e)','linear-gradient(135deg,#4d7c0f,#84cc16)'];
 function scard(s,i){const imgs=s.cover_url?'':pick(()=>true,3,i*11+2).map(p=>`<img loading="lazy" decoding="async" src="${esc(p.images[0])}" alt="">`).join('');const d=s.dist!=null?s.dist.toFixed(1)+' mi':'';
  const st=s._st||shopStatus(s);const cls=st.unknown?'unknown':st.open?(st.closingSoon?'soon':''):(st.openingSoon?'soon':'closed');

@@ -42,7 +42,7 @@ function dcard(p,demo){const d=pct(p.price,p.cmp),s=!demo&&S.shops.find(x=>x.id=
   return `<div class="pc deal" data-psku="${esc(p.sku)}" data-lid="${esc(demo?'':p.listing_id||'')}"><div class="pim"><span class="disc">-${d}%</span>${demo?'':''}<img loading="lazy" src="${esc(p.images[0])}" alt="${esc(p.name)}" data-fb></div>
   <div class="pb"><div class="pn">${esc(p.name)}</div><div class="pmeta">${demo?'':s?esc(s.name):''}</div>
   <div class="dpr"><b>${gbp(p.price)}</b><s>${gbp(p.cmp)}</s></div><div class="dbar"><i style="width:${30+(p.sku.length*13)%60}%"></i></div>
-  <div class="pf">${demo?`<button class="ntf" data-ntf="${esc(p.sku)}">Notify me</button>`:`<span class="save">Save ${gbp(p.cmp-p.price)}</span><button class="add" data-sku="${esc(p.sku)}" data-lid="${esc(p.listing_id||'')}" aria-label="Add">${svg('plus')}</button>`}</div></div></div>`}
+  <div class="pf">${demo?`<button class="ntf" data-ntf="${esc(p.sku)}">Notify me</button>`:`<span class="save">Save ${gbp(p.cmp-p.price)}</span>${qtyBtn(p)}`}</div></div></div>`}
 const sponsoredCard=(p,promo)=>P4.card(p).replace('<div class="pb">','<div class="pb"><span class="spons">Sponsored</span>').replace('class="pc','class="pc sp');
 // ---------- sections ----------
 const head=(t,extra='',more='')=>`<div class="sh5"><h2>${t}</h2>${extra}${more}</div>`;

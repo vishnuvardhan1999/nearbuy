@@ -90,22 +90,54 @@ const D=MOCK?{
 };
 
 // ---------- basket ----------
-function addToBasket(p,qty=1){
+function listingAsP(l){return l?{listing_id:l.id,sku:l.sku,name:l.name,images:[l.image].filter(Boolean),image:l.image,price:+l.retail_price,shop_id:l.shop_id,stock:l.stock,category:l.category}:null}
+function findP(lid,sku){
+  if(lid){const l=(S.L||[]).find(x=>String(x.id)===String(lid));if(l)return listingAsP(l);
+    const p=S.products.find(x=>x.listing_id===lid||(x.offers||[]).some(o=>String(o.listing_id)===String(lid)));
+    if(p&&p.offers){const o=p.offers.find(o=>String(o.listing_id)===String(lid));if(o)return {...p,listing_id:o.listing_id,shop_id:o.shop_id,price:o.price,stock:o.stock}}
+    if(p)return p}
+  const l=sku&&(S.L||[]).find(x=>x.sku===sku);if(l)return listingAsP(l);
+  return S.products.find(p=>p.sku===sku)}
+function hopTarget(){const cands=[...document.querySelectorAll('.hbtn[data-t="basket"],#tabs [data-t="basket"],button[data-t="basket"]')];
+  const vis=cands.filter(el=>{const r=el.getBoundingClientRect();return r.width>8&&r.height>8&&r.bottom>8&&r.top<innerHeight-8});
+  return vis.find(el=>el.closest('header,.top,.top-in'))||vis.find(el=>el.closest('#tabs,nav.tabs'))||vis[0]||cands[0]||null}
+function hopBag(fromEl){
+  const origin=window.Ninja&&Ninja.mark?Ninja.mark(fromEl):fromEl;
+  if(window.Ninja&&Ninja.play(origin))return;
+  if(!origin||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const dest=hopTarget();
+  if(!dest)return;
+  const b=dest.getBoundingClientRect();
+  const x0=(origin&&typeof origin.x==='number'&&!isNaN(origin.x))?origin.x:(fromEl&&fromEl.getBoundingClientRect?fromEl.getBoundingClientRect().left+fromEl.getBoundingClientRect().width/2:0);
+  const y0=(origin&&typeof origin.y==='number'&&!isNaN(origin.y))?origin.y:(fromEl&&fromEl.getBoundingClientRect?fromEl.getBoundingClientRect().top+fromEl.getBoundingClientRect().height/2:0);
+  const x1=b.left+b.width/2,y1=b.top+b.height/2;
+  const midX=x0+(x1-x0)*.5,midY=y0+(y1-y0)*.4-48;
+  const el=document.createElement('div');el.className='bag-hop';el.setAttribute('aria-hidden','true');el.innerHTML=svg('bag');document.body.appendChild(el);
+  const hop=el.animate([{transform:`translate(${x0}px,${y0}px) scale(1)`,opacity:1},{transform:`translate(${midX}px,${midY}px) scale(1.2)`,opacity:1,offset:.4},{transform:`translate(${x1}px,${y1}px) scale(.75)`,offset:.78},{transform:`translate(${x1}px,${y1-8}px) scale(.82)`,offset:.9},{transform:`translate(${x1}px,${y1}px) scale(.55)`,opacity:.85}],{duration:500,easing:'cubic-bezier(.2,.65,.25,1)',fill:'forwards'});
+  hop.onfinish=()=>el.remove();dest.classList.remove('bag-pop');void dest.offsetWidth;dest.classList.add('bag-pop');dest.addEventListener('animationend',()=>dest.classList.remove('bag-pop'),{once:true})}
+function addToBasket(p,qty=1,fromEl){
   if(!p.listing_id||!p.shop_id){toast('Preview item: not sold by a ShopNip shop yet');return false}
   const shopName=S.shops.find(s=>s.id===p.shop_id)?.name||A.view?.name||O.shops[p.shop_id]?.name||'this shop';
   if(bShop()&&bShop()!==p.shop_id){const cur=B()[0].shop_name;
     if(!confirm(`Your basket has items from ${cur}. A basket can only hold one shop's items.\n\nClear it and add from ${shopName}?`))return false;S.basket=[]}
-  const b=B().find(x=>x.listing_id===p.listing_id);const have=b?b.qty:0;
+  const b=B().find(x=>String(x.listing_id)===String(p.listing_id));const have=b?b.qty:0,fresh=!b;
   if(p.stock!=null&&have+qty>p.stock){toast(p.stock?`Only ${p.stock} in stock`:'Out of stock');return false}
+  const origin=window.Ninja&&Ninja.mark?Ninja.mark(fromEl,p):fromEl;
   b?b.qty+=qty:S.basket.push({listing_id:p.listing_id,sku:p.sku,name:p.name,image:p.images?.[0]||p.image,price:+p.price,qty,shop_id:p.shop_id,shop_name:shopName,stock:p.stock});
-  saveB();toast('Added to basket');return true}
-const findP=(lid,sku)=>S.products.find(p=>lid?p.listing_id===lid:p.sku===sku);
+  saveB();hopBag(origin);if(fresh)toast('Added to basket');return true}
+function changeQty(lid,sku,delta,fromEl){
+  const b=B().find(x=>lid?String(x.listing_id)===String(lid):x.sku===sku);
+  if(!b){if(delta>0){const p=findP(lid,sku);return !!(p&&addToBasket(p,delta,fromEl))}return false}
+  if(delta>0){if(b.stock!=null&&b.qty+delta>b.stock){toast(`Only ${b.stock} in stock`);return false}const origin=window.Ninja&&Ninja.mark?Ninja.mark(fromEl,{listing_id:lid,sku}):fromEl;b.qty+=delta;saveB();hopBag(origin);return true}
+  b.qty+=delta;if(b.qty<1)S.basket=S.basket.filter(x=>x!==b);saveB();return true}
 function bimg(b){let src=b.image;if(!src){const p=S.products.find(x=>(b.listing_id&&x.listing_id===b.listing_id)||(b.sku&&x.sku===b.sku));src=p&&((p.images&&p.images[0])||p.image);if(!src&&S.L){const l=S.L.find(x=>String(x.id)===String(b.listing_id)||x.sku===b.sku);src=l&&l.image}if(src)b.image=src}return src||'icon-192.png'}
 function welcomeOn(){return false;/* first-order delivery waiver not approved yet */if(!A.user||!O.loaded||O.orderErr)return false;return !(O.mine||[]).some(o=>o&&!['cancelled','rejected'].includes(o.status))}
 // capture phase so app.js's old add handler doesn't also run
 document.addEventListener('click',e=>{
+  const step=e.target.closest('[data-step]');
+  if(step){e.preventDefault();e.stopPropagation();const box=step.closest('.step')||step;changeQty(box.dataset.lid,box.dataset.sku,+step.dataset.step,step);return}
   const add=e.target.closest('.add[data-sku]');
-  if(add){e.preventDefault();e.stopPropagation();const p=findP(add.dataset.lid,add.dataset.sku);if(p&&addToBasket(p)){add.classList.add('done');add.innerHTML=svg('check')}return}
+  if(add){e.preventDefault();e.stopPropagation();const p=findP(add.dataset.lid,add.dataset.sku);if(p)addToBasket(p,1,add);return}
   const card=e.target.closest('.pc[data-psku]');if(card){e.preventDefault();e.stopPropagation();sheet(findP(card.dataset.lid,card.dataset.psku))}
 },true);
 
@@ -126,7 +158,7 @@ async function sheet(p){if(!p)return;let full=p;
 document.addEventListener('click',e=>{const x=e.target.closest('[data-x]');if(!x)return;const el=$('#sheet');e.preventDefault();
   if(x.dataset.x==='close'){el.className='';document.body.style.overflow='';return}
   if(x.dataset.x==='inc'||x.dataset.x==='dec'){el._q=Math.max(1,Math.min(99,el._q+(x.dataset.x==='inc'?1:-1)));$('#sq').textContent=el._q;$('#stot').textContent=gbp(el._p.price*el._q);return}
-  if(x.dataset.x==='add'&&addToBasket(el._p,el._q)){el.className='';document.body.style.overflow=''}});
+  if(x.dataset.x==='add'&&addToBasket(el._p,el._q,x)){el.className='';document.body.style.overflow=''}});
 
 // ---------- views ----------
 V.basket=function(){
@@ -278,7 +310,7 @@ document.addEventListener('change',e=>{if(e.target.id==='c_window'){CO.window=e.
     lookupPostcode(v).then(g=>{CO.here={lat:g.lat,lng:g.lng,pc:g.pc,src:'postcode'};if(CO.shop&&CO.shop.lat!=null){const mi=miles({lat:g.lat,lng:g.lng},CO.shop),rad=+(CO.shop.delivery_options?.delivery_radius_miles||0);CO.deliv={ok:mi<=rad,mi,why:`You're ${mi.toFixed(1)} mi away`}}if(cur[0]==='checkout')render()}).catch(()=>{})}});
 document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')return;e.preventDefault();e.stopImmediatePropagation();const btn=$('#placebtn'),v=id=>($('#'+id)?.value||'').trim();CO.err='';
   const pcRaw=v('c_pc').toUpperCase();const pin=CO.here&&CO.here.pc&&pcRaw.replace(/\s/g,'')===CO.here.pc.replace(/\s/g,'').toUpperCase()?CO.here:null;
-  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0)};
+  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,sku:b.sku,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0)};
   CO.phoneErr='';if(!a.phone){CO.phoneErr='Mobile number is required.';CO.err=CO.phoneErr;return render()}
   if(!/^[0-9+\s()-]{10,16}$/.test(a.phone)){CO.phoneErr='Enter a valid UK mobile number, for example 07700 900123.';CO.err=CO.phoneErr;return render()}
   btn.disabled=true;btn.textContent='Placing order…';
@@ -302,7 +334,7 @@ async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_op
   catch(_){ }
   r.delivery_window=a.delivery_window;r.status=r.status||'placed';r.created_at=r.created_at||new Date().toISOString();O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;O.lastPlaced=Object.assign({shops:{name:O.lastShop}},r);O.cur=O.lastPlaced;S.basket=[];saveB();O.loaded=false;startLive();return r}
 
-window.P3={cur:()=>O.cur,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),after:null,async init(){
+window.P3={cur:()=>O.cur,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q,el)=>addToBasket(p,q,el),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),syncSteppers:()=>window.syncSteppers&&window.syncSteppers(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
     if(M.shops[0]&&!Q.get('noorders')){const L=M.listings,s=M.shops[0],mk=(n,st,f,items,mins,cust,ev)=>{const st2=items.reduce((t,[l,q])=>t+l.retail_price*q,0),fee=f==='delivery'?2.5:0,t0=Date.now()-mins*60000;
       const dist=f==='delivery'&&s.lat!=null?1.4:null,prep=dist?15:null,travel=dist?Math.max(5,Math.ceil(dist*3)):null;

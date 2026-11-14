@@ -38,7 +38,7 @@ const hx=document.querySelector('header .hx');const w=document.createElement('sp
 function paint(){window.LOC&&LOC.apply();if(!w)return;
   if(!A.user){w.innerHTML=`<button class="acb" data-acc="signin" aria-label="Sign in to your account">${ic}<span class="t"><small>Hello, sign in</small><b>Account &amp; orders</b></span></button>`;return}
   w.innerHTML=`<button class="acb" data-acc="menu" aria-haspopup="true" aria-expanded="false" aria-label="Your account">${ic}<span class="t"><small>Hi, ${esc(first())}</small><b>Account &amp; orders ▾</b></span></button>
-  <div class="acm" role="menu"><div class="hd">Signed in as<b>${esc(A.user.email)}</b></div><button data-acc="orders" role="menuitem">Your orders</button><button data-acc="account" role="menuitem">Your account</button>${(A.shop||A.profile?.role==='owner')?`<a class="acd" role="menuitem" href="${window.SELLER_URL?SELLER_URL('overview'):'seller.html'}">Go to my shop dashboard</a>`:''}<button class="so" data-acc="out" role="menuitem">Sign out</button></div>`}
+  <div class="acm" role="menu"><div class="hd">Signed in as<b>${esc(A.user.email)}</b></div><button data-acc="orders" role="menuitem">Your orders</button><button data-acc="account" role="menuitem">Your account</button>${window.Ninja?Ninja.toggleRow().replace('class="at','class="at acd'):''}${(A.shop||A.profile?.role==='owner')?`<a class="acd" role="menuitem" href="${window.SELLER_URL?SELLER_URL('overview'):'seller.html'}">Go to my shop dashboard</a>`:''}<button class="so" data-acc="out" role="menuitem">Sign out</button></div>`}
 const close=()=>{const m=w.querySelector('.acm');if(m){m.classList.remove('open');w.querySelector('.acb').setAttribute('aria-expanded','false')}};
 document.addEventListener('click',async e=>{if(e.target.closest('.acd'))return;const el=e.target.closest('[data-acc]');if(!el){close();return}e.preventDefault();e.stopPropagation();const a=el.dataset.acc;
   if(a==='menu'){const m=w.querySelector('.acm'),o=!m.classList.contains('open');m.classList.toggle('open',o);el.setAttribute('aria-expanded',o);return}
@@ -69,7 +69,8 @@ V.account=function(...a){if(A.user&&A.authPage&&(LIVE||P.MOCK))return `<section 
   ${su?`<label class="fl"><span>Your postcode</span><input id="f_pc" autocomplete="postal-code" required maxlength="8" placeholder="e.g. WD18 0AA" value="${esc(S.pc||'')}" style="text-transform:uppercase"><small class="hint2">We show you shops near this postcode. Change it any time in your account settings.</small></label>`:''}
   <button class="btn full">${su?'Create shopping account':'Sign in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
   <div class="or">${su?'Already have an account?':'New to ShopNip?'}</div>
-  <button class="alt" data-acc="${su?'login':'new'}">${su?'Sign in instead':'Create a shopping account'}</button></div></section>`};
+  <button class="alt" data-acc="${su?'login':'new'}">${su?'Sign in instead':'Create a shopping account'}</button></div>
+  ${window.Ninja?`<div style="margin:16px 0 0">${Ninja.toggleRow()}</div>`:''}</section>`};
 /* refresh header whenever views re-render (login, logout, signup all route) */
 const _r=window.route;window.route=route=function(...a){const r=_r.apply(this,a);paint();return r};
 paint();addEventListener('nb:auth',paint);
