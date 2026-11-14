@@ -43,7 +43,7 @@ const DB=MOCK?{
   async updListing(id,ch){const {error}=await sb.from('shop_listings').update({...ch,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error},
   async delListing(id){const {error}=await sb.from('shop_listings').delete().eq('id',id);if(error)throw error},
   async bulk(ids,ch){for(let i=0;i<ids.length;i++)await this.updListing(ids[i],ch[i])},
-  async shop(id){const sel='id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,delivery_options,active,status,created_at';
+  async shop(id){const sel='id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,brand_color,delivery_options,active,status,created_at';
     let {data}=await sb.from('shops').select(sel).eq('id',id).maybeSingle();if(data)return data;
     const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     if(id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){
@@ -83,7 +83,8 @@ V.account=function(){
      ${field('f_email','Email','type="email" autocomplete="email" required')}
      ${field('f_pw','Password','type="password" minlength="8" autocomplete="'+(su?'new':'current')+'-password" required')}
      <button class="btn full">${su?'Create account':'Log in'}</button>${su?'<p class="agree">By creating an account you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>':''}</form>
-    <p class="xlink">Are you a shop? <a href="${window.SELLER_URL?SELLER_URL(su?'signup':'login'):'seller.html#'+(su?'signup':'login')}">Seller ${su?'sign up':'login'}</a></p></section>`}
+    <p class="xlink">Are you a shop? <a href="${window.SELLER_URL?SELLER_URL(su?'signup':'login'):'seller.html#'+(su?'signup':'login')}">Seller ${su?'sign up':'login'}</a></p>
+    ${window.Ninja?`<div class="atg" style="margin-top:18px">${Ninja.toggleRow()}</div>`:''}</section>`}
   const owner=A.profile?.role==='owner'||!!A.shop,nm=A.profile?.full_name||'',ck=window.CK?CK.get():{};
   const OR=window.P3?.orders?.()||{list:[],loaded:true};if(!OR.loaded&&OR.load)setTimeout(OR.load);
   const ol=OR.list||[],last=ol[0],SL={placed:'Placed',accepted:'Accepted',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:'Completed',rejected:'Declined',cancelled:'Cancelled'};
@@ -107,6 +108,7 @@ V.account=function(){
     <button class="at" data-act="details">${svg('account')}<span><b>Saved details</b><small>${esc(det)}</small></span></button>
     <button class="at" data-act="loc">${svg('pin')}<span><b>Delivery postcode</b><small>${S.pc?esc(S.pc)+' · saved to your account · Change':'Add your postcode to see shops near you'}</small></span></button>
     <a class="at" href="#contact" data-t="contact">${svg('account')}<span><b>Help &amp; contact</b><small>FAQs, or email the ShopNip team</small></span></a>
+    ${window.Ninja?Ninja.toggleRow():''}
    </div>
    ${A.editDet?`<form class="panel form cdf" data-form="contact"><h3 class="ft">Saved details</h3>
     ${field('cd_name','Name','autocomplete="name"',ck.name||nm)}${field('cd_phone','Phone','type="tel" autocomplete="tel"',ck.phone)}${field('cd_addr','Delivery address','autocomplete="street-address"',ck.addr)}

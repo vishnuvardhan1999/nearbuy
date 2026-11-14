@@ -102,6 +102,7 @@ function hopTarget(){const cands=[...document.querySelectorAll('.hbtn[data-t="ba
   const vis=cands.filter(el=>{const r=el.getBoundingClientRect();return r.width>8&&r.height>8&&r.bottom>8&&r.top<innerHeight-8});
   return vis.find(el=>el.closest('header,.top,.top-in'))||vis.find(el=>el.closest('#tabs,nav.tabs'))||vis[0]||cands[0]||null}
 function hopBag(fromEl){
+  if(window.Ninja&&Ninja.play(fromEl))return;
   if(!fromEl||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const dest=hopTarget();
   if(!dest)return;
