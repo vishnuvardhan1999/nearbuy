@@ -4,6 +4,22 @@ const mailEv=(id,ev)=>{try{if(typeof sb!=='undefined'&&sb&&id&&sb.functions)sb.f
 const {A,DB,M,MOCK,Q,toast}=P2;
 const STEPS={collect:['placed','accepted','ready','completed'],delivery:['placed','accepted','picking','out_for_delivery','completed']};
 const LBL={placed:'Placed',accepted:'Accepted',picking:'Picking',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:'Completed',cancelled:'Cancelled',rejected:'Rejected'};
+const acceptMs=()=>(window.REL&&REL.T&&REL.T.accept)||15*60000;
+function deadlineOf(o){return (window.REL&&REL.acceptDeadline)?REL.acceptDeadline(o):(Date.parse(o.created_at||o.placed_at||0)||Date.now())+acceptMs()}
+function fmtLeft(ms){return (window.REL&&REL.mmss)?REL.mmss(ms):(function(s){s=Math.max(0,Math.ceil(s/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')})(+ms||0)}
+function payMsg(o){return (window.REL&&REL.payMsg)?REL.payMsg(o):'You pay nothing. Nothing was charged.'}
+function livePlaced(r){const live=(O.cur&&r&&O.cur.id===r.id)?O.cur:(O.lastPlaced&&r&&O.lastPlaced.id===r.id)?O.lastPlaced:r;return Object.assign({status:'placed',created_at:(r&&r.created_at)||new Date().toISOString(),shops:{name:O.lastShop}},r||{},live||{})}
+function acceptBox(o,shop){if(!o||o.status!=='placed')return '';const dl=deadlineOf(o),name=shop||o.shops&&o.shops.name||'the shop';
+  return `<div class="accept-box" data-accept-clock="cust" data-deadline="${dl}" data-created="${esc(o.created_at||'')}" data-shop="${esc(name)}"><b data-ac-title>Waiting for ${esc(name)} to accept</b><p data-ac-line>The shop has ${fmtLeft(Math.max(0,dl-Date.now()))} left to accept</p></div>`}
+function declineBox(o){const shop=(o.shops&&o.shops.name)||O.lastShop||'The shop';const ev=(o.order_events||[]).filter(e=>e.status==='rejected').slice(-1)[0];
+  const at=ev&&ev.at||o.updated_at||o.created_at,why=o.reject_reason||(ev&&ev.note)||'',timeout=/not accepted within/i.test(why);
+  const title=timeout?`${shop} didn’t accept this order in time`:`${shop} couldn’t take this order`;
+  return `<div class="accept-box bad decline-box"><b>${esc(title)}</b>${at?`<p>Declined by ${esc(shop)} at ${hmOf(at)}</p>`:''}${why?`<p>Reason: ${esc(why)}</p>`:''}<p>${esc(payMsg(o))}</p><button class="btn full" data-t="home">Browse nearby shops</button></div>`}
+function statusFollowup(o,shop){if(!o)return '';if(o.status==='placed')return acceptBox(o,shop);if(o.status==='rejected')return declineBox(o);
+  if(o.status==='cancelled')return `<div class="accept-box bad decline-box"><b>Order cancelled</b><p>${esc(payMsg(o))}</p><button class="btn full" data-t="home">Browse nearby shops</button></div>`;
+  const lbl={accepted:'Accepted',picking:'The shop is picking your items',ready:'Ready to collect',out_for_delivery:'Out for delivery',completed:o.fulfilment==='delivery'?'Delivered':'Collected'}[o.status];
+  if(!lbl)return '';
+  return `<div class="accept-box good"><b>${esc(lbl)}</b><p>${esc(shop||(o.shops&&o.shops.name)||'The shop')} has updated your order.</p>${o.id&&window.cur&&cur[0]==='placed'?`<button class="btn full" data-o="open" data-id="${esc(o.id)}">Track order</button>`:''}</div>`}
 const O={mine:[],inbox:[],cur:null,shops:{},fil:'open',newIds:new Set(),ch:null};
 const B=()=>S.basket; const bShop=()=>B()[0]?.shop_id||null;
 const sub=()=>B().reduce((a,b)=>a+b.price*b.qty,0);
@@ -159,23 +175,25 @@ const fld=(id,l,a,v)=>`<label class="fl"><span>${l}</span><input id="${id}" ${a}
 const ccode=(o,big)=>o&&o.fulfilment!=='delivery'&&o.collection_pin?`<div class="ccode${big?' big':''}"><small>Show or say this at the shop</small><b>${esc(o.order_number)} · PIN ${esc(o.collection_pin)}</b><span>Bring this when you collect</span></div>`:'';
 if(!document.getElementById('ccss')){const st=document.createElement('style');st.id='ccss';st.textContent=`.ccode{margin:12px 0;padding:12px 14px;border:2px dashed #1f6f66;border-radius:14px;background:#effaf7;text-align:center}.ccode small{display:block;color:#475569;font-size:12px}.ccode b{display:block;font-size:20px;letter-spacing:.04em;color:#0f3d3a;margin:2px 0}.ccode span{font-size:12px;color:#64748b}.ccode.big b{font-size:28px}.ocard .ccode{margin:8px 0 0;padding:8px}.ocard .ccode b{font-size:16px}`;document.head.appendChild(st)}
 window.P3CODE=ccode;
-V.placed=function(r){const rate=window.Social?Social.rateHTML(O.lastShopId,O.lastShop||'this shop',r.id,'placed'):'';
-  return `<section class="sec narrow"><div class="done-c"><div class="tick">${svg('check')}</div><h2>Order placed!</h2><p>Your order number is</p><div class="ono">${esc(r.order_number)}</div>${ccode({...r,fulfilment:O.lastF},true)}
-  <p class="hint">${esc(O.lastShop||'The shop')} has been notified and will confirm shortly. Total ${gbp(r.total)}${+r.wallet_applied?`, ${gbp(r.wallet_applied)} paid from your ShopNip wallet, ${gbp(r.amount_due)} left`:''} to pay ${O.lastF==='delivery'?'on delivery':'on collection'}.</p>
-  ${r.delivery_window?`<p><b>Delivery window: ${esc(r.delivery_window)}</b></p>`:''}${r.promised_at?`<p><b>Promised by ${hmOf(r.promised_at)}</b>${r.distance_miles!=null?' · '+Number(r.distance_miles).toFixed(1)+' miles from the shop':''}</p>`:''}${rate}
-  <button class="btn full big" data-o="open" data-id="${esc(r.id)}">Track order</button><button class="btn ghost full" data-t="home" style="margin-top:8px">Keep shopping</button></div></section>`};
+V.placed=function(r){const o=livePlaced(r),shop=O.lastShop||(o.shops&&o.shops.name)||'The shop',waiting=o.status==='placed',ended=['rejected','cancelled'].includes(o.status);
+  const rate=!ended&&window.Social?Social.rateHTML(O.lastShopId,shop||'this shop',o.id,'placed'):'';
+  return `<section class="sec narrow"><div class="done-c">${ended?'':`<div class="tick">${svg('check')}</div>`}<h2>${ended?'Order update':waiting?'Order placed!':o.status==='accepted'?'Accepted':'Order update'}</h2><p>Your order number is</p><div class="ono">${esc(o.order_number||r.order_number)}</div>${waiting||!ended?ccode({...o,fulfilment:O.lastF},true):''}
+  <p class="hint">Total ${gbp(o.total)}${+o.wallet_applied?`, ${gbp(o.wallet_applied)} paid from your ShopNip wallet, ${gbp(o.amount_due!=null?o.amount_due:o.total-o.wallet_applied)} left`:''} to pay ${O.lastF==='delivery'?'on delivery':'on collection'}.</p>
+  ${o.delivery_window?`<p><b>Delivery window: ${esc(o.delivery_window)}</b></p>`:''}${o.promised_at&&!ended?`<p><b>Promised by ${hmOf(o.promised_at)}</b>${o.distance_miles!=null?' · '+Number(o.distance_miles).toFixed(1)+' miles from the shop':''}</p>`:''}${statusFollowup(o,shop)}${rate}
+  ${ended?'':`<button class="btn full big" data-o="open" data-id="${esc(o.id)}">Track order</button><button class="btn ghost full" data-t="home" style="margin-top:8px">Keep shopping</button>`}</div></section>`};
 const chip=s=>`<span class="ost ${s}">${LBL[s]||s}</span>`;
 V.orders=function(){
   if(!A.user)return `<div class="empty">${svg('orders')}<br><b>Your orders</b><br><small>Log in to see and track your orders</small><br><br><button class="btn" data-o="login">Log in</button></div>`;
   if(!O.loaded){loadMine();return '<div class="empty">Loading orders…</div>'}
   if(!O.mine.length)return `<div class="empty">${svg('orders')}<br><b>No orders yet</b><br><br><button class="btn" data-t="home">Start shopping</button></div>`;
   return `<section class="sec narrow"><div class="sh"><h2>Your orders</h2></div><div class="lst">${O.mine.map(o=>`<button class="ocard" data-o="open" data-id="${esc(o.id)}">
-   <div class="oc-h"><b>${esc(o.shops?.name||'Shop')}</b>${chip(o.status)}</div><div class="oc-m">${esc(o.order_number)} · ${when(o.created_at)} · ${o.order_items?.reduce((a,i)=>a+i.qty,0)||0} items · <b>${gbp(o.total)}</b></div>${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o)}</button>`).join('')}</div></section>`};
+   <div class="oc-h"><b>${esc(o.shops?.name||'Shop')}</b>${chip(o.status)}</div><div class="oc-m">${esc(o.order_number)} · ${when(o.created_at)} · ${o.order_items?.reduce((a,i)=>a+i.qty,0)||0} items · <b>${gbp(o.total)}</b></div>${o.status==='rejected'&&o.reject_reason?`<div class="oc-n">Reason: ${esc(o.reject_reason)}</div>`:''}${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o)}</button>`).join('')}</div></section>`};
 function timeline(o){const steps=STEPS[o.fulfilment]||STEPS.collect,ev={};(o.order_events||[]).forEach(e=>ev[e.status]=e);
-  const end=['cancelled','rejected'].includes(o.status);const idx=steps.indexOf(o.status);
+  const end=['cancelled','rejected'].includes(o.status);const idx=steps.indexOf(o.status);const shop=o.shops?.name||'the shop';
   let list=steps.map((s,i)=>({s,done:end?!!ev[s]:i<=idx,cur:!end&&i===idx,at:ev[s]?.at}));
-  if(end){list=list.filter(x=>x.done);list.push({s:o.status,done:true,cur:true,bad:true,at:ev[o.status]?.at,note:ev[o.status]?.note||o.reject_reason})}
-  return `<ol class="tl">${list.map(x=>`<li class="${x.done?'d':''} ${x.cur?'c':''} ${x.bad?'bad':''}"><i></i><div><b>${LBL[x.s]}</b>${x.at?`<small>${when(x.at)}</small>`:''}${x.note?`<small>“${esc(x.note)}”</small>`:''}</div></li>`).join('')}</ol>`}
+  if(end){list=list.filter(x=>x.done);list.push({s:o.status,done:true,cur:true,bad:true,at:ev[o.status]?.at,note:ev[o.status]?.note||o.reject_reason||o.cancel_note})}
+  return `<ol class="tl">${list.map(x=>{const lab=x.s==='rejected'?`Declined by ${shop}${x.at?' at '+hmOf(x.at):''}`:LBL[x.s];
+    return `<li class="${x.done?'d':''} ${x.cur?'c':''} ${x.bad?'bad':''}"><i></i><div><b>${esc(lab)}</b>${x.s!=='rejected'&&x.at?`<small>${when(x.at)}</small>`:''}${x.s==='rejected'&&x.note?`<small>Reason: ${esc(x.note)}</small>`:x.note?`<small>“${esc(x.note)}”</small>`:''}</div></li>`}).join('')}</ol>`}
 function odetail(o,owner){const it=o.order_items||[];
   const prom=o.promised_at&&o.fulfilment==='delivery'&&!['rejected','cancelled'].includes(o.status);const late=prom&&o.status!=='completed'&&Date.now()>Date.parse(o.promised_at)+15*60000;
   const proofBit=(o.proof_name||o.proof_photo)?('<p class="hint">'+(o.proof_name?'Handed to '+esc(o.proof_name):'Left at the door')+'</p>'+(o.proof_photo?'<img src="'+esc(o.proof_photo)+'" alt="Doorstep photo" style="max-width:100%;border-radius:12px">':'')):'';
@@ -190,8 +208,9 @@ function odetail(o,owner){const it=o.order_items||[];
    <div class="line"><span>Subtotal</span><span>${gbp(o.subtotal??o.total)}</span></div>${+o.delivery_fee?`<div class="line"><span>Delivery</span><span>${gbp(o.delivery_fee)}</span></div>`:''}
    <div class="line tot"><b>Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</b><b>${gbp(o.total)}</b></div>${+o.wallet_applied?`<div class="line wline"><span>Paid from ShopNip wallet${o.wallet_reversed?' (returned)':''}</span><span>−${gbp(o.wallet_applied)}</span></div><div class="line"><span>Left to pay</span><b>${gbp(o.total-o.wallet_applied)}</b></div>`:''}${+o.refunded_to_wallet?`<div class="line wline"><span>Refunded to ShopNip wallet</span><span>${gbp(o.refunded_to_wallet)}</span></div>`:''}</div>`}
 V.order=function(id){const o=O.cur;if(!o||o.id!==id){D.get(id).then(x=>{O.cur=x;render()}).catch(e=>toast(e.message));return '<div class="empty">Loading…</div>'}
+  const ended=['cancelled','rejected'].includes(o.status);
   return `<section class="sec narrow"><div class="sh"><h2>${esc(o.order_number)}</h2><a href="#" data-t="orders">All orders</a></div><div class="oc-m" style="margin-top:-8px">${esc(o.shops?.name||'')} · ${when(o.created_at)}</div>
-  ${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o,true)}${odetail(o,false)}${o.status==='completed'&&window.Social?Social.rateHTML(o.shop_id,o.shops?.name||'this shop',o.id,'done'):''}${o.status==='placed'?`<button class="btn ghost full" data-o="cancel" data-id="${esc(o.id)}">Cancel order</button>`:''}</section>`};
+  ${statusFollowup(o,o.shops?.name)}${['completed','cancelled','rejected'].includes(o.status)?'':ccode(o,true)}${odetail(o,false)}${o.status==='completed'&&window.Social?Social.rateHTML(o.shop_id,o.shops?.name||'this shop',o.id,'done'):''}${o.status==='placed'?`<button class="btn ghost full" data-o="cancel" data-id="${esc(o.id)}">Cancel order</button>`:''}</section>`};
 // owner inbox
 const NEXT={placed:[['accepted','Accept'],['rejected','Reject']],accepted:{collect:[['ready','Mark ready to collect']],delivery:[['picking','Start picking']]},picking:[['out_for_delivery','Out for delivery']],ready:[['completed','Collected · complete']],out_for_delivery:[['completed','Delivered · complete']]};
 const nexts=o=>{const n=NEXT[o.status];return !n?[]:Array.isArray(n)?n:n[o.fulfilment]};
@@ -219,7 +238,16 @@ function alertNew(o){ding();let b=$('#nbanner');if(!b){b=document.createElement(
   b.innerHTML=`${svg('orders')}<span><b>New order ${esc(o.order_number||'')}</b><small>${esc(o.customer_name||'')} · ${gbp(o.total||0)} · tap to view</small></span>`;b.dataset.o='inbox';b.className='on';clearTimeout(b._t);b._t=setTimeout(()=>b.className='',8000);
   if('Notification' in window&&Notification.permission==='granted'&&document.hidden)try{new Notification('New ShopNip order '+(o.order_number||''),{body:`${o.customer_name||''} · ${gbp(o.total||0)}`,icon:'icon-192.png'})}catch{}}
 async function onOwnerChange(p){const isNew=p.eventType==='INSERT';await loadInbox();if(isNew){O.newIds.add(p.new.id);alertNew(O.inbox.find(o=>o.id===p.new.id)||p.new);setTimeout(()=>{O.newIds.delete(p.new.id)},6000)}}
-function startLive(){if(MOCK||!sb)return;if(A.shop)D.live('shop_id=eq.'+A.shop.id,onOwnerChange);else if(A.user)D.live('customer_id=eq.'+A.user.id,async()=>{await loadMine();if(O.cur){O.cur=await D.get(O.cur.id);if(cur[0]==='order')render()}})}
+function watching(){return ['placed','order','orderdetail','orders'].includes(cur[0])}
+async function refreshCustomer(force){try{if(!MOCK&&window.REL&&REL.expireDue)await REL.expireDue()}catch(_){}
+  if(A.user)try{await loadMine()}catch(_){}
+  const id=(O.cur&&O.cur.id)||(O.lastPlaced&&O.lastPlaced.id);
+  if(id){try{const x=await D.get(id);O.cur=x;if(O.lastPlaced&&O.lastPlaced.id===id)O.lastPlaced=Object.assign({},O.lastPlaced,x)}catch(_){}}
+  if(force||watching())render()}
+function startCustPoll(){if(window._nbCustPoll)clearInterval(window._nbCustPoll);
+  window._nbCustPoll=setInterval(()=>{if(document.hidden||!watching())return;refreshCustomer(true)},15000)}
+function startLive(){if(A.user&&window.REL&&REL.startClocks)REL.startClocks(()=>refreshCustomer(true));
+  startCustPoll();if(MOCK||!sb)return;if(A.shop)D.live('shop_id=eq.'+A.shop.id,onOwnerChange);else if(A.user)D.live('customer_id=eq.'+A.user.id,()=>refreshCustomer(true))}
 
 // ---------- actions ----------
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]');if(!el)return;e.preventDefault();const a=el.dataset.o,i=+el.dataset.i;
@@ -237,7 +265,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
   if(a==='inbox'){$('#nbanner')?.classList.remove('on');O.iloaded=false;route('inbox');return}
   if(a==='fil'){O.fil=el.dataset.v;return render()}
   if(a==='wrefund'){const o=O.inbox.find(x=>x.id===el.dataset.id);if(o&&window.WAL&&await WAL.refund(o)){O.inbox=await D.inbox();render()}return}
-  if(a==='st'){const st=el.dataset.v;let note=null,pack=null;if(st==='rejected'){note=prompt('Reason for rejecting (shown to the customer)','Sorry, we can’t fulfil this order right now');if(note===null)return}
+  if(a==='st'){const st=el.dataset.v;let note=null,pack=null;if(st==='rejected'){note=window.REL&&REL.askRejectReason?await REL.askRejectReason():prompt('Reason for rejecting (shown to the customer)','Sorry, we can’t fulfil this order right now');if(note===null)return}
     if(st==='cancelled'){pack=window.CancelBox?await CancelBox.ask('seller'):null;if(!pack)return;pack.role='seller';note=pack.note}
     el.disabled=true;try{await D.status(el.dataset.id,st,note,pack);O.inbox=await D.inbox();badge();toast(LBL[st]);render()}catch(err){toast(err.message);el.disabled=false}return}
   if(a==='notif'){const r=await Notification.requestPermission();toast(r==='granted'?'Alerts on while ShopNip is open':'Alerts blocked in browser settings');return render()}
@@ -272,7 +300,7 @@ async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_op
     const go=()=>{try{window.P33&&P33.notifyShop(shop,payload)}catch(_){}};
     if(window.P33)go();else{const s=document.createElement('script');s.src='p33.js?v=rel1';s.onload=go;document.head.appendChild(s)}}
   catch(_){ }
-  r.delivery_window=a.delivery_window;O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;S.basket=[];saveB();O.loaded=false;return r}
+  r.delivery_window=a.delivery_window;r.status=r.status||'placed';r.created_at=r.created_at||new Date().toISOString();O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;O.lastPlaced=Object.assign({shops:{name:O.lastShop}},r);O.cur=O.lastPlaced;S.basket=[];saveB();O.loaded=false;startLive();return r}
 
 window.P3={cur:()=>O.cur,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q)=>addToBasket(p,q),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
@@ -298,5 +326,5 @@ window.P3={cur:()=>O.cur,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,o
   if(v==='sheet'){window.P2_START='home';}if(v==='sheet')setTimeout(()=>sheet(S.products.find(p=>p.listing_id)),300);
 }};
 V.orderdetail=()=>V.order(O.cur.id);
-V.placedmock=()=>{O.lastShop=M.shops[0].name;O.lastShopId=M.shops[0].id;O.lastF='collect';return V.placed({id:'o3',order_number:'NB-2003',total:M.orders.find(o=>o.id==='o3').total})};
+V.placedmock=()=>{const o=M.orders.find(x=>x.id==='o3')||M.orders[0];O.lastShop=M.shops[0].name;O.lastShopId=M.shops[0].id;O.lastF=(o&&o.fulfilment)||'collect';O.lastPlaced=o;O.cur=o;return V.placed(o||{id:'o3',order_number:'NB-2003',total:0})};
 })();

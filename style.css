@@ -224,6 +224,17 @@ body.nb-inst{padding-bottom:200px}
 .line.tot{border-bottom:0;font-size:15px;padding-top:12px}
 .done-c{text-align:center;padding:24px 0}.tick{width:80px;height:80px;border-radius:50%;background:#e8f7ee;color:#15803d;display:grid;place-items:center;margin:0 auto 16px;animation:pop .4s}
 .tick svg{width:40px;height:40px;stroke-width:3}.done-c h2{margin:0 0 8px;font-size:24px}.done-c p{margin:0;color:var(--mut)}
+.accept-box{text-align:left;margin:16px 0 0;padding:14px 16px;border-radius:14px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
+.accept-box b{display:block;font-size:16px;margin:0 0 4px;color:#9a3412}
+.accept-box p{margin:4px 0 0;color:#9a3412;font-size:14px}
+.accept-box.urgent{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.accept-box.urgent b,.accept-box.urgent p{color:#991b1b}
+.accept-box.good{background:#ecfdf3;border-color:#86efac;color:#166534}
+.accept-box.good b,.accept-box.good p{color:#166534}
+.accept-box.bad{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.accept-box.bad b,.accept-box.bad p{color:#991b1b}
+.accept-box .btn{margin-top:12px}
+
 .ono{font-size:32px;font-weight:800;letter-spacing:1px;color:var(--navy);margin:8px 0 16px;background:#effaf8;border-radius:14px;padding:12px}
 @keyframes pop{0%{transform:scale(.5);opacity:0}80%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
 .ocard{display:block;width:100%;text-align:left;background:#fff;border:0;border-radius:14px;box-shadow:var(--sh);padding:14px 16px;color:var(--txt)}
