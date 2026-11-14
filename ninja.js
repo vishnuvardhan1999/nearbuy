@@ -1,5 +1,5 @@
-/* ShopNip · ninja helper. Runs an item to the basket on add; peeks in while idle.
-   Transform/opacity only, pointer-events none. Basket count updates in saveB first. */
+/* ShopNip · ninja helper. Jogs an item to the basket on add (~2s, kid-friendly); peeks in while idle.
+   Mask stays on. Transform/opacity only, pointer-events none. Basket count updates in saveB first. */
 (()=>{
 const KEY='nb_ninja';
 const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -117,7 +117,7 @@ const SVG=`<svg class="nj-svg" viewBox="0 0 80 80" aria-hidden="true">
   </g>
 </svg>`;
 
-let root=null,busy=0,idleT=0;
+let root=null,busy=0,idleT=0,queue=[];
 
 function hopTarget(){const cands=[...document.querySelectorAll('.hbtn[data-t="basket"],#tabs [data-t="basket"],button[data-t="basket"]')];
   const vis=cands.filter(el=>{const r=el.getBoundingClientRect();return r.width>8&&r.height>8&&r.bottom>8&&r.top<innerHeight-8});
@@ -202,8 +202,13 @@ function edge(side,y){
   const m=46;
   return side==='left'?{x:-m,y:y}:{x:innerWidth+m,y:y};
 }
+function restPos(){
+  const y=Math.min(innerHeight-130,Math.max(150,innerHeight*.6));
+  return {x:innerWidth+46,y};
+}
+const JOG='cubic-bezier(.42,.08,.2,1)';
 
-async function runToBasket(from,quick){
+async function runToBasket(from){
   const dest=hopTarget();
   const snap=mark(from);
   if(!dest||!snap._ok)return;
@@ -211,38 +216,23 @@ async function runToBasket(from,quick){
   n.getAnimations().forEach(a=>a.cancel());
   const b=dest.getBoundingClientRect();
   const xC=snap.x,yC=snap.y,xB=b.left+b.width/2,yB=b.top+b.height/2;
-  const fromLeft=xC>innerWidth*.55;
-  const start=edge(fromLeft?'left':'right',yC);
-  const end=edge(xB<innerWidth*.5?'left':'right',yB);
+  const home=restPos();
   lootFrom(snap);
   n.style.opacity='1';
-  if(quick){
-    face(xC,xB);
-    n.className='nj is-run has-loot slung'+(xB<xC?' face-left':'');
-    n.style.transform=`translate(${xC}px,${yC}px)`;
-    await anim(n,[{transform:`translate(${xC}px,${yC}px) scale(1)`},{transform:`translate(${xB}px,${yB-12}px) scale(1.05)`,offset:.7},{transform:`translate(${xB}px,${yB}px) scale(.9)`}],260);
-    spark(1);bump(dest);n.classList.remove('has-loot','slung');
-    face(xB,end.x);
-    await anim(n,[{transform:`translate(${xB}px,${yB}px) scale(.9)`,opacity:1},{transform:`translate(${end.x}px,${end.y}px) scale(.85)`,opacity:0}],160);
-    spark(0);hide();return;
-  }
-  n.className='nj is-sneak';
-  face(start.x,xC);
-  n.style.transform=`translate(${start.x}px,${start.y}px)`;
-  await anim(n,[{transform:`translate(${start.x}px,${start.y}px) scale(.92)`,opacity:0},{transform:`translate(${(start.x+xC)*.5}px,${yC+3}px) scale(1)`,opacity:1,offset:.5},{transform:`translate(${xC-10}px,${yC-2}px) scale(1)`,opacity:1}],260);
-  n.classList.remove('is-sneak');n.classList.add('is-grab');spark(1);
-  await anim(n,[{transform:`translate(${xC-10}px,${yC-2}px)`},{transform:`translate(${xC}px,${yC-18}px) scale(1.06)`,offset:.42},{transform:`translate(${xC}px,${yC}px) scale(1)`}],200,'cubic-bezier(.18,.84,.22,1)');
-  n.classList.remove('is-grab');n.classList.add('has-loot','slung');
-  await anim(n,[{transform:`translate(${xC}px,${yC}px)`},{transform:`translate(${xC}px,${yC-6}px)`},{transform:`translate(${xC}px,${yC-2}px)`}],80);
-  spark(0);n.classList.add('is-run');
+  n.className='nj is-run';
+  face(home.x,xC);
+  n.style.transform=`translate(${home.x}px,${home.y}px)`;
+  await anim(n,[{transform:`translate(${home.x}px,${home.y}px)`,opacity:1},{transform:`translate(${(home.x+xC)/2}px,${(home.y+yC)/2-8}px)`,offset:.5},{transform:`translate(${xC+14}px,${yC}px)`}],620,JOG);
+  n.classList.remove('is-run');n.classList.add('is-grab');
+  await anim(n,[{transform:`translate(${xC+14}px,${yC}px)`},{transform:`translate(${xC}px,${yC+8}px) scale(.98)`,offset:.4},{transform:`translate(${xC}px,${yC}px)`}],280,'cubic-bezier(.33,.12,.2,1)');
+  n.classList.remove('is-grab');n.classList.add('has-loot','is-carry','is-run');
   face(xC,xB);
-  const midX=xC+(xB-xC)*.55,midY=yC+(yB-yC)*.4-22;
-  await anim(n,[{transform:`translate(${xC}px,${yC-2}px) scale(1)`},{transform:`translate(${midX}px,${midY}px) scale(1.07)`,offset:.45},{transform:`translate(${xB}px,${yB-16}px) scale(1)`}],380);
-  n.classList.remove('is-run');n.classList.add('is-toss');spark(1);
-  await anim(n,[{transform:`translate(${xB}px,${yB-16}px) scale(1)`},{transform:`translate(${xB}px,${yB-24}px) scale(1.08)`,offset:.4},{transform:`translate(${xB}px,${yB-4}px) scale(.92)`}],140);
-  bump(dest);n.classList.remove('has-loot','slung','is-toss');spark(0);n.classList.add('is-run');
-  face(xB,end.x);
-  await anim(n,[{transform:`translate(${xB}px,${yB-4}px) scale(.95)`,opacity:1},{transform:`translate(${end.x}px,${yB}px) scale(.85)`,opacity:0}],160);
+  await anim(n,[{transform:`translate(${xC}px,${yC}px)`},{transform:`translate(${xC+(xB-xC)*.5}px,${yC+(yB-yC)*.5-10}px)`,offset:.5},{transform:`translate(${xB}px,${yB+8}px)`}],520,JOG);
+  n.classList.remove('is-run','is-carry');n.classList.add('is-drop');
+  await anim(n,[{transform:`translate(${xB}px,${yB+8}px)`},{transform:`translate(${xB}px,${yB-6}px)`,offset:.45},{transform:`translate(${xB}px,${yB+4}px)`}],180,'cubic-bezier(.33,.12,.2,1)');
+  bump(dest);n.classList.remove('has-loot','is-drop');n.classList.add('is-run');
+  face(xB,home.x);
+  await anim(n,[{transform:`translate(${xB}px,${yB+4}px)`,opacity:1},{transform:`translate(${(xB+home.x)/2}px,${(yB+4+home.y)/2-8}px)`,offset:.5},{transform:`translate(${home.x}px,${home.y}px)`,opacity:1}],400,JOG);
   hide();
 }
 
@@ -251,17 +241,17 @@ function play(from){
   if(reduced())return false;
   const snap=mark(from);
   if(!snap._ok)return false;
-  if(busy){runToBasket(snap,true);return true}
+  if(busy){queue.push(snap);return true}
   busy=1;clearTimeout(idleT);
-  runToBasket(snap,false).catch(()=>{}).finally(()=>{busy=0;scheduleIdle()});
+  (async function next(s){try{await runToBasket(s)}catch(_){}const n=queue.shift();if(n)return next(n);busy=0;scheduleIdle()})(snap);
   return true;
 }
 
 async function idlePeek(){
   if(document.hidden||busy||!on()){scheduleIdle();return}
   const n=ensure();
-  const y=Math.min(innerHeight-130,Math.max(150,innerHeight*.6));
-  const start=edge('right',y);
+  const start=restPos();
+  const y=start.y;
   n.getAnimations().forEach(a=>a.cancel());
   n.className='nj is-peek is-sneak face-left';
   n.style.opacity='1';
@@ -338,16 +328,23 @@ const st=document.createElement('style');st.id='ninja-css';st.textContent=`
 .nj.is-sneak .nj-arm-l{animation:nj-arm-l .36s ease-in-out infinite}
 .nj.is-sneak .nj-tail{animation:nj-tail .36s ease-in-out infinite}
 .nj.is-sneak .nj-shadow{animation:nj-shadow .36s ease-in-out infinite}
-.nj.is-run .nj-lean{transform:rotate(18deg)}
-.nj.is-run .nj-bob{animation:nj-bounce .26s ease-in-out infinite}
+.nj.is-run .nj-lean{transform:rotate(8deg)}
+.nj.is-run .nj-bob{animation:nj-bounce .44s ease-in-out infinite}
 .nj.face-left.is-run .nj-bob{animation-name:nj-bounce-l}
-.nj.is-run:not(.is-grab) .nj-leg-r{animation:nj-leg-r .26s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-leg-l{animation:nj-leg-l .26s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-arm-r{animation:nj-arm-r .26s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-arm-l{animation:nj-arm-l .26s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-bag{animation:nj-bag .26s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-tail{animation:nj-tail .26s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-shadow{animation:nj-shadow .26s ease-in-out infinite}
+.nj.is-run:not(.is-grab) .nj-leg-r{animation:nj-leg-r .44s ease-in-out infinite}
+.nj.is-run:not(.is-grab) .nj-leg-l{animation:nj-leg-l .44s ease-in-out infinite}
+.nj.is-run:not(.is-grab):not(.is-carry) .nj-arm-r{animation:nj-arm-r .44s ease-in-out infinite}
+.nj.is-run:not(.is-grab):not(.is-carry) .nj-arm-l{animation:nj-arm-l .44s ease-in-out infinite}
+.nj.is-run:not(.is-grab) .nj-bag{animation:nj-bag .44s ease-in-out infinite}
+.nj.is-run:not(.is-grab) .nj-tail{animation:nj-tail .44s ease-in-out infinite}
+.nj.is-run:not(.is-grab) .nj-shadow{animation:nj-shadow .44s ease-in-out infinite}
+.nj.is-carry .nj-lean{transform:rotate(6deg)}
+.nj.is-carry .nj-arm-r{animation:none;transform:rotate(-42deg)}
+.nj.is-carry .nj-arm-l{animation:none;transform:rotate(16deg)}
+.nj.is-carry .nj-loot{left:46px;top:28px;transform:rotate(-8deg) scale(.95)}
+.nj.is-drop .nj-lean{transform:rotate(-4deg) translateY(4px)}
+.nj.is-drop .nj-arm-r{transform:rotate(-70deg)}
+.nj.is-drop .nj-loot{left:36px;top:8px;transform:rotate(0) scale(.8)}
 .nj.slung .nj-bag{transform:translate(-7px,-12px) rotate(-28deg)}
 .nj.slung.is-run:not(.is-grab) .nj-bag{animation-name:nj-bag-slung}
 .nj.is-grab .nj-lean{transform:rotate(0) translateY(5px) scaleY(.9)}
@@ -366,16 +363,16 @@ const st=document.createElement('style');st.id='ninja-css';st.textContent=`
 .nj.is-pose .nj-arm-r{transform:rotate(18deg)}
 .nj.is-pose .nj-arm-l{transform:rotate(-22deg)}
 .nj.is-pose.slung .nj-bag{transform:translate(-7px,-12px) rotate(-26deg)}
-@keyframes nj-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-@keyframes nj-bounce-l{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-6px)}}
+@keyframes nj-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes nj-bounce-l{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-3px)}}
 @keyframes nj-tiptoe{0%,100%{transform:translateY(0)}40%{transform:translateY(-3px)}70%{transform:translateY(-1px)}}
 @keyframes nj-tiptoe-l{0%,100%{transform:scaleX(-1) translateY(0)}40%{transform:scaleX(-1) translateY(-3px)}70%{transform:scaleX(-1) translateY(-1px)}}
-@keyframes nj-leg-r{0%,100%{transform:rotate(36deg)}50%{transform:rotate(-32deg)}}
-@keyframes nj-leg-l{0%,100%{transform:rotate(-32deg)}50%{transform:rotate(36deg)}}
+@keyframes nj-leg-r{0%,100%{transform:rotate(18deg)}50%{transform:rotate(-14deg)}}
+@keyframes nj-leg-l{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(18deg)}}
 @keyframes nj-sneak-r{0%,100%{transform:rotate(16deg)}50%{transform:rotate(-12deg)}}
 @keyframes nj-sneak-l{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(16deg)}}
-@keyframes nj-arm-r{0%,100%{transform:rotate(-40deg)}50%{transform:rotate(30deg)}}
-@keyframes nj-arm-l{0%,100%{transform:rotate(30deg)}50%{transform:rotate(-40deg)}}
+@keyframes nj-arm-r{0%,100%{transform:rotate(-22deg)}50%{transform:rotate(16deg)}}
+@keyframes nj-arm-l{0%,100%{transform:rotate(16deg)}50%{transform:rotate(-22deg)}}
 @keyframes nj-bag{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(14deg)}}
 @keyframes nj-bag-slung{0%,100%{transform:translate(-7px,-12px) rotate(-22deg)}50%{transform:translate(-9px,-16px) rotate(-40deg)}}
 @keyframes nj-shadow{0%,100%{transform:scale(1,.9);opacity:1}50%{transform:scale(.62,.7);opacity:.5}}
