@@ -102,12 +102,15 @@ function hopTarget(){const cands=[...document.querySelectorAll('.hbtn[data-t="ba
   const vis=cands.filter(el=>{const r=el.getBoundingClientRect();return r.width>8&&r.height>8&&r.bottom>8&&r.top<innerHeight-8});
   return vis.find(el=>el.closest('header,.top,.top-in'))||vis.find(el=>el.closest('#tabs,nav.tabs'))||vis[0]||cands[0]||null}
 function hopBag(fromEl){
-  if(window.Ninja&&Ninja.play(fromEl))return;
-  if(!fromEl||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const origin=window.Ninja&&Ninja.mark?Ninja.mark(fromEl):fromEl;
+  if(window.Ninja&&Ninja.play(origin))return;
+  if(!origin||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const dest=hopTarget();
   if(!dest)return;
-  const a=fromEl.getBoundingClientRect(),b=dest.getBoundingClientRect();
-  const x0=a.left+a.width/2,y0=a.top+a.height/2,x1=b.left+b.width/2,y1=b.top+b.height/2;
+  const b=dest.getBoundingClientRect();
+  const x0=(origin&&typeof origin.x==='number'&&!isNaN(origin.x))?origin.x:(fromEl&&fromEl.getBoundingClientRect?fromEl.getBoundingClientRect().left+fromEl.getBoundingClientRect().width/2:0);
+  const y0=(origin&&typeof origin.y==='number'&&!isNaN(origin.y))?origin.y:(fromEl&&fromEl.getBoundingClientRect?fromEl.getBoundingClientRect().top+fromEl.getBoundingClientRect().height/2:0);
+  const x1=b.left+b.width/2,y1=b.top+b.height/2;
   const midX=x0+(x1-x0)*.5,midY=y0+(y1-y0)*.4-48;
   const el=document.createElement('div');el.className='bag-hop';el.setAttribute('aria-hidden','true');el.innerHTML=svg('bag');document.body.appendChild(el);
   const hop=el.animate([{transform:`translate(${x0}px,${y0}px) scale(1)`,opacity:1},{transform:`translate(${midX}px,${midY}px) scale(1.2)`,opacity:1,offset:.4},{transform:`translate(${x1}px,${y1}px) scale(.75)`,offset:.78},{transform:`translate(${x1}px,${y1-8}px) scale(.82)`,offset:.9},{transform:`translate(${x1}px,${y1}px) scale(.55)`,opacity:.85}],{duration:500,easing:'cubic-bezier(.2,.65,.25,1)',fill:'forwards'});
@@ -119,12 +122,13 @@ function addToBasket(p,qty=1,fromEl){
     if(!confirm(`Your basket has items from ${cur}. A basket can only hold one shop's items.\n\nClear it and add from ${shopName}?`))return false;S.basket=[]}
   const b=B().find(x=>String(x.listing_id)===String(p.listing_id));const have=b?b.qty:0,fresh=!b;
   if(p.stock!=null&&have+qty>p.stock){toast(p.stock?`Only ${p.stock} in stock`:'Out of stock');return false}
+  const origin=window.Ninja&&Ninja.mark?Ninja.mark(fromEl,p):fromEl;
   b?b.qty+=qty:S.basket.push({listing_id:p.listing_id,sku:p.sku,name:p.name,image:p.images?.[0]||p.image,price:+p.price,qty,shop_id:p.shop_id,shop_name:shopName,stock:p.stock});
-  saveB();hopBag(fromEl);if(fresh)toast('Added to basket');return true}
+  saveB();hopBag(origin);if(fresh)toast('Added to basket');return true}
 function changeQty(lid,sku,delta,fromEl){
   const b=B().find(x=>lid?String(x.listing_id)===String(lid):x.sku===sku);
   if(!b){if(delta>0){const p=findP(lid,sku);return !!(p&&addToBasket(p,delta,fromEl))}return false}
-  if(delta>0){if(b.stock!=null&&b.qty+delta>b.stock){toast(`Only ${b.stock} in stock`);return false}b.qty+=delta;saveB();hopBag(fromEl);return true}
+  if(delta>0){if(b.stock!=null&&b.qty+delta>b.stock){toast(`Only ${b.stock} in stock`);return false}const origin=window.Ninja&&Ninja.mark?Ninja.mark(fromEl,{listing_id:lid,sku}):fromEl;b.qty+=delta;saveB();hopBag(origin);return true}
   b.qty+=delta;if(b.qty<1)S.basket=S.basket.filter(x=>x!==b);saveB();return true}
 function bimg(b){let src=b.image;if(!src){const p=S.products.find(x=>(b.listing_id&&x.listing_id===b.listing_id)||(b.sku&&x.sku===b.sku));src=p&&((p.images&&p.images[0])||p.image);if(!src&&S.L){const l=S.L.find(x=>String(x.id)===String(b.listing_id)||x.sku===b.sku);src=l&&l.image}if(src)b.image=src}return src||'icon-192.png'}
 function welcomeOn(){return false;/* first-order delivery waiver not approved yet */if(!A.user||!O.loaded||O.orderErr)return false;return !(O.mine||[]).some(o=>o&&!['cancelled','rejected'].includes(o.status))}
