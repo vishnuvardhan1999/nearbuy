@@ -1,10 +1,13 @@
 [
  {
-  "relation": ["delegate_permission/common.handle_all_urls"],
+  "relation": [
+   "delegate_permission/common.handle_all_urls"
+  ],
   "target": {
    "namespace": "android_app",
    "package_name": "uk.co.shopnip.app",
    "sha256_cert_fingerprints": [
+    "D4:8D:7E:59:FD:0D:B4:DC:A0:86:A4:F0:B7:23:06:0F:AE:42:6B:35:39:DC:38:D2:A8:33:F2:7C:F1:AA:18:7B",
     "8D:53:E2:0C:F8:89:A1:4B:19:55:CF:B6:5F:5B:5A:B7:DF:1A:D3:DA:53:06:37:3C:27:65:EE:5D:D5:46:76:42"
    ]
   }
