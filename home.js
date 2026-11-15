@@ -239,7 +239,8 @@ const css=`.nx-empty{padding:28px 16px 8px}.nx-h{font-size:18px;margin:24px 0 12
   .nb-hero:before{left:auto;right:0;top:0;width:84px;height:58px;background:#2dd4bf;clip-path:polygon(32% 0,100% 0,100% 100%);opacity:1}
   .nb-hero:after{display:block;filter:none;border-radius:0;left:auto;right:0;top:14%;bottom:auto;width:24%;height:44%;background:linear-gradient(200deg,#5eead4 0%,#2dd4bf 50%,#14b8a6 100%);clip-path:polygon(40% 0,100% 0,100% 100%,0 58%);opacity:1}
   .nb-hero-art{display:none}
-  .nb-hero-mid{width:100%;text-align:left}
+  .nb-hero-mid{width:100%;min-width:0;max-width:100%;text-align:left}
+  .nb-hero-row input{width:0}
   .nb-hero h2{font-size:clamp(30px,8.2vw,38px);line-height:1.14;letter-spacing:-.035em;margin:0 0 22px;max-width:18ch;text-align:left}
   .nb-hero-card{padding:18px 16px 16px;border-radius:16px;box-shadow:0 8px 28px rgba(16,32,56,.1)}
   .nb-hero-card label{font-size:14px;font-weight:700;margin:0 0 12px}
