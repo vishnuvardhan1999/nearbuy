@@ -70,7 +70,7 @@ const D=MOCK?{
       const tr=trip(dist,s.delivery_options.prep_minutes);prep=tr.prep;travel=tr.travel;prom=new Date(tr.at).toISOString();driver=s.delivery_options.delivery_by==='shopnip'?'shopnip':'shop';
       if(driver==='shopnip'&&a.window_end)prom=a.window_end}
     const o={id:'o'+(M.orders.length+1),order_number:'NB-'+(2001+M.orders.length),collection_pin:a.fulfilment==='collect'?String(crypto.getRandomValues(new Uint16Array(1))[0]%10000).padStart(4,'0'):null,shop_id:a.shop,customer_id:'u1',customer_name:a.name,customer_phone:a.phone,fulfilment:a.fulfilment,delivery_address:a.address,delivery_postcode:a.postcode,delivery_lat:a.lat??null,delivery_lng:a.lng??null,shop_lat:s.lat??null,shop_lng:s.lng??null,distance_miles:dist,prep_minutes:prep,travel_minutes:travel,promised_at:prom,driver,delivery_window:a.delivery_window||null,note:(a.note||'').replace(/\s*\[\[window:[^\]]+\]\]/g,''),
-      payment_method:a.fulfilment==='delivery'?'pay_on_delivery':'pay_on_collection',status:'placed',subtotal:st,delivery_fee:fee,total:st+fee,created_at:new Date().toISOString(),
+      payment_method:a.pay==='card'?'card':'pay_at_shop',payment_status:'unpaid',amount_paid:0,amount_refunded:0,status:'placed',subtotal:st,delivery_fee:fee,total:st+fee,created_at:new Date().toISOString(),
       order_items:lines.map(x=>({listing_id:x.l.id,sku:x.l.sku,name:x.l.name,image:x.l.image,unit_price:x.l.retail_price,qty:x.q})),order_events:[{status:'placed',at:new Date().toISOString()}],shops:{name:s.name,phone:s.phone,address:s.address}};
     M.orders.unshift(o);const wu=window.WAL?WAL.spend(o,a.useWallet):0;return {id:o.id,order_number:o.order_number,total:o.total,collection_pin:o.collection_pin,wallet_applied:wu,amount_due:o.total-wu,delivery_window:o.delivery_window,distance_miles:dist,prep_minutes:prep,travel_minutes:travel,promised_at:prom,driver}},
   async mine(){return M.orders.filter(o=>o.customer_id==='u1')},
@@ -180,17 +180,27 @@ V.basket=function(){
   <aside class="bk-sum"><h3>Order summary</h3><p class="bk-sum-shop">${esc(s.shop_name)}</p>
     <div class="line"><span>${n} item${n===1?'':'s'}</span><span>${gbp(tot)}</span></div>
     <div class="line tot"><span>Subtotal</span><b>${gbp(tot)}</b></div>
-    <p class="hint">Delivery, if offered, is added at checkout. You pay the shop on collection or delivery. Prices are confirmed by the shop when you order.</p>
+    <p class="hint">Delivery, if offered, is added at checkout. Pay by card when the shop takes cards, or pay the shop on collection or delivery. Prices are confirmed by the shop when you order.</p>
     <button class="btn full big" data-o="checkout">Go to checkout</button></aside></div>
   <div class="bk-bar" role="region" aria-label="Basket total"><div class="bk-bar-in"><small>${n} item${n===1?'':'s'}</small><b>${gbp(tot)}</b></div><button type="button" class="btn big" data-o="checkout">Go to checkout</button></div>
 </section>`};
-const CO={f:'collect',shop:null,deliv:null,err:'',useW:true,window:''};
+const CO={f:'collect',shop:null,deliv:null,err:'',useW:true,window:'',pay:'',paying:null};
 async function prepCheckout(){if(window.WAL&&A.user)await WAL.load();CO.shop=await D.shop(bShop());if(!CO.shop&&bShop())CO.shop=(S.shops||[]).find(s=>s.id===bShop())||null;const d=CO.shop?.delivery_options||{};CO.deliv=null;CO.phoneErr='';CO.window='';if(!d.delivery)CO.f='collect';
   if(A.user&&!O.loaded){try{O.mine=await D.mine();O.loaded=true;O.orderErr=false}catch(e){O.orderErr=true}}
   CO.here=null;
   if(d.delivery){if(CO.shop.lat==null)CO.deliv={ok:false,why:'This shop has not set its location yet'};else if(!S.me)CO.deliv={ok:false,why:'Set your postcode to check delivery'};else{const mi=miles(S.me,CO.shop);CO.deliv={ok:mi<=(+d.delivery_radius_miles||0),mi,why:`You're ${mi.toFixed(1)} mi away; ${esc(CO.shop.name)} delivers within ${+d.delivery_radius_miles||0} mi`}}}
-  if(d.collect===false)CO.f=CO.deliv?.ok?'delivery':'collect';}
+  if(d.collect===false)CO.f=CO.deliv?.ok?'delivery':'collect';
+  if(!(window.NBPay&&NBPay.shopReady(CO.shop)))CO.pay='shop';else if(!CO.pay)CO.pay='card';}
+function cardsOn(){return !!(window.NBPay&&NBPay.shopReady(CO.shop))}
+function payHold(r){const due=r.amount_due!=null?+r.amount_due:+r.total;
+  return `<section class="sec narrow checkout-pad"><div class="sh"><h2>Pay by card</h2></div><div class="panel"><h3 class="ft">${esc(r.order_number||'Your order')}</h3>
+  <p class="hint">The shop is paid when they accept. If the total goes down, only the lower amount is taken. Apple Pay and Google Pay are offered when this device supports them.</p>
+  <p><b>${gbp(due)}</b></p><div id="pay-element"></div>
+  ${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}
+  <button class="btn full big" type="button" data-o="paygo">Pay ${gbp(due)}</button>
+  <button class="btn ghost full" type="button" data-o="paylater" style="margin-top:8px">I'll finish the card in a moment</button></div></section>`}
 V.checkout=function(){
+  if(CO.paying)return payHold(CO.paying);
   if(!B().length)return V.basket();if(!CO.shop)return '<div class="empty">Loading…</div>';
   if(!A.user)return `<section class="sec narrow"><div class="sh"><h2>Checkout</h2></div><div class="noshops"><div class="ic">${svg('account')}</div><h4>Log in to place your order</h4><p>We need an account so you can track your order and the shop can contact you.</p><button class="btn" data-o="login">Log in or sign up</button></div></section>`;
   const s=CO.shop,d=s.delivery_options||{},shopFee=+(d.delivery_fee||0),welcome=CO.f==='delivery'&&welcomeOn(),fee=CO.f==='delivery'?(welcome?0:shopFee):0,u=window.CK?CK.get():{};
@@ -213,9 +223,9 @@ V.checkout=function(){
    <label class="fl"><span>Note for the shop (optional)</span><textarea id="c_note" rows="2" maxlength="500" placeholder="e.g. I'll collect after 5pm"></textarea></label></div>
   ${windowPicker()}
   ${CO.f==='delivery'&&deliveryBy(s)==='shop'?'<p class="hint">The shop will deliver your order with their own drivers.</p>':''}
-  <div class="panel"><h3 class="ft">Payment</h3><div class="opt on">${svg('tag')}<span><b>${CO.f==='delivery'?'Pay on delivery':'Pay on collection'}</b><small>${due>0?'Pay the shop by card or cash. No payment is taken now.':'Fully paid with your ShopNip wallet.'}</small></span></div>${wbal>0?`<label class="wopt"><input type="checkbox" id="usewallet" ${CO.useW?'checked':''}><span><b>Use wallet balance (${gbp(wbal)})</b><small>${CO.useW?gbp(wuse)+' from your ShopNip wallet'+(due>0?', '+gbp(due)+' left to pay':', nothing left to pay'):'Your ShopNip credit from refunds'}</small></span></label>`:''}</div>
+  <div class="panel"><h3 class="ft">Payment</h3>${cardsOn()?`<label class="opt ${CO.pay==='card'?'on':''}"><input type="radio" name="pay" value="card" ${CO.pay==='card'?'checked':''}>${svg('tag')}<span><b>Pay by card</b><small>Card, Apple Pay or Google Pay. Taken when the shop accepts, and only the final total.</small></span></label><label class="opt ${CO.pay!=='card'?'on':''}"><input type="radio" name="pay" value="shop" ${CO.pay!=='card'?'checked':''}>${svg('bag')}<span><b>Pay at the shop</b><small>${CO.f==='delivery'?'Pay when the order is delivered.':'Pay when you collect.'}</small></span></label>`:`<div class="opt on">${svg('tag')}<span><b>Pay at the shop</b><small>${due>0?(CO.f==='delivery'?'Pay when the order is delivered.':'Pay when you collect.'):'Fully paid with your ShopNip wallet.'}</small></span></div>`}${wbal>0?`<label class="wopt"><input type="checkbox" id="usewallet" ${CO.useW?'checked':''}><span><b>Use wallet balance (${gbp(wbal)})</b><small>${CO.useW?gbp(wuse)+' from your ShopNip wallet'+(due>0?', '+gbp(due)+' left to pay':', nothing left to pay'):'Your ShopNip credit from refunds'}</small></span></label>`:''}</div>
   </div><aside class="checkout-sum"><div class="panel"><h3 class="ft">Summary · ${esc(s.name)}</h3>${B().map(b=>`<div class="line"><span>${b.qty} × ${esc(b.name)}</span><span>${gbp(b.price*b.qty)}</span></div>`).join('')}
-   ${CO.f==='delivery'&&deliveryBy(s)==='shopnip'?`<div class="line"><span>Delivery window</span><b id="cowindow">${esc(CO.window||'Choose a window above')}</b></div>`:''}${eta?`<div class="line"><span>${deliveryBy(s)==='shopnip'&&slot?'Trip':'Promised by'}</span><b>${deliveryBy(s)==='shopnip'&&slot?hmOf(windowEnd(slot)):eta.hm}</b></div><p class="hint">${CO.deliv.mi.toFixed(1)} miles from the shop. ${eta.prep} min to pack and ${eta.travel} min to drive.${deliveryBy(s)==='shopnip'&&slot?' Promised by the end of the window you pick.':''}</p>`:''}<div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${welcome?(shopFee?`<div class="line"><span>Delivery</span><span><s>${gbp(shopFee)}</s></span></div>`:'')+`<div class="line"><span>Free delivery on your first order</span><b>Free</b></div>`:(fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:'')}${wuse>0?`<div class="line"><span>Order total</span><span>${gbp(sub()+fee)}</span></div><div class="line wline"><span>ShopNip wallet</span><span>−${gbp(wuse)}</span></div>`:''}<div class="line tot"><b>Total to pay ${CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(due)}</b></div></div>
+   ${CO.f==='delivery'&&deliveryBy(s)==='shopnip'?`<div class="line"><span>Delivery window</span><b id="cowindow">${esc(CO.window||'Choose a window above')}</b></div>`:''}${eta?`<div class="line"><span>${deliveryBy(s)==='shopnip'&&slot?'Trip':'Promised by'}</span><b>${deliveryBy(s)==='shopnip'&&slot?hmOf(windowEnd(slot)):eta.hm}</b></div><p class="hint">${CO.deliv.mi.toFixed(1)} miles from the shop. ${eta.prep} min to pack and ${eta.travel} min to drive.${deliveryBy(s)==='shopnip'&&slot?' Promised by the end of the window you pick.':''}</p>`:''}<div class="line"><span>Subtotal</span><span>${gbp(sub())}</span></div>${welcome?(shopFee?`<div class="line"><span>Delivery</span><span><s>${gbp(shopFee)}</s></span></div>`:'')+`<div class="line"><span>Free delivery on your first order</span><b>Free</b></div>`:(fee?`<div class="line"><span>Delivery</span><span>${gbp(fee)}</span></div>`:'')}${wuse>0?`<div class="line"><span>Order total</span><span>${gbp(sub()+fee)}</span></div><div class="line wline"><span>ShopNip wallet</span><span>−${gbp(wuse)}</span></div>`:''}<div class="line tot"><b>Total to pay ${cardsOn()&&CO.pay==='card'?'by card':CO.f==='delivery'?'on delivery':'on collection'}</b><b>${gbp(due)}</b></div></div>
   <button type="submit" class="btn full big placebtn" id="placebtn"${paused?' disabled':''}>${paused?'Shop is busy right now':`Place order · ${gbp(due)}`}</button><p class="hint c">By placing this order you agree to the <a href="/terms">Terms of Use</a>. The shop will confirm it, and you can cancel until it is accepted. After you order, the total can only go down.</p></aside></div>
   <div class="bk-bar checkout-bar" role="region" aria-label="Order total"><div class="bk-bar-in"><small>Total to pay</small><b>${gbp(due)}</b></div><button type="submit" class="btn big placebtn"${paused?' disabled':''}>${paused?'Shop is busy right now':`Place order · ${gbp(due)}`}</button></div></form></section>`};
 const fld=(id,l,a,v)=>`<label class="fl"><span>${l}</span><input id="${id}" ${a} value="${esc(v)}"></label>`;
@@ -226,7 +236,7 @@ window.P3CODE=ccode;
 V.placed=function(r){const o=livePlaced(r),shop=O.lastShop||(o.shops&&o.shops.name)||'The shop',waiting=o.status==='placed',ended=['rejected','cancelled'].includes(o.status);
   const rate=!ended&&window.Social?Social.rateHTML(O.lastShopId,shop||'this shop',o.id,'placed'):'';
   return `<section class="sec narrow"><div class="done-c">${ended?'':`<div class="tick">${svg('check')}</div>`}<h2>${ended?'Order update':waiting?'Order placed!':o.status==='accepted'?'Accepted':'Order update'}</h2><p>Your order number is</p><div class="ono">${esc(o.order_number||r.order_number)}</div>${waiting||!ended?ccode({...o,fulfilment:O.lastF},true):''}
-  <p class="hint">Total ${gbp(o.total)}${+o.wallet_applied?`, ${gbp(o.wallet_applied)} paid from your ShopNip wallet, ${gbp(o.amount_due!=null?o.amount_due:o.total-o.wallet_applied)} left`:''} to pay ${O.lastF==='delivery'?'on delivery':'on collection'}.</p>
+  <p class="hint">Total ${gbp(o.total)}${+o.wallet_applied?`, ${gbp(o.wallet_applied)} paid from your ShopNip wallet, ${gbp(o.amount_due!=null?o.amount_due:o.total-o.wallet_applied)} left`:''}${o.payment_method==='card'?(o.payment_status==='authorised'?' · card authorised, taken when the shop accepts':o.payment_status==='paid'?' · paid by card':o.payment_status==='failed'?' · card payment failed':' · pay by card'):' to pay '+(O.lastF==='delivery'?'on delivery':'on collection')}.</p>
   ${o.delivery_window?`<p><b>Delivery window: ${esc(o.delivery_window)}</b></p>`:''}${o.promised_at&&!ended?`<p><b>Promised by ${hmOf(o.promised_at)}</b>${o.distance_miles!=null?' · '+Number(o.distance_miles).toFixed(1)+' miles from the shop':''}</p>`:''}${statusFollowup(o,shop)}${rate}
   ${ended?'':`<button class="btn full big" data-o="open" data-id="${esc(o.id)}">Track order</button><button class="btn ghost full" data-t="home" style="margin-top:8px">Keep shopping</button>`}</div></section>`};
 const chip=s=>`<span class="ost ${s}">${LBL[s]||s}</span>`;
@@ -256,7 +266,7 @@ function odetail(o,owner){const it=o.order_items||[];
     return `<div class="oi"><img src="${esc(i.image||'icon-192.png')}" alt=""><span>${label}</span>${pending?`<span class="row">${i.swap_name&&i.swap_price!=null&&+i.swap_price<=+i.unit_price?`<button class="btn sm" data-rc="swap" data-num="${esc(o.order_number)}" data-ix="${ix}">Swap</button>`:''}<button class="btn sm ghost" data-rc="refund" data-num="${esc(o.order_number)}" data-ix="${ix}">Take it off my total</button></span>`:`<b>${gbp(amt)}</b>`}</div>`}).join('')}
    <div class="line"><span>Subtotal</span><span>${gbp(o.subtotal??o.total)}</span></div>${+o.delivery_fee?`<div class="line"><span>Delivery</span><span>${gbp(o.delivery_fee)}</span></div>`:''}
    ${+o.total_at_place&&+o.total<+o.total_at_place?`<div class="line"><span>Originally</span><span><s>${gbp(o.total_at_place)}</s></span></div>`:''}
-   <div class="line tot"><b>Total · ${o.payment_method==='pay_on_delivery'?'pay on delivery':'pay on collection'}</b><b>${gbp(o.total)}</b></div>${+o.wallet_applied?`<div class="line wline"><span>Paid from ShopNip wallet${o.wallet_reversed?' (returned)':''}</span><span>−${gbp(o.wallet_applied)}</span></div><div class="line"><span>Left to pay</span><b>${gbp(o.total-o.wallet_applied)}</b></div>`:''}${+o.refunded_to_wallet?`<div class="line wline"><span>Refunded to ShopNip wallet</span><span>${gbp(o.refunded_to_wallet)}</span></div>`:''}</div>`}
+   <div class="line tot"><b>Total · ${window.NBPay?NBPay.phrase(o):(o.payment_method==='pay_on_delivery'?'pay on delivery':'pay at the shop')}</b><b>${gbp(o.total)}</b></div>${window.NBPay?NBPay.extra(o):''}${+o.wallet_applied?`<div class="line wline"><span>Paid from ShopNip wallet${o.wallet_reversed?' (returned)':''}</span><span>−${gbp(o.wallet_applied)}</span></div><div class="line"><span>Left to pay</span><b>${gbp(o.total-o.wallet_applied)}</b></div>`:''}${+o.refunded_to_wallet?`<div class="line wline"><span>Refunded to ShopNip wallet</span><span>${gbp(o.refunded_to_wallet)}</span></div>`:''}</div>`}
 V.order=function(id){const o=O.cur;if(!o||o.id!==id){D.get(id).then(x=>{O.cur=x;render()}).catch(e=>toast(e.message));return '<div class="empty">Loading…</div>'}
   const ended=['cancelled','rejected'].includes(o.status);
   return `<section class="sec narrow"><div class="sh"><h2>${esc(o.order_number)}</h2><a href="#" data-t="orders">All orders</a></div><div class="oc-m" style="margin-top:-8px">${esc(o.shops?.name||'')} · ${when(o.created_at)}</div>
@@ -309,10 +319,14 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
       try{const j=await fetch('https://api.postcodes.io/postcodes?lon='+lng+'&lat='+lat+'&limit=1').then(r=>r.json());if(j.result&&j.result[0])pc=j.result[0].postcode}catch(_){}
       CO.here={lat,lng,pc,src:'device'};if(CO.shop&&CO.shop.lat!=null){const mi=miles({lat,lng},CO.shop),rad=+(CO.shop.delivery_options?.delivery_radius_miles||0);CO.deliv={ok:mi<=rad,mi,why:`You're ${mi.toFixed(1)} mi away; ${CO.shop.name} delivers within ${rad} mi`}}
       render()},()=>toast('We could not get your location. Type your postcode instead.'));return}
-  if(a==='checkout'){CO.err='';await prepCheckout();return route('checkout')}
+  if(a==='paygo'){const r=CO.paying;if(!r||!window.NBPay)return;
+    try{if(MOCK||!r.client_secret)await NBPay.confirmMock(r);else{const pi=await NBPay.confirmLive();r.payment_status=pi&&pi.status==='requires_capture'?'authorised':'paid';if(pi&&pi.amount)r.amount_authorised=pi.amount/100}
+      CO.err='';S.basket=[];saveB();CO.paying=null;route('placed',r)}catch(err){const box=document.querySelector('.checkout-pad .panel');let a=box&&box.querySelector('.alert');if(!a&&box){a=document.createElement('div');a.className='alert';box.insertBefore(a,box.querySelector('#pay-element')?.nextSibling||box.querySelector('[data-o=paygo]'))}if(a)a.textContent=err.message;else{CO.err=err.message;render()}}return}
+  if(a==='paylater'){const r=CO.paying;S.basket=[];saveB();CO.paying=null;if(r)route('placed',r);return}
+  if(a==='checkout'){CO.err='';CO.paying=null;await prepCheckout();return route('checkout')}
   if(a==='login'){P3.after=B().length?'checkout':'orders';P2.A.tab='login';return route('account')}
   if(a==='open'){O.cur=null;return route('order',el.dataset.id)}
-  if(a==='cancel'){const pack=window.CancelBox?await CancelBox.ask('customer'):null;if(!pack)return;pack.role='customer';try{await D.status(el.dataset.id,'cancelled',pack.note,pack);O.cur=await D.get(el.dataset.id);O.loaded=false;toast('Order cancelled');render()}catch(err){toast(err.message)}return}
+  if(a==='cancel'){const pack=window.CancelBox?await CancelBox.ask('customer'):null;if(!pack)return;pack.role='customer';try{await D.status(el.dataset.id,'cancelled',pack.note,pack);if(window.NBPay)NBPay.settle(el.dataset.id,'cancel');O.cur=await D.get(el.dataset.id);O.loaded=false;toast('Order cancelled');render()}catch(err){toast(err.message)}return}
   if(a==='inbox'){$('#nbanner')?.classList.remove('on');O.iloaded=false;route('inbox');return}
   if(a==='fil'){O.fil=el.dataset.v;return render()}
   if(a==='wrefund'){const o=O.inbox.find(x=>x.id===el.dataset.id);if(o&&window.WAL&&await WAL.refund(o)){O.inbox=await D.inbox();render()}return}
@@ -324,16 +338,18 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
     M.orders.unshift({id,order_number:'NB-'+(2001+M.orders.length),shop_id:A.shop.id,customer_id:'u9',customer_name:'Tom Reed',customer_phone:'07700 900456',fulfilment:'delivery',delivery_address:'4 Mill Lane',delivery_postcode:'LE1 6AB',status:'placed',subtotal:l.reduce((t,x)=>t+x.retail_price,0),delivery_fee:2.5,total:l.reduce((t,x)=>t+x.retail_price,0)+2.5,payment_method:'pay_on_delivery',created_at:new Date().toISOString(),order_items:l.map(x=>({listing_id:x.id,name:x.name,image:x.image,unit_price:x.retail_price,qty:1})),order_events:[{status:'placed',at:new Date().toISOString()}]});
     return onOwnerChange({eventType:'INSERT',new:{id}})}
 });
-document.addEventListener('change',e=>{if(e.target.id==='c_window'){CO.window=e.target.value;const t=$('#cowindow');if(t)t.textContent=CO.window||'Choose a window above';return}if(e.target.name==='ful'){CO.f=e.target.value;CO.window='';render()}if(e.target.id==='usewallet'){CO.useW=e.target.checked;render()}
+document.addEventListener('change',e=>{if(e.target.id==='c_window'){CO.window=e.target.value;const t=$('#cowindow');if(t)t.textContent=CO.window||'Choose a window above';return}if(e.target.name==='ful'){CO.f=e.target.value;CO.window='';render()}if(e.target.name==='pay'){CO.pay=e.target.value;render()}if(e.target.id==='usewallet'){CO.useW=e.target.checked;render()}
   if(e.target.id==='c_pc'){const v=e.target.value.trim();if(CO.here?.src==='device'&&CO.here.pc&&v.replace(/\s/g,'').toUpperCase()===CO.here.pc.replace(/\s/g,'').toUpperCase())return;
     lookupPostcode(v).then(g=>{CO.here={lat:g.lat,lng:g.lng,pc:g.pc,src:'postcode'};if(CO.shop&&CO.shop.lat!=null){const mi=miles({lat:g.lat,lng:g.lng},CO.shop),rad=+(CO.shop.delivery_options?.delivery_radius_miles||0);CO.deliv={ok:mi<=rad,mi,why:`You're ${mi.toFixed(1)} mi away`}}if(cur[0]==='checkout')render()}).catch(()=>{})}});
 document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')return;e.preventDefault();e.stopImmediatePropagation();const btn=$('#placebtn'),v=id=>($('#'+id)?.value||'').trim();CO.err='';
   const pcRaw=v('c_pc').toUpperCase();const pin=CO.here&&CO.here.pc&&pcRaw.replace(/\s/g,'')===CO.here.pc.replace(/\s/g,'').toUpperCase()?CO.here:null;
-  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,sku:b.sku,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0)};
+  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,sku:b.sku,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0),pay:cardsOn()&&(document.querySelector('input[name=pay]:checked')||{}).value==='card'?'card':'shop'};
   CO.phoneErr='';if(!a.phone){CO.phoneErr='Mobile number is required.';CO.err=CO.phoneErr;return render()}
   if(!/^[0-9+\s()-]{10,16}$/.test(a.phone)){CO.phoneErr='Enter a valid UK mobile number, for example 07700 900123.';CO.err=CO.phoneErr;return render()}
   document.querySelectorAll('#placebtn,.placebtn').forEach(b=>{b.disabled=true;b.textContent='Placing order…'});
-  try{const r=await placeOrder(a);scrollTo(0,0);route('placed',r)}
+  try{const r=await placeOrder(a);scrollTo(0,0);
+    if(r&&r._needCard&&window.NBPay){CO.paying=r;CO.err='';try{const pi=await NBPay.start(r);if(pi&&pi.client_secret)r.client_secret=pi.client_secret}catch(err){CO.err=err.message}route('checkout');return}
+    route('placed',r)}
   catch(err){CO.err=err.message||String(err);render()}},true);
 // shared order-creation path (checkout form + p13 chat): geocode delivery postcode, place via RPC/mock, clear basket
 async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_options||{};if(!shop)throw new Error('Shop not found');if(d.paused||shop.paused)throw new Error('This shop is busy right now and isn’t taking orders. Please try again a little later.');
@@ -343,6 +359,7 @@ async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_op
     const slot=deliveryWindows(shop).find(w=>w.value===a.delivery_window);if(!slot)throw new Error('Choose an available delivery window before placing your order');
     a.delivery_window=slot.value;a.window_end=windowEnd(slot);a.note='Delivery window: '+slot.value+(a.note?'\n'+a.note:'')+(a.window_end?'\n[[window:'+a.window_end+']]':'');
   }else a.delivery_window=null;
+  if(a.pay==='card')a.note=(a.note||'')+'\n[[pay:card]]';
   if(a.fulfilment==='delivery'){if(a.lat==null||a.lng==null){const g=await lookupPostcode(a.postcode).catch(()=>{throw new Error('We could not find that postcode.')});a.lat=g.lat;a.lng=g.lng;a.postcode=g.pc}}
   window.CK&&CK.set({name:a.name,phone:a.phone,addr:a.address});
   const alertItems=B().map(b=>({name:b.name,qty:b.qty,unit_price:b.price}));
@@ -351,7 +368,9 @@ async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_op
     const go=()=>{try{window.P33&&P33.notifyShop(shop,payload)}catch(_){}};
     if(window.P33)go();else{const s=document.createElement('script');s.src='p33.js?v=rel1';s.onload=go;document.head.appendChild(s)}}
   catch(_){ }
-  r.delivery_window=a.delivery_window;r.status=r.status||'placed';r.created_at=r.created_at||new Date().toISOString();O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;O.lastPlaced=Object.assign({shops:{name:O.lastShop}},r);O.cur=O.lastPlaced;S.basket=[];saveB();O.loaded=false;startLive();return r}
+  r.delivery_window=a.delivery_window;r.status=r.status||'placed';r.payment_method=r.payment_method||(a.pay==='card'?'card':'pay_at_shop');r.created_at=r.created_at||new Date().toISOString();O.lastShop=B()[0]?.shop_name;O.lastShopId=a.shop;O.lastF=a.fulfilment;O.lastPlaced=Object.assign({shops:{name:O.lastShop}},r);O.cur=O.lastPlaced;
+  const due=r.amount_due!=null?+r.amount_due:+r.total;r._needCard=a.pay==='card'&&due>0.009;
+  if(!r._needCard){S.basket=[];saveB()}O.loaded=false;startLive();return r}
 
 window.P3={cur:()=>O.cur,checkoutShop:()=>CO.shop,deliveryBy,deliveryWindows,orderWindow,trip,windowEnd,orders:()=>({list:O.mine,loaded:O.loaded,load:loadMine}),add:(p,q,el)=>addToBasket(p,q,el),sheet:p=>sheet(p),prep:()=>prepCheckout(),place:a=>placeOrder(a),shop:id=>D.shop(id),basketShop:()=>bShop(),subtotal:()=>sub(),welcome:()=>welcomeOn(),syncSteppers:()=>window.syncSteppers&&window.syncSteppers(),after:null,async init(){
   if(MOCK){M.orders=M.orders||[];
@@ -378,4 +397,7 @@ window.P3={cur:()=>O.cur,checkoutShop:()=>CO.shop,deliveryBy,deliveryWindows,ord
 }};
 V.orderdetail=()=>V.order(O.cur.id);
 V.placedmock=()=>{const o=M.orders.find(x=>x.id==='o3')||M.orders[0];O.lastShop=M.shops[0].name;O.lastShopId=M.shops[0].id;O.lastF=(o&&o.fulfilment)||'collect';O.lastPlaced=o;O.cur=o;return V.placed(o||{id:'o3',order_number:'NB-2003',total:0})};
+function mountPay(){const host=document.getElementById('pay-element');if(host&&CO.paying&&window.NBPay&&host.dataset.on!=='1'){host.dataset.on='1';NBPay.mount(host,CO.paying.client_secret).catch(e=>{CO.err=e.message})}}
+if(typeof render==='function'&&!render._pay){const _r=render;render=function(){const x=_r.apply(this,arguments);mountPay();return x};render._pay=1}
+if(typeof route==='function'&&!route._pay){const _rt=route;route=function(){const x=_rt.apply(this,arguments);mountPay();return x};route._pay=1}
 })();

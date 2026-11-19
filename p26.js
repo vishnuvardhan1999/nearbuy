@@ -30,7 +30,7 @@ V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shoppe
 <ul>
 <li>Prices are set by each shop and shown in pounds sterling. The price you see when you place the order is the price you pay, plus any delivery fee shown at checkout.</li>
 <li>An order is a request to the shop. It is only confirmed when the shop accepts it.</li>
-<li><b>You pay the shop directly</b>, on collection or on delivery, by card or cash. ShopNip does not take card payments. If you have ShopNip wallet credit, you can use it towards the total at checkout.</li>
+<li><b>You pay by card or at the shop.</b> When a shop takes cards, the card is charged when the shop accepts, and only for the final total. Otherwise you pay the shop on collection or delivery, by card or cash. ShopNip wallet credit can still cover all or part of the total.</li>
 <li><b>Once you have placed an order, the total you are asked to pay can only go down, never up.</b> If an item is missing, declined, refunded or swapped for something cheaper, the amount due is reduced accordingly.</li>
 </ul>
 <h2>5. Click &amp; collect</h2>
@@ -61,7 +61,7 @@ V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shoppe
 </ul>
 <p>If you asked us or the shop to start delivery or another service during the cooling-off period, and that service is fully performed with your agreement, you may lose the right to cancel that service (for example a delivery fee already incurred).</p>
 <h2>10. Refunds, returns and problems</h2>
-<p>Returns of goods are handled with the shop. Refunds processed through ShopNip are issued as <b>ShopNip wallet credit</b>, which you can spend on a later ShopNip order (see My Wallet in your account). They are not paid back to a card, because ShopNip does not take card payments. If you paid the shop directly, you can also agree a refund with the shop.</p>
+<p>Returns of goods are handled with the shop. If you paid by card, a refund goes back to that card. If you paid at the shop, a ShopNip refund is <b>wallet credit</b> you can spend on a later order (see My Wallet in your account). You can also agree a refund with the shop.</p>
 <p><b>A refund will never be more than you paid</b> for the order, including any delivery fee that is being refunded. If only part of an order is refunded, we only refund that part.</p>
 <p>If something is faulty or not as described, your rights under the Consumer Rights Act 2015 still apply (for example a repair, a replacement or a refund). Nothing in these terms limits those rights, or liability that cannot be limited by law.</p>
 <p>If something goes wrong, use <b>Report a problem</b> on the order page, or contact us ${CONTACT()}. We will look into it with the shop.</p>

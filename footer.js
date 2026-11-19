@@ -7,7 +7,7 @@ function col(t,links){return '<details class="sf-col" open><summary>'+t+'</summa
 function html(o){o=o||{};var sel=o.seller;
   return '<footer class="sf" role="contentinfo"><div class="sf-in">'+
    '<div class="sf-brand"><a class="sf-logo" href="/"'+(window.NB_SPA?' data-go="/"':'')+' aria-label="ShopNip home"><span class="sf-mark" aria-hidden="true">S</span><span>Shop<b>Nip</b></span></a>'+
-   '<p>Your independent local shops, online. Click &amp; collect or local delivery, pay at the shop.</p>'+
+   '<p>Your independent local shops, online. Click &amp; collect or local delivery. Pay by card or at the shop.</p>'+
    '<a class="sf-mail" href="mailto:hello@shopnip.co.uk">hello@shopnip.co.uk</a></div>'+
    '<div class="sf-cols">'+
    col('Shop',DEPTS.filter(function(d){if(typeof CATS==='undefined'||typeof catStocked!=='function')return true;var i=CATS.findIndex(function(c){return c[0]===d});return i<0||catStocked(i)}).map(function(d){return [d,'/category/'+slug(d)]}).concat([['All products','/products'],['Deals','/deals']]))+

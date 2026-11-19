@@ -64,7 +64,7 @@ async function seedMock(){
   if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
     M.shops.push({id:'s1',owner_id:Q.get('as')==='shopper'?'u-owner':'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
       opening_hours:'Mon-Fri 10am-6pm, Sat closed, Sun 10am-2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
-      delivery_options:{collect:true,delivery:true,delivery_by:'shopnip',delivery_radius_miles:3,delivery_fee:2.5,order_alerts:{sms:true,whatsapp:true,call:false,mobile:'07700 900123'}},logo_url:null,cover_url:null});
+      delivery_options:{collect:true,delivery:true,delivery_by:'shopnip',delivery_radius_miles:3,delivery_fee:2.5,order_alerts:{sms:true,whatsapp:true,call:false,mobile:'07700 900123'}},logo_url:null,cover_url:null,stripe_charges_enabled:Q.get('card')==='1',stripe_account_id:Q.get('card')==='1'?'acct_test':null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
       M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],compare_at_price:i%3===1?+(p.trade_price*2.1).toFixed(2):null,active:i!==2,source:i<5?'wholesale':'manual'}));
     M.shops.push({id:'s2',owner_id:'u2',name:'Village Post Office Store',address:'1 Church Lane, Oadby',postcode:'LE2 5AA',status:'pending',bluepark_customer_email:'vpo@example.com',created_at:'2026-10-23',delivery_options:{collect:true}});
