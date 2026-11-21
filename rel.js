@@ -160,7 +160,7 @@ function choose(num,ix,choice){
   const n=get(num),after=recompute(n),sub=goodsSubtotal(n);put(num,{subtotal:sub,total:after,awaiting_customer:n.items.some(x=>x.pending)});
   if(before-after>0.004)refund(num,before-after,i.name+' not available');
   notify(num,choice==='swap'&&i.swap&&i.swap.accepted?`Swap confirmed: ${i.swap.name}.`:`${i.name} removed and taken off your total.`,'info');
-  const c=db();if(!isMock()&&c&&o.id&&i.id){c.rpc('choose_order_item',{p_order:o.id,p_item:i.id,p_choice:i.refunded?'refund':'swap'}).then(({data,error})=>{if(error){toast(error.message||'Could not save your choice');return}if(data){const live=liveOrder(num);if(live){live.subtotal=data.subtotal;live.total=data.total;live.awaiting_customer=data.awaiting_customer;if(live.order_items)applyChoiceToOrder(live,i.id,i.refunded?'refund':'swap')}put(num,{subtotal:+data.subtotal,total:+data.total,awaiting_customer:!!data.awaiting_customer})}}).catch(er=>toast(er.message||'Could not save your choice'))}
+  const c=db();if(!isMock()&&c&&o.id&&i.id){c.rpc('choose_order_item',{p_order:o.id,p_item:i.id,p_choice:i.refunded?'refund':'swap'}).then(({data,error})=>{if(error){toast(error.message||'Could not save your choice');return}if(data){const live=liveOrder(num);if(live){live.subtotal=data.subtotal;live.total=data.total;live.awaiting_customer=data.awaiting_customer;if(live.order_items)applyChoiceToOrder(live,i.id,i.refunded?'refund':'swap')}put(num,{subtotal:+data.subtotal,total:+data.total,awaiting_customer:!!data.awaiting_customer});if(!data.awaiting_customer&&window.NBPay)NBPay.settle(o.id,'capture')}}).catch(er=>toast(er.message||'Could not save your choice'))}
   syncP2(get(num));if(!onSeller&&typeof render==='function')try{render()}catch(_){}}
 function customerCancel(num){const o=get(num);if(!o)return;setStatus(num,'cancelled',{cancel_reason:'customer_key_item'});
   const left=recompute(o)-0;refund(num,left,'order cancelled');notify(num,'Order cancelled. The shop has been told.','info')}
@@ -456,12 +456,12 @@ async function expireDue(){
   if(isMock()){
     const reason='Not accepted within 15 minutes';let n=0;
     const bags=[];if(window.P2&&P2.M&&P2.M.orders)bags.push(P2.M.orders);if(window.NBSeller&&NBSeller.D&&NBSeller.D.O)bags.push(NBSeller.D.O);
-    bags.forEach(list=>list.forEach(o=>{if(o.status!=='placed'||Date.now()<acceptDeadline(o))return;o.status='rejected';o.reject_reason=o.reject_reason||reason;(o.order_events=o.order_events||[]).push({status:'rejected',at:new Date().toISOString(),note:reason});n++}));
+    bags.forEach(list=>list.forEach(o=>{if(o.status!=='placed'||Date.now()<acceptDeadline(o))return;o.status='rejected';o.reject_reason=o.reject_reason||reason;(o.order_events=o.order_events||[]).push({status:'rejected',at:new Date().toISOString(),note:reason});if(window.NBPay)NBPay.settle(o.id,'cancel');n++}));
     Object.values(st().orders).forEach(o=>{if(o.status==='placed'&&Date.now()>=acceptDeadline(o))timeoutDecline(o.num)});
     if(n)emit();return {expired:n,mock:true}
   }
   const c=db();if(!c||!c.rpc)return {expired:0};
-  try{const {data,error}=await c.rpc('expire_unaccepted_orders');if(error)return {error};return data||{expired:0}}catch(e){return {error:e}}
+  try{const {data,error}=await c.rpc('expire_unaccepted_orders');if(error)return {error};if(data&&data.ids&&window.NBPay)data.ids.forEach(id=>NBPay.settle(id,'cancel'));return data||{expired:0}}catch(e){return {error:e}}
 }
 function askRejectReason(){
   return new Promise(resolve=>{

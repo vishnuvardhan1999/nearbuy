@@ -21,11 +21,11 @@ const gbp = (n: unknown) => "£" + (Number(n) || 0).toFixed(2);
 
 const STATUS: Record<string, { subject: string; head: string; body: (o: any) => string }> = {
   accepted: { subject: "accepted", head: "Your order has been accepted", body: (o) => o.awaiting_customer ? "The shop accepted your order but found something out of stock. The order is on hold until you choose what happens, or the shop contacts you. Your total will only go down." : o.fulfilment === "delivery" ? "The shop is getting your order ready for delivery." : "The shop is getting your order ready. We’ll email you when it’s ready to collect." },
-  ready: { subject: "ready to collect", head: "Your order is ready to collect", body: () => "Bring your collection PIN and show it at the counter. You pay the shop when you collect." },
-  out_for_delivery: { subject: "out for delivery", head: "Your order is out for delivery", body: () => "The shop is on its way. You pay the shop on delivery." },
+  ready: { subject: "ready to collect", head: "Your order is ready to collect", body: (o) => "Bring your collection PIN and show it at the counter." + (o.payment_method === "card" ? "" : " You pay the shop when you collect.") },
+  out_for_delivery: { subject: "out for delivery", head: "Your order is out for delivery", body: (o) => "The shop is on its way." + (o.payment_method === "card" ? "" : " You pay the shop on delivery.") },
   completed: { subject: "complete", head: "Your order is complete", body: (o) => o.fulfilment === "delivery" ? "Your order has been delivered. Thanks for shopping local." : "Your order has been collected. Thanks for shopping local." },
-  cancelled: { subject: "cancelled", head: "Your order has been cancelled", body: (o) => "Your order was cancelled" + (o.reject_reason ? `: ${esc(o.reject_reason)}` : ".") + " You have not been charged." },
-  rejected: { subject: "declined", head: "The shop couldn’t take your order", body: (o) => "Sorry, the shop declined this order" + (o.reject_reason ? `: ${esc(o.reject_reason)}` : ".") + " You have not been charged." },
+  cancelled: { subject: "cancelled", head: "Your order has been cancelled", body: (o) => "Your order was cancelled" + (o.reject_reason ? `: ${esc(o.reject_reason)}` : ".") + (o.payment_method === "card" && Number(o.amount_paid) > Number(o.amount_refunded || 0) ? " The refund goes back to your card." : " You have not been charged.") },
+  rejected: { subject: "declined", head: "The shop couldn’t take your order", body: (o) => "Sorry, the shop declined this order" + (o.reject_reason ? `: ${esc(o.reject_reason)}` : ".") + (o.payment_method === "card" && Number(o.amount_paid) > Number(o.amount_refunded || 0) ? " The refund goes back to your card." : " You have not been charged.") },
 };
 
 function layout(title: string, inner: string) {
@@ -64,7 +64,7 @@ const how = (o: any) => o.fulfilment === "delivery" ? `Local delivery to ${esc(o
 function customerPlaced(o: any) {
   const pin = o.fulfilment === "collect" && o.collection_pin ? `<p style="background:#f0faf8;border-radius:12px;padding:12px 14px;margin:12px 0">Collection PIN: <b style="font-size:18px;letter-spacing:2px">${esc(o.collection_pin)}</b><br><span style="color:#667085;font-size:13px">Show this at the shop when you collect.</span></p>` : "";
   return layout(`Thanks, your order ${o.order_number ?? ""} is in`, `<p style="margin:0 0 8px">We’ve sent it to <b>${esc(o.shops?.name)}</b>. They’ll accept it shortly and we’ll email you when it moves on.</p>
-<p style="margin:0;color:#475467;font-size:14px">${how(o)} · Pay the shop ${o.fulfilment === "delivery" ? "on delivery" : "when you collect"}</p>${pin}${itemsTable(o)}
+<p style="margin:0;color:#475467;font-size:14px">${how(o)} · ${o.payment_method === "card" ? "Pay by card. It is taken when the shop accepts, and only for the final total." : `Pay the shop ${o.fulfilment === "delivery" ? "on delivery" : "when you collect"}`}</p>${pin}${itemsTable(o)}
 ${o.shops?.address ? `<p style="margin:0;color:#475467;font-size:14px">${esc(o.shops.name)}, ${esc(o.shops.address)}${o.shops.phone ? " · " + esc(o.shops.phone) : ""}</p>` : ""}${btn(SITE + "/orders", "View your order")}`);
 }
 function shopPlaced(o: any) {

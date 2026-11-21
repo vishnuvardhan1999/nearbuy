@@ -25,7 +25,7 @@
 6. You can cancel until the shop accepts the order; after that, contact the shop.
 
 ## For shop owners
-- Independent shops can register and list their first 50 products free, list products, set opening hours, delivery options and prices, and manage orders from a seller dashboard.
+- Independent shops can register, list products (their usual wholesale products are listed for them), set opening hours, delivery options and prices, and manage orders from a seller dashboard.
 - Seller terms: https://www.shopnip.co.uk/seller-terms
 
 ## Policies

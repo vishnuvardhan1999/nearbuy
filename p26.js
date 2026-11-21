@@ -31,7 +31,8 @@ V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shoppe
 <ul>
 <li>Prices are set by each shop and shown in pounds sterling. The price you see when you place the order is the price you pay, plus any delivery fee shown at checkout.</li>
 <li>An order is a request to the shop. It is only confirmed when the shop accepts it.</li>
-<li><b>You pay the shop directly</b>, on collection or on delivery, by card or cash. ShopNip does not take card payments. If you have ShopNip wallet credit, you can use it towards the total at checkout.</li>
+<li><b>You pay the shop directly</b>, on collection or on delivery, by card or cash. Where a shop accepts card payment through ShopNip, your card is only charged when the shop accepts, and only for the final total. If you have ShopNip wallet credit, you can use it towards the total at checkout.</li>
+<li><b>Age-restricted items</b> (such as alcohol and tobacco) are only sold to people aged 18 or over. You must confirm you are 18 or over at checkout, and the shop or driver will ask for photo ID if you look under 25 (Challenge 25). If you can't show valid ID, those items won't be handed over and you will be refunded for them.</li>
 <li><b>Once you have placed an order, the total you are asked to pay can only go down, never up.</b> If an item is missing, declined, refunded or swapped for something cheaper, the amount due is reduced accordingly.</li>
 </ul>
 <h2>5. Click &amp; collect</h2>
@@ -62,7 +63,7 @@ V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shoppe
 </ul>
 <p>If you asked us or the shop to start delivery or another service during the cooling-off period, and that service is fully performed with your agreement, you may lose the right to cancel that service (for example a delivery fee already incurred).</p>
 <h2>10. Refunds, returns and problems</h2>
-<p>Returns of goods are handled with the shop. Refunds processed through ShopNip are issued as <b>ShopNip wallet credit</b>, which you can spend on a later ShopNip order (see My Wallet in your account). They are not paid back to a card, because ShopNip does not take card payments. If you paid the shop directly, you can also agree a refund with the shop.</p>
+<p>Returns of goods are handled with the shop. If you paid by card, a refund goes back to that card. If you paid at the shop, a ShopNip refund is <b>wallet credit</b> you can spend on a later order (see My Wallet in your account). You can also agree a refund with the shop.</p>
 <p><b>A refund will never be more than you paid</b> for the order, including any delivery fee that is being refunded. If only part of an order is refunded, we only refund that part.</p>
 <p>If something is faulty or not as described, your rights under the Consumer Rights Act 2015 still apply (for example a repair, a replacement or a refund). Nothing in these terms limits those rights, or liability that cannot be limited by law.</p>
 <p>If something goes wrong, use <b>Report a problem</b> on the order page, or contact us ${CONTACT()}. We will look into it with the shop.</p>
@@ -150,10 +151,19 @@ V['seller-terms']=()=>page('seller-terms','Seller Terms','The rules for shops th
 <ul>
 <li><b>Your listings must be accurate</b>: the right product, price, stock and photos. Update them when things change.</li>
 <li>You set your own prices. A "was" price must be a price you genuinely charged.</li>
-<li>Only list products you can lawfully sell. No illegal, unsafe, counterfeit or age-restricted items unless we have agreed it with you in writing.</li>
+<li>Only list products you can lawfully sell. No illegal, unsafe or counterfeit items.</li>
+<li>You can list your own products as well as catalogue products. Use a clear photo of the actual product and check the title before it goes live.</li>
+<li>A product can only be live with a price above £0.</li>
 <li>Catalogue photos and descriptions are provided to help you. Check them, and tell us about any errors.</li>
 </ul>
-<h2>4. Orders and fulfilment</h2>
+<h2>4. Age-restricted products</h2>
+<ul>
+<li>Mark every age-restricted product as <b>18+</b> (for example alcohol, tobacco, vapes and nicotine products, lighter refills and blades). ShopNip flags common ones for you, but you are responsible for getting it right.</li>
+<li><b>Alcohol:</b> you may only list alcohol if your premises hold a valid premises licence that allows off-sales, and you confirm it in Settings. Tell us straight away if your licence is suspended or ends.</li>
+<li><b>Challenge 25:</b> before handing over an order with age-restricted items, at the counter or on the doorstep, ask anyone who looks under 25 for valid photo ID (passport, photocard driving licence or a PASS card), and tap <b>ID checked</b>. If no valid ID is shown, don't hand over the order. Cancel it so the customer is refunded.</li>
+<li>Your own drivers must follow the same rules. Never leave age-restricted items on a doorstep.</li>
+</ul>
+<h2>5. Orders and fulfilment</h2>
 <ul>
 <li>Accept or decline new orders promptly. Once you accept an order, you must fulfil it at the price shown.</li>
 <li>Have click &amp; collect orders ready by the time shown to the customer, and keep order status up to date (accepted, ready, completed).</li>
@@ -162,21 +172,29 @@ V['seller-terms']=()=>page('seller-terms','Seller Terms','The rules for shops th
 <li>After an order is placed, the total the customer is asked to pay can only go down. A refund must never be more than the customer paid.</li>
 <li>You are the seller. You are responsible for the goods, for refunds and returns, and for your obligations to customers under consumer law, including the Consumer Rights Act 2015 and the Consumer Contracts Regulations 2013.</li>
 </ul>
-<h2>5. Click &amp; collect PIN checks</h2>
+<h2>6. Click &amp; collect PIN checks</h2>
 <p>Each order has a collection PIN. <b>Before handing over an order, ask for the PIN and check it matches</b> the one shown in your order inbox. If the PIN doesn't match, don't hand the order over. ShopNip is not responsible for orders handed over without a matching PIN.</p>
-<h2>6. Payment</h2>
-<p><b>Customers pay you directly, at the shop or on delivery.</b> ShopNip does not take payments or hold money for you. You are responsible for taking payment, giving receipts and handling refunds. Refunds processed through ShopNip are given as ShopNip wallet credit to the customer, using Refund to wallet on the order, and must never exceed what the customer paid.</p>
-<h2>7. Listing on ShopNip</h2>
-<p><b>Your first 50 product listings are free.</b> If we introduce charges for further listings, we will give you notice first. Those details are only for shops, not for shoppers.</p>
-<h2>8. Customer data</h2>
+<h2>7. Customer payments</h2>
+<p><b>Customers pay you directly, at the shop or on delivery.</b> ShopNip does not hold money for you. If card payment through ShopNip is switched on for your shop, card payments are paid out to your bank account weekly, in full, with no commission taken. You are responsible for taking payment, giving receipts and handling refunds. Refunds processed through ShopNip are given as ShopNip wallet credit to the customer, using Refund to wallet on the order, and must never exceed what the customer paid.</p>
+<h2>8. Your ShopNip subscription</h2>
+<ul>
+<li><b>ShopNip costs £10 a month per shop, and your first month is free.</b> There is no commission on your orders, no setup fee and no charge per listing.</li>
+<li>Your subscription is billed monthly in advance by card through our payment provider, Stripe. You will not be charged until you have added a card in your seller dashboard, and your free month ends.</li>
+<li>You can cancel at any time in your seller dashboard. Cancelling stops the next payment, and your shop stays live until the end of the month you have paid for. We don't refund part months.</li>
+<li>If a payment fails, we will tell you and may hide your shop until it is paid.</li>
+<li>We will give you at least 30 days' notice by email before we change the price.</li>
+</ul>
+<h2>9. Customer data</h2>
 <p>You receive customer details (name, phone, and address for delivery) only to fulfil their order. You may also receive proof-of-delivery photos for deliveries you or ShopNip make. Use this information only for that order, keep it secure, and don't use it for marketing unless the customer has agreed separately. You are responsible for your own compliance with UK data protection law.</p>
 <p>Order alerts may be sent to you by SMS, WhatsApp or phone call through our processor, Twilio. Keep the contact number on your shop profile up to date.</p>
-<h2>9. Suspension and removal</h2>
+<h2>10. Suspension and removal</h2>
 <p>We may hide listings, or suspend or remove a shop, if it breaks these terms, receives repeated complaints, gives inaccurate information, or puts customers at risk. Where we reasonably can, we will tell you why and give you a chance to fix things first. You can close your shop at any time by contacting us.</p>
-<h2>10. Our responsibility</h2>
+<h2>11. Our responsibility</h2>
 <p>ShopNip may change over time. We aren't liable for lost sales or profits caused by the site being unavailable. Nothing in these terms limits liability that can't be limited by law.</p>
-<h2>11. Changes and law</h2>
-<p>We may update these terms and will tell you about important changes. The law of England and Wales applies.</p>`);
+<h2>12. Changes and law</h2>
+<p>We may update these terms and will tell you about important changes. The law of England and Wales applies.</p>
+<h2 id="agree">13. Accepting these terms</h2>
+<p>You accept these terms when you tick <b>I agree to the ShopNip seller terms</b> while registering your shop, or in your seller dashboard. We record the date and the version you accepted (version ${(window.APP_CONFIG&&APP_CONFIG.SELLER_TERMS_VERSION)||'2026-11'}). You can't switch products live until you have accepted them.</p>`);
 
 V.cookies=()=>{const rows=[
  ['nb_basket','Your basket (items, quantities and shop)','Until you check out or clear it'],

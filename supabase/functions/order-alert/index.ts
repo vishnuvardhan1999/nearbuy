@@ -68,8 +68,9 @@ function customerBody(o: any, event: string) {
   if (ev === "customer_ready") return `Your ShopNip order ${num} is ready to collect from ${shop}. Track it: ${track}`;
   if (ev === "customer_out_for_delivery") return `Your ShopNip order ${num} is out for delivery. Track it: ${track}`;
   if (ev === "customer_completed") return o?.fulfilment === "delivery" ? `Your ShopNip order ${num} has been delivered. Thanks for shopping local.` : `Your ShopNip order ${num} has been collected. Thanks for shopping local.`;
-  if (ev === "customer_declined") return `Sorry, ${shop} couldn’t take your ShopNip order ${num}. You have not been charged.`;
-  if (ev === "customer_cancelled") return `Your ShopNip order ${num} has been cancelled. You have not been charged.`;
+  const cardBack = o?.payment_method === "card" && Number(o?.amount_paid) > Number(o?.amount_refunded || 0) ? "The refund goes back to your card." : "You have not been charged.";
+  if (ev === "customer_declined") return `Sorry, ${shop} couldn’t take your ShopNip order ${num}. ${cardBack}`;
+  if (ev === "customer_cancelled") return `Your ShopNip order ${num} has been cancelled. ${cardBack}`;
   if (ev === "customer_out_of_stock") return `${shop} found something out of stock on your ShopNip order ${num}. The order is on hold until you choose what happens, or the shop contacts you. Your total will only go down. Track it: ${track}`;
   return `ShopNip update on order ${num}. Track it: ${track}`;
 }

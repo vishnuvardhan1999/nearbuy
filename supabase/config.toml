@@ -1,0 +1,10 @@
+project_id = "nvkfatgnlydgznzczehj"
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.product-from-photo]
+verify_jwt = true
+
+[functions.shop-subscription]
+verify_jwt = true
