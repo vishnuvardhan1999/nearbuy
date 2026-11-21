@@ -26,13 +26,14 @@ function hero(){
   return `<section class="nb-hero" id="h5" aria-label="ShopNip">
     <div class="nb-hero-art" aria-hidden="true"><span class="nb-hero-cut c0"><img decoding="async" src="${HERO_L}" alt=""></span><span class="nb-hero-cut c1"><img decoding="async" src="${HERO_R}" alt=""></span></div>
     <div class="nb-hero-mid">
-      <h2>Your local shops, online.</h2>
+      <h2>Your local shops, delivered or ready to collect</h2>
+      <p class="nb-hero-sub">Order from real shops near you. The shop checks every item before you pay.</p>
       <form class="nb-hero-card" id="nb-hero-pc" action="#" autocomplete="on">
         <label for="nb-hero-q">Enter a postcode to see shops near you</label>
         <div class="nb-hero-row">
           <span class="nb-hero-pin" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
           <input id="nb-hero-q" name="postcode" type="text" inputmode="text" autocomplete="postal-code" spellcheck="false" placeholder="e.g. SW1A 1AA" value="${esc(pc)}">
-          <button type="submit">Search</button>
+          <button type="submit">Find shops</button>
         </div>
         <button type="button" class="nb-hero-geo" data-nb-geo><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>Use my current location</button>
       </form>
@@ -136,12 +137,35 @@ addEventListener('click',e=>{const a=e.target.closest('.mgd');if(!a)return;e.pre
 addEventListener('click',e=>{const b=e.target.closest('[data-hmp]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const sku=b.dataset.hmp;
   const g=S.products.find(p=>p.sku===sku&&p.offers);if(g&&window.P4?.gsheet)return P4.gsheet(g);const p=S.products.find(x=>x.sku===sku);if(p&&window.P3?.sheet)P3.sheet(p)},true);
 
-const how=()=>`<section class="hm-how" id="about"><div class="hm-h"><div><p class="hm-eye">How it works</p><h2>How ShopNip works</h2><p>Every order goes straight to an independent shop near you. No warehouses.</p></div></div>
-  <ol>${[['pin','Find a shop','Enter your postcode to see local shops, their opening hours and what they have in stock.'],
-   ['bag','Order online','Add items to your basket and choose click &amp; collect, or delivery where offered. Each order is for one shop.'],
-   ['store','Collect from your shop','Wait for the shop to confirm your order, then show your collection PIN and pay at the counter. Delivery options depend on the shop.']]
-   .map(([i,t,s],k)=>`<li><span class="hm-n">${k+1}</span>${svg(i)}<b>${t}</b><p>${s}</p></li>`).join('')}</ol>
-  <p class="hm-faq">Questions about payment, delivery or cancelling? <a href="/faq" data-go="/faq">Read the FAQ</a></p></section>`;
+const how=()=>`<section class="hm-how" id="how-it-works"><div class="hm-h"><div><p class="hm-eye">How it works</p><h2>Three simple steps</h2><p>Every order goes to a real local shop. No warehouses.</p></div></div>
+  <ol>${[['store','Choose your shop','Enter your postcode and pick a shop near you.'],
+   ['bag','Order','Add what you need and send the order to the shop.'],
+   ['pin','Collect or get it delivered','The shop checks every item, then you collect or get it delivered.']]
+   .map(([i,t,s],k)=>`<li><span class="hm-n">${k+1}</span>${svg(i)}<b>${t}</b><p>${s}</p></li>`).join('')}</ol></section>`;
+
+const trust=()=>`<section class="hm-truststrip" aria-label="Why ShopNip is easy"><ul>
+  ${[['check','The shop checks every item before you pay'],
+     ['tag','You only pay for what you get'],
+     ['bag','Delivery or click &amp; collect'],
+     ['store','Real local shops near you']]
+    .map(([i,s])=>`<li>${svg(i)}<span>${s}</span></li>`).join('')}
+</ul></section>`;
+
+const ic=(d)=>`<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const reassure=()=>`<section class="hm-reassure" aria-label="Help, refunds and payments"><div class="hm-h"><div><p class="hm-eye">Peace of mind</p><h2>We have you covered</h2></div></div>
+  <ul>
+    <li>${ic('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>')}<b>Help when you need it</b><p>Use Report a problem on your order, and get a quick reply.</p></li>
+    <li>${svg('tag')}<b>Easy refunds</b><p>Refunds can go to your ShopNip wallet, or back to your card.</p></li>
+    <li>${ic('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>')}<b>Secure payments</b><p>Your payment is handled securely.</p></li>
+  </ul></section>`;
+
+const PLAY='https://play.google.com/store/apps/details?id=uk.co.shopnip.app';
+const ctaBand=()=>`<section class="hm-cta" aria-label="Get the app or become a seller">
+  <div class="hm-app"><p class="hm-eye">On your phone</p><h2>Get the ShopNip app</h2><p>Order from your local shops on the go. Find ShopNip on Google Play.</p>
+    <a class="hm-play" href="${PLAY}" rel="noopener" target="_blank">Get it on Google Play</a><small class="hm-app-id">uk.co.shopnip.app</small></div>
+  <div class="hm-sell" aria-label="Become a seller"><div><p class="hm-eye">Own a local shop?</p><h2>Bring your shop online</h2><p>Join ShopNip and take click &amp; collect or delivery orders from nearby customers.</p></div>
+    <div class="hm-sell-a"><a class="btn" href="${SU('register')}" data-sell>Become a seller ${svg('arrow')}</a><a class="hm-link" href="/how" data-go="/how">See how it works</a></div></div>
+</section>`;
 
 const sellBan=()=>`<section class="hm-sell" aria-label="Become a seller"><div><p class="hm-eye">Own a local shop?</p><h2>Your neighbourhood.<br>Your shop. Now online.</h2><p>Bring your shelves to nearby customers and take click &amp; collect orders with ShopNip.</p></div><div class="hm-sell-a"><a class="btn" href="${SU('register')}" data-sell>Become a seller ${svg('arrow')}</a><a class="hm-link" href="/how" data-go="/how">See how it works</a></div></section>`;
 /* Shops map: pins at each live shop's own listed location (lat/lng from the shops table, same as the postcode shown on cards). Leaflet + OSM tiles load only when the map scrolls into view. */
@@ -192,7 +216,7 @@ const news=()=>`<section class="hm-news"><div><p class="hm-eye">Stay in the loop
   <form class="nwf" id="nwf"><div class="hm-nwi"><input type="email" id="nw_e" required placeholder="you@example.com" aria-label="Email address" autocomplete="email"><input id="nw_p" placeholder="Postcode" aria-label="Postcode (optional)" value="${esc(S.pc||'')}" maxlength="8"><button class="btn" type="submit">Sign up</button></div>
   <small>See our <a href="/privacy">Privacy Policy</a>.</small><div class="nwok" id="nwok"></div></form></section>`;
 
-V.home=function(){return `<div class="hm"><h1 class="sr">ShopNip: order from independent shops near you</h1>${hero()}${facts()}${trusted()}${shopsSec()}${sellBan()}${cats()}${dealsSec()}${prodSec()}${how()}${news()}</div>${foot()}`};
+V.home=function(){return `<div class="hm hm-v2"><h1 class="sr">ShopNip: your local shops, delivered or ready to collect</h1>${hero()}${welcome()}${trust()}${how()}${shopsSec()}${cats()}${dealsSec()}${prodSec()}${reassure()}${ctaBand()}${news()}</div>${foot()}`};
 
 addEventListener('click',e=>{const t=e.target.closest('[data-hmloc],[data-hmall]');if(!t)return;e.preventDefault();e.stopImmediatePropagation();
   if(t.hasAttribute('data-hmloc'))return askPostcode();
@@ -371,14 +395,57 @@ const css=`.nx-empty{padding:28px 16px 8px}.nx-h{font-size:18px;margin:24px 0 12
 
 /* Homepage content: compact rhythm, flexible cards and touch-sized controls. */
 .hm{gap:0;background:#faf7f2;--hmgap:40px}.hm>*{min-width:0}
-.hm>section.hm-sec,.hm>section.hm-sell,.hm>section.hm-departments,.hm>section.hm-how,.hm>section.hm-news,.hm>section.hm-brands,.hm>section.hm-trust,.hm>section.hm-facts{margin-top:var(--hmgap)!important}
+.hm>section.hm-sec,.hm>section.hm-sell,.hm>section.hm-departments,.hm>section.hm-how,.hm>section.hm-news,.hm>section.hm-brands,.hm>section.hm-trust,.hm>section.hm-facts,.hm>section.hm-truststrip,.hm>section.hm-reassure,.hm>section.hm-cta,.hm>section.hm-w{margin-top:var(--hmgap)!important}
 .hm-h{gap:12px;flex-wrap:wrap;margin-bottom:20px}.hm-h h2{font-size:clamp(24px,2.7vw,34px);color:#102038;letter-spacing:-.035em}.hm-h p{line-height:1.55}.hm-h .hm-eye{color:#0f766e;font-size:11px;margin-bottom:7px}
 .hm-shw{grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr)}.hm-shw>.hm-shops{grid-template-columns:repeat(2,minmax(0,1fr))}.hm-shop{text-decoration:none;border-radius:24px}.hm-shop-b{min-width:0}.hm-shop h3{overflow-wrap:anywhere}.hm-map{min-width:0}.hm-seg{max-width:100%;flex-wrap:wrap}.hm-seg button{min-height:44px}.hm-th span{width:64px;height:64px;flex-shrink:1}.hm-shop-c{height:154px}
 .hm-sell{padding:clamp(24px,4vw,46px);background:linear-gradient(120deg,#102038,#0f766e);border-radius:28px;color:#fff}.hm-sell h2{font-size:clamp(28px,3vw,40px);line-height:1.12;color:#fff}.hm-sell-a .btn{display:inline-flex;align-items:center;gap:12px;min-height:48px;background:#fff;color:#0f5f58;border-radius:14px;text-decoration:none}.hm-sell-a svg{width:20px;height:20px}.hm-sell p{margin:12px 0 0;color:#fff;line-height:1.55;max-width:38em}.hm-sell .hm-eye{display:inline-flex;margin:0 0 14px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.2);color:#fff}.hm-sell .hm-link{color:#fff}.hm-sell-a{min-width:0}
 .hm-departments>h2{font-size:clamp(24px,2.7vw,34px);color:#102038;letter-spacing:-.035em;margin:0 0 22px;font-weight:800}.hm-dept-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.hm-dept{display:flex;flex-direction:column;min-width:0;height:100%;padding:18px 16px 16px;border-radius:24px;background:#eef2f5;color:#102038;overflow:hidden}.hm-dept:nth-child(2){background:#fde8df}.hm-dept:nth-child(3){background:#eef1f6}.hm-dept:nth-child(4){background:#e3f4ea}.hm-dept-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}.hm-dept-h h3{font-size:17px;line-height:1.25;margin:0;font-weight:800;overflow-wrap:anywhere}.hm-dept-more{flex-shrink:0;color:#0f766e;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}.hm-dept-more:hover{text-decoration:underline}.hm-dept-subs{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1}.hm-dsub{display:flex;flex-direction:column;min-width:0;background:#fff;border-radius:16px;padding:10px 8px 8px;text-decoration:none;color:#334155;overflow:hidden;transition:transform .2s}.hm-dsub>span{display:grid;place-items:center;height:110px;overflow:hidden}.hm-dsub img{width:100%;height:100%;object-fit:contain}.hm-dsub small{display:block;margin-top:8px;text-align:center;font-size:12px;line-height:1.3;color:#475569;overflow-wrap:anywhere}.hm-dsub:hover{transform:translateY(-2px)}
 .hm-grid{gap:14px;grid-template-columns:repeat(6,minmax(0,1fr))}.hm-grid>*{min-width:0;border-radius:20px;overflow:hidden}.hm-grid img{object-fit:contain}.hm-dg{grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr))}.hm-how{padding:clamp(22px,3vw,36px)}.hm-how ol{grid-template-columns:repeat(3,minmax(0,1fr))}.hm-how li{background:#faf7f2}.hm-how li:nth-child(2){background:#eaf5f1}.hm-how li:nth-child(3){background:#fff0e8}.hm-n{color:#0f766e}.hm-news{margin-bottom:12px}.hm-news>*,.hm-nwi>*{min-width:0}.hm a:focus-visible,.hm button:focus-visible{outline:3px solid #0f766e;outline-offset:4px}.hm-more{min-height:44px}
 @media(max-width:1050px){.hm-shw{grid-template-columns:1fr}.hm-shw>.hm-shops{grid-template-columns:repeat(3,minmax(0,1fr))}.hm-map{height:260px}.hm-dept-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.hm-dsub>span{height:100px}.hm-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hm-news{grid-template-columns:1fr}.hm-shop-c{height:130px}.hm-th{padding:12px;gap:5px}.hm-th span{width:54px;height:54px}}
-@media(max-width:767px){.hm{--hmgap:28px}.hm>section.hm-sec,.hm>section.hm-sell,.hm>section.hm-departments,.hm>section.hm-how,.hm>section.hm-news,.hm>section.hm-brands,.hm>section.hm-trust,.hm>section.hm-facts{margin-top:var(--hmgap)!important}.hm-shw>.hm-shops{grid-template-columns:1fr}.hm-shop-c{height:150px}.hm-th span{width:76px;height:76px}.hm-h h2{font-size:clamp(22px,7vw,28px)}.hm-sell{grid-template-columns:1fr;gap:18px;padding:22px 18px;border-radius:22px}.hm-sell h2{font-size:26px;line-height:1.18}.hm-sell p{font-size:15px;color:#fff}.hm-sell .hm-eye{color:#fff;background:rgba(255,255,255,.22)}.hm-sell-a{justify-self:stretch;align-items:stretch;flex-direction:column;gap:12px}.hm-sell-a .btn{justify-content:center;width:100%}.hm-link{min-height:44px;display:flex;align-items:center;justify-content:center;color:#fff}.hm-dept-grid{display:grid;grid-template-columns:1fr;gap:12px;overflow:visible}.hm-dept{border-radius:20px;padding:14px}.hm-dept-h h3{font-size:17px}.hm-dsub>span{height:112px}.hm-dsub small{font-size:12px}.hm-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.hm-how{padding:20px 16px}.hm-how ol{grid-template-columns:1fr}.hm-how li{padding:16px}.hm-h{align-items:flex-start}.hm-news{padding:20px 16px}.hm-news .nwf .btn{min-height:48px;width:100%}.hm-news h2{font-size:23px}.hm-shops{grid-template-columns:1fr}.hm-brands{overflow:hidden}}
+@media(max-width:767px){.hm{--hmgap:28px}.hm>section.hm-sec,.hm>section.hm-sell,.hm>section.hm-departments,.hm>section.hm-how,.hm>section.hm-news,.hm>section.hm-brands,.hm>section.hm-trust,.hm>section.hm-facts,.hm>section.hm-truststrip,.hm>section.hm-reassure,.hm>section.hm-cta,.hm>section.hm-w{margin-top:var(--hmgap)!important}.hm-shw>.hm-shops{grid-template-columns:1fr}.hm-shop-c{height:150px}.hm-th span{width:76px;height:76px}.hm-h h2{font-size:clamp(22px,7vw,28px)}.hm-sell{grid-template-columns:1fr;gap:18px;padding:22px 18px;border-radius:22px}.hm-sell h2{font-size:26px;line-height:1.18}.hm-sell p{font-size:15px;color:#fff}.hm-sell .hm-eye{color:#fff;background:rgba(255,255,255,.22)}.hm-sell-a{justify-self:stretch;align-items:stretch;flex-direction:column;gap:12px}.hm-sell-a .btn{justify-content:center;width:100%}.hm-link{min-height:44px;display:flex;align-items:center;justify-content:center;color:#fff}.hm-dept-grid{display:grid;grid-template-columns:1fr;gap:12px;overflow:visible}.hm-dept{border-radius:20px;padding:14px}.hm-dept-h h3{font-size:17px}.hm-dsub>span{height:112px}.hm-dsub small{font-size:12px}.hm-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.hm-how{padding:20px 16px}.hm-how ol{grid-template-columns:1fr}.hm-how li{padding:16px}.hm-h{align-items:flex-start}.hm-news{padding:20px 16px}.hm-news .nwf .btn{min-height:48px;width:100%}.hm-news h2{font-size:23px}.hm-shops{grid-template-columns:1fr}.hm-brands{overflow:hidden}}
+
+.nb-hero h2{max-width:18ch;margin-bottom:12px}
+.nb-hero-sub{margin:0 0 22px;font-size:clamp(16px,2.1vw,20px);line-height:1.45;color:#334155;font-weight:500;text-wrap:balance}
+.nb-hero-mid{width:min(640px,92%)}
+.nb-hero-row button[type=submit]{padding:0 22px;font:800 15px inherit;border-radius:12px;min-width:7.5em}
+.hm-v2{--hmgap:36px}
+.hm-v2>.nb-hero{margin-bottom:0}
+.hm-truststrip{background:#fff;border:1px solid var(--line);border-radius:24px;padding:8px 8px}
+.hm-truststrip ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.hm-truststrip li{display:flex;align-items:flex-start;gap:12px;padding:16px 14px;border-radius:18px}
+.hm-truststrip li svg{width:22px;height:22px;color:#0f766e;flex:none;margin-top:1px}
+.hm-truststrip li span{font-weight:700;font-size:15px;line-height:1.35;color:#102038}
+.hm-how{scroll-margin-top:96px}
+.hm-how ol{list-style:none;margin:0;padding:0}
+.hm-reassure ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.hm-reassure li{background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px 20px}
+.hm-reassure li svg{width:28px;height:28px;color:#0f766e}
+.hm-reassure li b{display:block;margin:12px 0 6px;font-size:18px;letter-spacing:-.02em;color:#102038}
+.hm-reassure li p{margin:0;color:#475467;font-size:15px;line-height:1.5}
+.hm-cta{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;align-items:stretch}
+.hm-app{background:#fff;border:1px solid var(--line);border-radius:28px;padding:clamp(22px,3vw,40px);display:flex;flex-direction:column;align-items:flex-start;justify-content:center}
+.hm-app h2{margin:0;font-size:clamp(24px,2.6vw,34px);letter-spacing:-.03em;color:#102038}
+.hm-app p{margin:10px 0 20px;color:#475467;line-height:1.55;max-width:34em}
+.hm-play{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:14px;background:#14202e;color:#fff;font-weight:800;text-decoration:none}
+.hm-play:hover{background:#0b2b29}
+.hm-cta .hm-sell{margin:0;height:100%;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px}
+.hm-cta .hm-sell-a{justify-self:start;align-self:flex-start;margin-top:8px}
+.hm-app-id{display:block;margin-top:10px;font-size:12.5px;color:#667085;letter-spacing:.01em}
+.hm a:focus-visible,.hm button:focus-visible,.hm-play:focus-visible{outline:3px solid #0f766e;outline-offset:3px}
+@media(min-width:768px){.nb-hero{min-height:380px;max-height:560px}.nb-hero h2{max-width:16ch;font-size:clamp(36px,4.6vw,56px)}}
+@media(max-width:900px){.hm-truststrip ul,.hm-reassure ul,.hm-cta{grid-template-columns:1fr 1fr}}
+@media(max-width:767px){
+  .hm-v2{--hmgap:24px}
+  .nb-hero h2{max-width:none;margin-bottom:10px}
+  .nb-hero-sub{margin:0 0 18px;font-size:16px}
+  .hm-truststrip{padding:6px;border-radius:20px}
+  .hm-truststrip ul,.hm-reassure ul,.hm-cta{grid-template-columns:1fr}
+  .hm-truststrip li{padding:12px 12px}
+  .hm-reassure li{padding:18px 16px}
+  .hm-app{padding:22px 18px;border-radius:22px}
+  .hm-play{width:100%}
+}
+@media(prefers-reduced-motion:reduce){.nb-hero-cut img{animation:none}}
 
 `;
 function armFacts(){const el=document.querySelector('.hm-facts:not([data-armed])');if(!el)return;el.dataset.armed=1;
