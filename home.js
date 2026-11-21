@@ -230,7 +230,7 @@ const css=`.nx-empty{padding:28px 16px 8px}.nx-h{font-size:18px;margin:24px 0 12
 .sh-d.clamp{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .sh-more{background:none;border:0;padding:8px 0;min-height:44px;font-weight:700;color:var(--teal,#0f766e);cursor:pointer;font-size:14px}
 .hm-h5 .h5d{display:none!important}
-.nb-hero{position:relative;overflow:hidden;display:grid;place-items:center;min-height:300px;height:50vh;height:50dvh;max-height:520px;width:100vw;margin:0 0 0 calc(50% - 50vw);padding:28px 24px;background:#f4f5f6}
+.nb-hero{position:relative;overflow:hidden;display:grid;place-items:center;min-height:max(300px,min(50dvh,520px));height:auto;max-height:none;width:100vw;margin:0 0 0 calc(50% - 50vw);padding:28px 24px;background:#f4f5f6}
 .nb-hero:before{content:"";position:absolute;left:-6%;top:-8%;width:38%;height:120%;background:linear-gradient(160deg,#2dd4bf 0%,#0f766e 72%);clip-path:polygon(0 0,72% 0,100% 50%,72% 100%,0 100%);opacity:.95}
 .nb-hero:after{content:"";position:absolute;right:-10%;bottom:-20%;width:28%;height:70%;background:#d1fae5;border-radius:50%;filter:blur(8px);opacity:.7}
 .nb-hero-mid{position:relative;z-index:2;width:min(560px,92%);text-align:center}
@@ -432,7 +432,7 @@ const css=`.nx-empty{padding:28px 16px 8px}.nx-h{font-size:18px;margin:24px 0 12
 .hm-cta .hm-sell-a{justify-self:start;align-self:flex-start;margin-top:8px}
 .hm-app-id{display:block;margin-top:10px;font-size:12.5px;color:#667085;letter-spacing:.01em}
 .hm a:focus-visible,.hm button:focus-visible,.hm-play:focus-visible{outline:3px solid #0f766e;outline-offset:3px}
-@media(min-width:768px){.nb-hero{min-height:380px;max-height:560px}.nb-hero h2{max-width:16ch;font-size:clamp(36px,4.6vw,56px)}}
+@media(min-width:768px){.nb-hero{min-height:max(380px,min(50dvh,560px));max-height:none;padding-top:36px;padding-bottom:40px}.nb-hero h2{max-width:16ch;font-size:clamp(36px,4.6vw,56px)}}
 @media(max-width:900px){.hm-truststrip ul,.hm-reassure ul,.hm-cta{grid-template-columns:1fr 1fr}}
 @media(max-width:767px){
   .hm-v2{--hmgap:24px}
