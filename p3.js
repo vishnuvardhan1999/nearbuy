@@ -192,12 +192,12 @@ async function prepCheckout(){if(window.WAL&&A.user)await WAL.load();CO.shop=awa
   if(d.collect===false)CO.f=CO.deliv?.ok?'delivery':'collect';
   if(!(window.NBPay&&NBPay.shopReady(CO.shop)))CO.pay='shop';else if(!CO.pay)CO.pay='card';}
 function cardsOn(){return !!(window.NBPay&&NBPay.shopReady(CO.shop))}
-function payHold(r){const due=r.amount_due!=null?+r.amount_due:+r.total;
+function payHold(r){const due=r.amount_due!=null?+r.amount_due:+r.total,ready=!!r.client_secret;
   return `<section class="sec narrow checkout-pad"><div class="sh"><h2>Pay by card</h2></div><div class="panel"><h3 class="ft">${esc(r.order_number||'Your order')}</h3>
   <p class="hint">The shop is paid when they accept. If the total goes down, only the lower amount is taken. Apple Pay and Google Pay are offered when this device supports them.</p>
-  <p><b>${gbp(due)}</b></p><div id="pay-element"></div>
+  <p><b>${gbp(due)}</b></p>${ready?'<div id="pay-element"></div>':''}
   ${CO.err?`<div class="alert">${esc(CO.err)}</div>`:''}
-  <button class="btn full big" type="button" data-o="paygo">Pay ${gbp(due)}</button>
+  ${ready?`<button class="btn full big" type="button" data-o="paygo">Pay ${gbp(due)}</button>`:`<button class="btn full big" type="button" data-o="payretry">Try card payment again</button>`}
   <button class="btn ghost full" type="button" data-o="paylater" style="margin-top:8px">I'll finish the card in a moment</button></div></section>`}
 V.checkout=function(){
   if(CO.paying)return payHold(CO.paying);
@@ -319,6 +319,9 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
       try{const j=await fetch('https://api.postcodes.io/postcodes?lon='+lng+'&lat='+lat+'&limit=1').then(r=>r.json());if(j.result&&j.result[0])pc=j.result[0].postcode}catch(_){}
       CO.here={lat,lng,pc,src:'device'};if(CO.shop&&CO.shop.lat!=null){const mi=miles({lat,lng},CO.shop),rad=+(CO.shop.delivery_options?.delivery_radius_miles||0);CO.deliv={ok:mi<=rad,mi,why:`You're ${mi.toFixed(1)} mi away; ${CO.shop.name} delivers within ${rad} mi`}}
       render()},()=>toast('We could not get your location. Type your postcode instead.'));return}
+  if(a==='payretry'){const r=CO.paying;if(!r||!window.NBPay)return;el.disabled=true;CO.err='';
+    try{const pi=await NBPay.start(r);if(!pi||!pi.client_secret)throw new Error('Could not start the card payment');r.client_secret=pi.client_secret;CO.paying=Object.assign({},r);route('checkout')}
+    catch(err){CO.err=err.message||String(err);el.disabled=false;render()}return}
   if(a==='paygo'){const r=CO.paying;if(!r||!window.NBPay)return;
     try{if(MOCK||!r.client_secret)await NBPay.confirmMock(r);else{const pi=await NBPay.confirmLive();r.payment_status=pi&&pi.status==='requires_capture'?'authorised':'paid';if(pi&&pi.amount)r.amount_authorised=pi.amount/100}
       CO.err='';S.basket=[];saveB();CO.paying=null;route('placed',r)}catch(err){const box=document.querySelector('.checkout-pad .panel');let a=box&&box.querySelector('.alert');if(!a&&box){a=document.createElement('div');a.className='alert';box.insertBefore(a,box.querySelector('#pay-element')?.nextSibling||box.querySelector('[data-o=paygo]'))}if(a)a.textContent=err.message;else{CO.err=err.message;render()}}return}
@@ -341,16 +344,25 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-o]'
 document.addEventListener('change',e=>{if(e.target.id==='c_window'){CO.window=e.target.value;const t=$('#cowindow');if(t)t.textContent=CO.window||'Choose a window above';return}if(e.target.name==='ful'){CO.f=e.target.value;CO.window='';render()}if(e.target.name==='pay'){CO.pay=e.target.value;render()}if(e.target.id==='usewallet'){CO.useW=e.target.checked;render()}
   if(e.target.id==='c_pc'){const v=e.target.value.trim();if(CO.here?.src==='device'&&CO.here.pc&&v.replace(/\s/g,'').toUpperCase()===CO.here.pc.replace(/\s/g,'').toUpperCase())return;
     lookupPostcode(v).then(g=>{CO.here={lat:g.lat,lng:g.lng,pc:g.pc,src:'postcode'};if(CO.shop&&CO.shop.lat!=null){const mi=miles({lat:g.lat,lng:g.lng},CO.shop),rad=+(CO.shop.delivery_options?.delivery_radius_miles||0);CO.deliv={ok:mi<=rad,mi,why:`You're ${mi.toFixed(1)} mi away`}}if(cur[0]==='checkout')render()}).catch(()=>{})}});
-document.addEventListener('submit',async e=>{if(e.target.dataset.form!=='order')return;e.preventDefault();e.stopImmediatePropagation();const btn=$('#placebtn'),v=id=>($('#'+id)?.value||'').trim();CO.err='';
+document.addEventListener('submit',async e=>{const form=e.target&&e.target.closest?e.target.closest('[data-form="order"]'):(e.target&&e.target.dataset&&e.target.dataset.form==='order'?e.target:null);if(!form)return;e.preventDefault();e.stopImmediatePropagation();
+  if(CO.paying)return;
+  const v=id=>($('#'+id)?.value||'').trim(),dueLabel=()=>{const d=Math.max(0,sub()+(CO.f==='delivery'?+(CO.shop?.delivery_options?.delivery_fee||0):0)-(CO.useW&&window.WAL?Math.min(+WAL.state.balance||0,sub()+(CO.f==='delivery'?+(CO.shop?.delivery_options?.delivery_fee||0):0)):0));return `Place order · ${gbp(d)}`};
+  const restore=()=>document.querySelectorAll('#placebtn,.placebtn').forEach(b=>{b.disabled=!!((CO.shop?.delivery_options||{}).paused||CO.shop?.paused);b.textContent=dueLabel()});
+  CO.err='';
   const pcRaw=v('c_pc').toUpperCase();const pin=CO.here&&CO.here.pc&&pcRaw.replace(/\s/g,'')===CO.here.pc.replace(/\s/g,'').toUpperCase()?CO.here:null;
-  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,sku:b.sku,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0),pay:cardsOn()&&(document.querySelector('input[name=pay]:checked')||{}).value==='card'?'card':'shop'};
+  const wantCard=cardsOn()&&((document.querySelector('input[name=pay]:checked')||{}).value==='card'||CO.pay==='card');
+  const a={shop:bShop(),items:B().map(b=>({listing_id:b.listing_id,sku:b.sku,qty:b.qty})),fulfilment:CO.f,name:v('c_name'),phone:v('c_phone'),address:v('c_addr'),postcode:pcRaw,note:v('c_note'),delivery_window:CO.f==='delivery'?v('c_window'):'',lat:pin?pin.lat:null,lng:pin?pin.lng:null,useWallet:!!(CO.useW&&window.WAL&&WAL.state.balance>0),pay:wantCard?'card':'shop'};
   CO.phoneErr='';if(!a.phone){CO.phoneErr='Mobile number is required.';CO.err=CO.phoneErr;return render()}
   if(!/^[0-9+\s()-]{10,16}$/.test(a.phone)){CO.phoneErr='Enter a valid UK mobile number, for example 07700 900123.';CO.err=CO.phoneErr;return render()}
+  if(wantCard&&!(window.NBPay&&NBPay.shopReady(CO.shop))){CO.err='This shop is not taking cards yet. Choose Pay at the shop.';CO.pay='shop';return render()}
   document.querySelectorAll('#placebtn,.placebtn').forEach(b=>{b.disabled=true;b.textContent='Placing order…'});
   try{const r=await placeOrder(a);scrollTo(0,0);
-    if(r&&r._needCard&&window.NBPay){CO.paying=r;CO.err='';try{const pi=await NBPay.start(r);if(pi&&pi.client_secret)r.client_secret=pi.client_secret}catch(err){CO.err=err.message}route('checkout');return}
+    if(r&&r._needCard&&window.NBPay){CO.paying=r;CO.err='';
+      try{const pi=await NBPay.start(r);if(!pi||!pi.client_secret)throw new Error('Could not start the card payment');r.client_secret=pi.client_secret;CO.paying=Object.assign({},r)}
+      catch(err){CO.err=err.message||String(err)}
+      route('checkout');return}
     route('placed',r)}
-  catch(err){CO.err=err.message||String(err);render()}},true);
+  catch(err){CO.err=err.message||String(err);restore();render()}},true);
 // shared order-creation path (checkout form + p13 chat): geocode delivery postcode, place via RPC/mock, clear basket
 async function placeOrder(a){const shop=await D.shop(a.shop),d=shop?.delivery_options||{};if(!shop)throw new Error('Shop not found');if(d.paused||shop.paused)throw new Error('This shop is busy right now and isn’t taking orders. Please try again a little later.');
   if(a.fulfilment==='delivery'&&!d.delivery)throw new Error('This shop does not offer delivery');
@@ -397,7 +409,9 @@ window.P3={cur:()=>O.cur,checkoutShop:()=>CO.shop,deliveryBy,deliveryWindows,ord
 }};
 V.orderdetail=()=>V.order(O.cur.id);
 V.placedmock=()=>{const o=M.orders.find(x=>x.id==='o3')||M.orders[0];O.lastShop=M.shops[0].name;O.lastShopId=M.shops[0].id;O.lastF=(o&&o.fulfilment)||'collect';O.lastPlaced=o;O.cur=o;return V.placed(o||{id:'o3',order_number:'NB-2003',total:0})};
-function mountPay(){const host=document.getElementById('pay-element');if(host&&CO.paying&&window.NBPay&&host.dataset.on!=='1'){host.dataset.on='1';NBPay.mount(host,CO.paying.client_secret).catch(e=>{CO.err=e.message})}}
-if(typeof render==='function'&&!render._pay){const _r=render;render=function(){const x=_r.apply(this,arguments);mountPay();return x};render._pay=1}
-if(typeof route==='function'&&!route._pay){const _rt=route;route=function(){const x=_rt.apply(this,arguments);mountPay();return x};route._pay=1}
+function mountPay(){const host=document.getElementById('pay-element');if(!host||!CO.paying||!window.NBPay)return;
+  const key=String(CO.paying.client_secret||CO.paying.id||'');if(host.dataset.on===key)return;host.dataset.on=key;
+  NBPay.mount(host,CO.paying.client_secret).catch(e=>{CO.err=e.message||String(e);const a=host.parentNode&&host.parentNode.querySelector('.alert');if(a)a.textContent=CO.err;else{const d=document.createElement('div');d.className='alert';d.textContent=CO.err;host.parentNode&&host.parentNode.insertBefore(d,host.nextSibling)}})}
+if(typeof render==='function'&&!render._pay){const _r=render;render=function(){const x=_r.apply(this,arguments);setTimeout(mountPay,0);return x};render._pay=1}
+if(typeof route==='function'&&!route._pay){const _rt=route;route=function(){const x=_rt.apply(this,arguments);setTimeout(mountPay,0);return x};route._pay=1}
 })();

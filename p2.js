@@ -43,13 +43,16 @@ const DB=MOCK?{
   async updListing(id,ch){const {error}=await sb.from('shop_listings').update({...ch,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error},
   async delListing(id){const {error}=await sb.from('shop_listings').delete().eq('id',id);if(error)throw error},
   async bulk(ids,ch){for(let i=0;i<ids.length;i++)await this.updListing(ids[i],ch[i])},
-  async shop(id){const sel='id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,brand_color,delivery_options,active,status,created_at';
-    let {data}=await sb.from('shops').select(sel).eq('id',id).maybeSingle();if(data)return data;
-    const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-    if(id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){
-      const {data:all}=await sb.from('shops').select(sel).eq('status','approved').limit(500);
-      return (all||[]).find(x=>sl(x.name)===id||sl(x.name)+'-'+String(x.id).slice(0,8)===id)||null}
-    return null},
+  async shop(id){const base='id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,brand_color,delivery_options,active,status,created_at';
+    const load=async sel=>{let {data,error}=await sb.from('shops').select(sel).eq('id',id).maybeSingle();
+      if(error&&/stripe_/i.test(error.message||'')&&sel!==base)return load(base);
+      if(data)return data;
+      const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      if(id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){
+        const {data:all}=await sb.from('shops').select(sel).eq('status','approved').limit(500);
+        return (all||[]).find(x=>sl(x.name)===id||sl(x.name)+'-'+String(x.id).slice(0,8)===id)||null}
+      return null};
+    return load(base+',stripe_charges_enabled,stripe_account_id')},
   async shopListings(id){const {data}=await sb.from('shop_listings').select('*').eq('shop_id',id).eq('active',true).order('name');return data||[]},
   async backfill(id){const {data}=await sb.rpc('backfill_shop_listings',{p_shop:id});return data||0}
 };
@@ -209,7 +212,7 @@ async function loadShop(id){
 async function go(v){A.msg='';if(v==='addprod')await catalog();
   route(v);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t==='account'))}
 async function busy(btn,fn){const t=btn?.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='Please wait…'}try{await fn()}catch(e){A.msg=e.message||String(e);render();toast(A.msg)}finally{if(btn&&document.body.contains(btn)){btn.disabled=false;btn.innerHTML=t}}}
-document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
+document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;if(f.dataset.form==='order')return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
   const v=id=>(f.querySelector('#'+id)?.value||'').trim();
   if(f.dataset.form==='contact'){window.CK&&CK.set({name:v('cd_name'),phone:v('cd_phone'),addr:v('cd_addr')});A.editDet=false;toast('Details saved');return route('account')}
   if(f.dataset.form==='login')return busy(btn,async()=>{await DB.signIn(v('f_email'),v('f_pw'));await refresh();A.authPage=false;route('account');toast('Logged in')});

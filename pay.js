@@ -30,9 +30,11 @@ function extra(o){
   return s+'.</p>';
 }
 async function call(name,body){
-  const c=sb();if(!c||!c.functions)throw new Error('Card payments need the shop account signed in');
+  const c=sb();if(!c||!c.functions)throw new Error('Please sign in to pay by card');
   const {data,error}=await c.functions.invoke(name,{body});
-  if(error){let msg=error.message||'Card payment failed';try{const j=await error.context.json();if(j&&j.error)msg=j.error}catch(_){}throw new Error(msg)}
+  if(error){let msg=error.message||'Card payment failed';try{const j=await error.context.json();if(j&&j.error)msg=j.error}catch(_){}
+    if(/Failed to send|FunctionsFetchError|FunctionsHttpError|non-2xx/i.test(msg))msg='Card payment could not start. Please try again in a moment.';
+    throw new Error(msg)}
   if(data&&data.error)throw new Error(data.error);
   return data||{};
 }
@@ -41,7 +43,8 @@ function loadStripe(){if(window.Stripe)return Promise.resolve(window.Stripe);
 let elements=null,stripe=null;
 async function mount(host,clientSecret){
   if(!host)return;
-  if(MOCK||!clientSecret){host.innerHTML='<label class="fl"><span>Card number</span><input id="pay_num" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242" value=""></label><div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><label class="fl"><span>Expiry</span><input id="pay_exp" inputmode="numeric" autocomplete="cc-exp" placeholder="12 / 28"></label><label class="fl"><span>CVC</span><input id="pay_cvc" inputmode="numeric" autocomplete="cc-csc" placeholder="123"></label></div><p class="hint">Test mode. Use 4242 4242 4242 4242 to authorise, or 4000 0000 0000 9995 to decline. Apple Pay and Google Pay show here when the shop takes cards live.</p>';return}
+  if(MOCK){host.innerHTML='<label class="fl"><span>Card number</span><input id="pay_num" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242" value=""></label><div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><label class="fl"><span>Expiry</span><input id="pay_exp" inputmode="numeric" autocomplete="cc-exp" placeholder="12 / 28"></label><label class="fl"><span>CVC</span><input id="pay_cvc" inputmode="numeric" autocomplete="cc-csc" placeholder="123"></label></div><p class="hint">Test mode. Use 4242 4242 4242 4242 to authorise, or 4000 0000 0000 9995 to decline. Apple Pay and Google Pay show here when the shop takes cards live.</p>';return}
+  if(!clientSecret){host.innerHTML='<p class="hint">Waiting for the card form…</p>';throw new Error('The card form is not ready yet. Please try Place order again.');}
   const Stripe=await loadStripe();if(!PK)throw new Error('Card payments are not set up');
   stripe=Stripe(PK);elements=stripe.elements({clientSecret,appearance:{theme:'stripe',variables:{colorPrimary:'#0f766e',borderRadius:'12px'}}});
   host.innerHTML='';const pe=elements.create('payment');pe.mount(host);
