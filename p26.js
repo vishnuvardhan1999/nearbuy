@@ -1,14 +1,15 @@
 /* p26: legal pages (Terms, Privacy, Seller Terms, Cookies) at /terms /privacy /seller-terms /cookies.
-   ShopNip is a service operated by Suman Bros (Wholesale) Limited. Company details taken from this
-   repo and https://www.sumanbros.com/terms-conditions. Placeholders are marked [ ... ]. */
+   ShopNip is a Suman Bros product, built by NuvonHub. Legal operator and data controller:
+   Suman Bros (Wholesale) Limited. Placeholders still needed are marked [ ... ]. */
 (()=>{
 const CFG=window.APP_CONFIG||{};
 const PH=t=>`<span class="ph">[${t}]</span>`;
-const MAIL=()=>CFG.CONTACT_EMAIL?`<a href="mailto:${esc(CFG.CONTACT_EMAIL)}">${esc(CFG.CONTACT_EMAIL)}</a>`:PH('CONTACT EMAIL');
+const MAIL=()=>{const e=CFG.CONTACT_EMAIL||'hello@shopnip.co.uk';return `<a href="mailto:${esc(e)}">${esc(e)}</a>`};
 const CONTACT=()=>`through the <a href="/contact">Contact page</a> or by emailing ${MAIL()}`;
+const PRODUCT='ShopNip is a Suman Bros product, built by NuvonHub';
 const OP='ShopNip is a service operated by Suman Bros (Wholesale) Limited';
 const COINFO='Suman Bros (Wholesale) Limited is registered in England and Wales, company number 01802958. Registered address: Crown House, Otterspool Way, Watford WD25 8HL, United Kingdom. VAT number: GB 923 290 828. Telephone: 01923 200900';
-const UPD='Last updated 14 November 2026';
+const UPD='Last updated 21 November 2026';
 const LINKS=k=>`<nav class="lglinks" aria-label="Legal pages">${[['terms','Terms of Use'],['privacy','Privacy Policy'],['seller-terms','Seller Terms'],['cookies','Cookie Notice']].map(([h,l])=>`<a href="/${h}"${h===k?' aria-current="page"':''}>${l}</a>`).join('')}</nav>`;
 const page=(k,title,intro,body)=>`<article class="info legal"><div class="ih"><div class="tag">Legal</div><h1>${title}</h1><p>${intro}</p></div>
  <p class="lupd">${UPD}</p>${LINKS(k)}${body}
@@ -23,7 +24,7 @@ V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shoppe
 <ul>
 <li>You must be 18 or over to create an account.</li>
 <li>Give accurate details, and keep your password private. You are responsible for activity on your account.</li>
-<li>You can close your account at any time by contacting us.</li>
+<li>You can close your account at any time. See <a href="/delete-account.html">Delete your account</a>, or contact us. This cannot be undone.</li>
 <li>We may suspend or close accounts that break these terms, place fake orders or misuse the service.</li>
 </ul>
 <h2>4. Prices, orders and payment</h2>
@@ -76,8 +77,9 @@ V.terms=()=>page('terms','Terms of Use','The rules for using ShopNip as a shoppe
 
 V.privacy=()=>page('privacy','Privacy Policy','What personal data ShopNip collects, why, and your rights under UK data protection law (UK GDPR and the Data Protection Act 2018).',`
 <h2>1. Who is responsible</h2>
+<p>${PRODUCT}. The website is <a href="https://www.shopnip.co.uk">https://www.shopnip.co.uk</a>. The ShopNip app is on Google Play as <code>uk.co.shopnip.app</code>.</p>
 <p>${OP}, and Suman Bros (Wholesale) Limited is the data controller for the personal data described here. ${COINFO}. Contact us about privacy ${CONTACT()}.</p>
-<p>We have not appointed a named Data Protection Officer. ${PH('ICO REGISTRATION NUMBER — add if the company is registered with the ICO')}.</p>
+<p>We have not appointed a named Data Protection Officer. ${PH('ICO REGISTRATION NUMBER — needed from Vishnu if the company is registered with the ICO')}.</p>
 <h2>2. What we collect</h2>
 <ul>
 <li><b>Account details</b>: your email address, name and password (the password is stored securely by our provider; we can't see it).</li>
@@ -94,12 +96,12 @@ V.privacy=()=>page('privacy','Privacy Policy','What personal data ShopNip collec
 <tr><td>Creating and running your account</td><td>Contract</td></tr>
 <tr><td>Passing your order to the shop you chose, and showing you its status</td><td>Contract</td></tr>
 <tr><td>Showing nearby shops and checking delivery areas</td><td>Contract, or your consent when you use your device location</td></tr>
-<tr><td>Giving your phone number to the shop so they can contact you about the order, and sending order alerts (SMS, WhatsApp or a phone call) through Twilio</td><td>Contract, and our legitimate interests in telling shops about new orders promptly</td></tr>
+<tr><td>Giving your phone number to the shop so they can contact you about the order, and sending order alerts (SMS or a phone call) through Twilio</td><td>Contract, and our legitimate interests in telling shops about new orders promptly</td></tr>
 <tr><td>Storing proof-of-delivery photos on the order</td><td>Contract, and our legitimate interests in showing that a delivery was made</td></tr>
 <tr><td>Keeping ShopNip secure and preventing misuse</td><td>Legitimate interests</td></tr>
 <tr><td>Keeping records we are legally required to keep</td><td>Legal obligation</td></tr>
 <tr><td>Sending deal emails, only if you sign up for them</td><td>Consent (you can unsubscribe at any time)</td></tr>
-<tr><td>Taking card payments, if we start doing so, through Stripe</td><td>Contract, and legal obligation for payment records</td></tr>
+<tr><td>When you pay by card, processing the payment through Stripe. Your card details are handled by Stripe, not stored by ShopNip</td><td>Contract, and legal obligation for payment records</td></tr>
 </tbody></table>
 <p>We don't sell your data and we don't use it for advertising.</p>
 <h2>4. Who we share it with</h2>
@@ -107,27 +109,32 @@ V.privacy=()=>page('privacy','Privacy Policy','What personal data ShopNip collec
 <li><b>The shop you order from</b> gets your name, phone, order details and, for delivery, your address.</li>
 <li><b>Supabase</b> is our processor for the database, login and file storage (including proof-of-delivery photos). Its project for ShopNip is configured in the London (UK) region.</li>
 <li><b>Vercel</b> hosts the website.</li>
-<li><b>Twilio</b> sends order alerts by SMS, WhatsApp or phone call, mainly to shops.</li>
+<li><b>Twilio</b> sends order alerts by SMS or phone call, mainly to shops.</li>
 <li><b>Resend</b> sends transactional email, such as order and support emails.</li>
 <li><b>postcodes.io</b> turns postcodes and locations into map positions. We send it only a postcode or coordinates, not your name.</li>
-<li><b>Stripe</b>, if we take card payments, would process those payments. We will update this policy if that happens.</li>
+<li><b>Stripe</b> processes card payments when you pay by card. Your card details are handled by Stripe, not stored by ShopNip.</li>
 </ul>
-<p>Some of these providers may process data outside the UK. Where they do, we rely on a lawful UK transfer mechanism, such as the UK International Data Transfer Addendum or an adequacy regulation. ${PH('TRANSFER SAFEGUARDS — confirm the agreements in place with each processor')}.</p>
+<p>Some of these providers may process data outside the UK. Where they do, we rely on a lawful UK transfer mechanism, such as the UK International Data Transfer Addendum or an adequacy regulation. ${PH('TRANSFER SAFEGUARDS — needed from Vishnu: confirm the UK transfer agreements in place with each processor')}.</p>
 <h2>5. How long we keep it</h2>
 <ul>
-<li>Account details: while your account is open, then deleted or anonymised within ${PH('ACCOUNT CLOSURE DELETION PERIOD')} of you closing it, unless we must keep something longer.</li>
-<li>Order records, including proof-of-delivery photos: up to 6 years, for accounting and dispute purposes.</li>
-<li>Security logs: kept by our providers for a short period, usually no more than ${PH('SECURITY LOG RETENTION')}.</li>
+<li>Account details: while your account is open, then deleted or anonymised within 30 days of you asking us to close it, unless we must keep something longer (see “Deleting your account” below).</li>
+<li>Order records, including proof-of-delivery photos: up to 6 years, for tax, accounting and dispute purposes.</li>
+<li>Security logs: kept by our providers for a short period, usually no more than ${PH('SECURITY LOG RETENTION — needed from Vishnu')}.</li>
 <li>Data on your device: until you clear it (see our <a href="/cookies">Cookie Notice</a>).</li>
 </ul>
-<h2>6. Your rights</h2>
+<h2>6. Deleting your account</h2>
+<p>You can ask us to delete your ShopNip account at any time, on the website or in the Google Play app. <b>This cannot be undone.</b> Once the account is deleted, you will not be able to sign in or get it back.</p>
+<p>There is no instant delete button in the app. Use the <a href="/delete-account.html">Delete your account</a> page, or contact us ${CONTACT()}, from the email address you use to sign in. We confirm by email once it is done, within 30 days.</p>
+<p><b>What we delete:</b> your account and sign-in details (name, email address, password); saved phone number, delivery addresses and location; your basket, saved items; and messages you sent to support.</p>
+<p><b>What we keep:</b> records of orders you placed, including proof-of-delivery photos where we have them, for up to 6 years where the law requires it for tax and accounting. These records are no longer linked to a sign-in account. Any unused ShopNip wallet credit is refunded to you when the account is deleted: to your original card where possible, otherwise by bank transfer.</p>
+<h2>7. Your rights</h2>
 <p>You have the right to access your data, have it corrected or deleted, restrict or object to how we use it, take a copy to another service (portability), and withdraw consent at any time. To use any of these rights, contact us ${CONTACT()}. We will reply within one month.</p>
 <p>If you're unhappy with how we handle your data, you can complain to the Information Commissioner's Office (ICO) at <a href="https://ico.org.uk" rel="noopener" target="_blank">ico.org.uk</a> or by writing to the ICO, Wycliffe House, Water Lane, Wilmslow, Cheshire SK9 5AF.</p>
-<h2>7. Cookies and storage on your device</h2>
+<h2>8. Cookies and storage on your device</h2>
 <p>ShopNip doesn't use advertising cookies. We use your browser's local storage, and a small number of other device stores, for things the site needs to work or that you ask for. The full list, and how consent works, is in our <a href="/cookies">Cookie Notice</a>.</p>
-<h2>8. Children</h2>
+<h2>9. Children</h2>
 <p>ShopNip is not meant for children under 18, and we don't knowingly collect their data.</p>
-<h2>9. Changes</h2>
+<h2>10. Changes</h2>
 <p>We will update this page if we change how we use data. The date at the top shows the latest version.</p>`);
 
 V['seller-terms']=()=>page('seller-terms','Seller Terms','The rules for shops that sell on ShopNip. They apply alongside our Terms of Use and Privacy Policy.',`
@@ -196,7 +203,7 @@ V.cookies=()=>{const rows=[
 <h2>What we store</h2>
 <table class="ltbl"><thead><tr><th>Name</th><th>What it's for</th><th>How long</th></tr></thead><tbody>${rows.map(r=>`<tr><td><code>${r[0]}</code></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table>
 <h2>Other connections</h2>
-<p>The site loads the Plus Jakarta Sans font from Google Fonts, so your browser connects to Google to fetch the font files. Google may receive your IP address. Postcode lookups go to postcodes.io. Login, data storage and files (including proof-of-delivery photos) are provided by Supabase. The site is hosted by Vercel. Order alert messages may be sent by Twilio, and emails by Resend. These are described in our <a href="/privacy">Privacy Policy</a>.</p>
+<p>The site loads the Plus Jakarta Sans font from Google Fonts, so your browser connects to Google to fetch the font files. Google may receive your IP address. Postcode lookups go to postcodes.io. Login, data storage and files (including proof-of-delivery photos) are provided by Supabase, in the London (UK) region. The site is hosted by Vercel. Order alert messages may be sent by Twilio, and emails by Resend. When you pay by card, the payment is processed by Stripe. ShopNip does not store your card details. These are described in our <a href="/privacy">Privacy Policy</a>.</p>
 <h2>Your choices</h2>
 <p>You can clear this data at any time in your browser settings (for example "Clear site data" for www.shopnip.co.uk). If you do, your basket, postcode and ninja preference will be forgotten and you will be signed out. You can also turn the ninja off from your account page without clearing everything else.</p>
 <h2>More</h2>

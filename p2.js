@@ -115,6 +115,7 @@ V.account=function(){
     <div class="two"><button class="btn">Save details</button><button type="button" class="btn ghost" data-act="details">Cancel</button></div></form>`:''}
    ${owner?`<div class="shopc"><div><b>Your shop</b><small>${A.shop?esc(A.shop.name)+' · '+statusLabel(A.shop.status):'Manage your shop on ShopNip'}</small></div><a class="btn" href="${dash}">Go to my shop dashboard</a></div>`:''}
    <button class="btn ghost full" data-act="logout" style="margin-top:16px">Log out</button>
+   <p class="foot"><a href="/delete-account.html">Delete your account</a> — this cannot be undone</p>
    ${owner?'':`<p class="foot">Own a shop? <a href="${land}">Sell on ShopNip</a></p>`}</section>`};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s);
 V.register=function(){
