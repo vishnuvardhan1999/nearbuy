@@ -43,14 +43,17 @@ const DB=MOCK?{
   async updListing(id,ch){const {error}=await sb.from('shop_listings').update({...ch,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw error},
   async delListing(id){const {error}=await sb.from('shop_listings').delete().eq('id',id);if(error)throw error},
   async bulk(ids,ch){for(let i=0;i<ids.length;i++)await this.updListing(ids[i],ch[i])},
-  async shop(id){const sel='id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,brand_color,delivery_options,active,status,created_at';
-    let {data}=await sb.from('shops').select(sel).eq('id',id).maybeSingle();if(data)return data;
-    const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-    if(id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){
-      const {data:all}=await sb.from('shops').select(sel).eq('status','approved').limit(500);
-      return (all||[]).find(x=>sl(x.name)===id||sl(x.name)+'-'+String(x.id).slice(0,8)===id)||null}
-    return null},
-  async shopListings(id){const {data}=await sb.from('shop_listings').select('*').eq('shop_id',id).eq('active',true).order('name');return data||[]},
+  async shop(id){const base='id,name,address,postcode,lat,lng,phone,opening_hours,logo_url,cover_url,brand_color,delivery_options,active,status,created_at';
+    const load=async sel=>{let {data,error}=await sb.from('shops').select(sel).eq('id',id).maybeSingle();
+      if(error&&/stripe_/i.test(error.message||'')&&sel!==base)return load(base);
+      if(data)return data;
+      const sl=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      if(id&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){
+        const {data:all}=await sb.from('shops').select(sel).eq('status','approved').limit(500);
+        return (all||[]).find(x=>sl(x.name)===id||sl(x.name)+'-'+String(x.id).slice(0,8)===id)||null}
+      return null};
+    return load(base+',stripe_charges_enabled,stripe_account_id')},
+  async shopListings(id){const {data:ok}=await sb.from('shops').select('id').eq('id',id).eq('status','approved').eq('active',true).maybeSingle();if(!ok)return [];const {data}=await sb.from('shop_listings').select('*').eq('shop_id',id).eq('active',true).gt('retail_price',0).order('name');return data||[]},
   async backfill(id){const {data}=await sb.rpc('backfill_shop_listings',{p_shop:id});return data||0}
 };
 async function refresh(){
@@ -64,7 +67,7 @@ async function seedMock(){
   if(Q.get('as')&&Q.get('as')!=='none'&&Q.get('shop')!=='none'){
     M.shops.push({id:'s1',owner_id:Q.get('as')==='shopper'?'u-owner':'u1',name:'Corner News & Stationers',address:'12 High Street, Leicester',postcode:'LE1 5YA',lat:52.634,lng:-1.133,phone:'0116 123 4567',
       opening_hours:'Mon-Fri 10am-6pm, Sat closed, Sun 10am-2pm',status:Q.get('status')||'approved',active:true,bluepark_customer_email:'orders@cornernews.co.uk',
-      delivery_options:{collect:true,delivery:true,delivery_by:'shopnip',delivery_radius_miles:3,delivery_fee:2.5,order_alerts:{sms:true,whatsapp:true,call:false,mobile:'07700 900123'}},logo_url:null,cover_url:null});
+      delivery_options:{collect:true,delivery:true,delivery_by:'shopnip',delivery_radius_miles:3,delivery_fee:2.5,order_alerts:{sms:true,whatsapp:true,call:false,mobile:'07700 900123'}},logo_url:null,cover_url:null,stripe_charges_enabled:Q.get('card')==='1',stripe_account_id:Q.get('card')==='1'?'acct_test':null});
     [...pick('pencil').slice(0,2),...pick('balloon').slice(0,2),...pick('glue').slice(0,1),...pick('notebook').slice(0,2),...pick('gift bag').slice(0,1)].forEach((p,i)=>
       M.listings.push({id:'l'+i,shop_id:'s1',sku:p.sku,name:p.name,image:p.images[0],category:p.category,trade_price:p.trade_price,retail_price:+(p.trade_price*(i%3?1.5:1.8)).toFixed(2),stock:[24,6,0,12,40,3,18,9][i],compare_at_price:i%3===1?+(p.trade_price*2.1).toFixed(2):null,active:i!==2,source:i<5?'wholesale':'manual'}));
     M.shops.push({id:'s2',owner_id:'u2',name:'Village Post Office Store',address:'1 Church Lane, Oadby',postcode:'LE2 5AA',status:'pending',bluepark_customer_email:'vpo@example.com',created_at:'2026-10-23',delivery_options:{collect:true}});
@@ -142,8 +145,8 @@ V.register=function(){
    <div class="panel"><h3 class="ft">Photos</h3><div class="two">
     <label class="up"><input type="file" id="s_logo" accept="image/*" hidden><span class="upi" id="pv_logo">${s.logo_url?`<img src="${esc(s.logo_url)}" alt="Shop logo">`:svg('plus')}</span><b>Logo</b><small>Square, 400px+</small></label>
     <label class="up"><input type="file" id="s_cover" accept="image/*" hidden><span class="upi wide" id="pv_cover">${s.cover_url?`<img src="${esc(s.cover_url)}" alt="Shop cover photo">`:svg('plus')}</span><b>Cover photo</b><small>Shop front, 1200×600</small></label></div></div>
-   <button class="btn full big" id="s_submit">${s.id?'Save changes':'Submit for approval'}</button>
-   <p class="hint c">By registering you agree to the ShopNip seller terms.</p></form></section>`};
+   ${s.terms_accepted_at?'':`<label class="tog"><input type="checkbox" id="s_terms" ${s.id?'':'required'}><span><b>I agree to the <a href="/seller-terms#agree" target="_blank" rel="noopener">ShopNip seller terms</a></b><small>Products can only go live once you have agreed.</small></span></label>`}
+   <button class="btn full big" id="s_submit">${s.id?'Save changes':'Submit for approval'}</button></form></section>`};
 V.myshop=function(){
   if(!A.shop)return V.register();const s=A.shop,L=A.listings;
   const live=L.filter(l=>l.active).length,low=L.filter(l=>l.stock<=3).length;
@@ -210,7 +213,7 @@ async function loadShop(id){
 async function go(v){A.msg='';if(v==='addprod')await catalog();
   route(v);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t==='account'))}
 async function busy(btn,fn){const t=btn?.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='Please wait…'}try{await fn()}catch(e){A.msg=e.message||String(e);render();toast(A.msg)}finally{if(btn&&document.body.contains(btn)){btn.disabled=false;btn.innerHTML=t}}}
-document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
+document.addEventListener('submit',async e=>{const f=e.target.closest('[data-form]');if(!f)return;if(f.dataset.form==='order')return;e.preventDefault();const btn=f.querySelector('button.btn:last-of-type')||f.querySelector('.btn');A.msg='';
   const v=id=>(f.querySelector('#'+id)?.value||'').trim();
   if(f.dataset.form==='contact'){window.CK&&CK.set({name:v('cd_name'),phone:v('cd_phone'),addr:v('cd_addr')});A.editDet=false;toast('Details saved');return route('account')}
   if(f.dataset.form==='login')return busy(btn,async()=>{await DB.signIn(v('f_email'),v('f_pw'));await refresh();A.authPage=false;route('account');toast('Logged in')});
@@ -226,9 +229,11 @@ document.addEventListener('submit',async e=>{const f=e.target.closest('[data-for
     const rec={name:v('s_name'),address:v('s_addr'),postcode:pc.pc,lat:precise?+pin.dataset.lat:pc.lat,lng:precise?+pin.dataset.lng:pc.lng,location_source:precise?(pin.dataset.src||'device'):'postcode',location_set_at:new Date().toISOString(),phone:v('s_phone'),opening_hours:v('s_hours'),bluepark_customer_email:v('s_trade').toLowerCase(),requested_products:v('s_want')||null,
       delivery_options:{...(A.shop?.delivery_options||{}),collect:$('#s_col').checked,delivery:$('#s_del').checked,delivery_radius_miles:+v('s_rad')||0,delivery_fee:+v('s_fee')||0,prep_minutes:Math.min(90,Math.max(5,+v('s_prep')||15))}};
     if(!rec.delivery_options.collect&&!rec.delivery_options.delivery)throw new Error('Choose click & collect, delivery or both.');
+    const tk=$('#s_terms');if(!A.shop&&!(tk&&tk.checked))throw new Error('Tick I agree to the ShopNip seller terms to register your shop.');
+    if(tk&&tk.checked){rec.terms_accepted_at=new Date().toISOString();rec.terms_version=(window.APP_CONFIG||{}).SELLER_TERMS_VERSION||'2026-11'}
     if(A.shop?.id)rec.id=A.shop.id;
     for(const k of ['logo','cover']){const file=$('#s_'+k).files[0];if(file){if(file.size>5e6)throw new Error('Images must be under 5 MB.');rec[k+'_url']=await DB.upload(file,k)}}
-    const isNew=!A.shop;const save=async()=>{try{return await DB.saveShop(rec)}catch(er){if(/location_source|location_set_at/.test(er.message||'')){delete rec.location_source;delete rec.location_set_at;return DB.saveShop(rec)}if(/requested_products/.test(er.message||'')){delete rec.requested_products;return DB.saveShop(rec)}throw er}};
+    const isNew=!A.shop;const save=async()=>{try{return await DB.saveShop(rec)}catch(er){if(/location_source|location_set_at/.test(er.message||'')){delete rec.location_source;delete rec.location_set_at;return DB.saveShop(rec)}if(/requested_products/.test(er.message||'')){delete rec.requested_products;return DB.saveShop(rec)}if(/terms_/.test(er.message||'')&&('terms_accepted_at' in rec)){delete rec.terms_accepted_at;delete rec.terms_version;return DB.saveShop(rec)}throw er}};
     A.shop=await save();/* location columns: 20261111220000_precise_deliveries.sql */
     if(isNew){const n=await DB.backfill(A.shop.id);A.listings=await DB.listings();toast(n?`Shop submitted. ${n} products added from your wholesale orders.`:'Shop submitted for approval')}else toast('Saved');
     route('myshop')})});

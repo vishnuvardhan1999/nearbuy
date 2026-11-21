@@ -163,7 +163,7 @@ const PLAY='https://play.google.com/store/apps/details?id=uk.co.shopnip.app';
 const ctaBand=()=>`<section class="hm-cta" aria-label="Get the app or become a seller">
   <div class="hm-app"><p class="hm-eye">On your phone</p><h2>Get the ShopNip app</h2><p>Order from your local shops on the go. Find ShopNip on Google Play.</p>
     <a class="hm-play" href="${PLAY}" rel="noopener" target="_blank">Get it on Google Play</a><small class="hm-app-id">uk.co.shopnip.app</small></div>
-  <div class="hm-sell" aria-label="Become a seller"><div><p class="hm-eye">Own a local shop?</p><h2>Bring your shop online</h2><p>Join ShopNip and take click &amp; collect or delivery orders from nearby customers.</p></div>
+  <div class="hm-sell" aria-label="Become a seller"><div><p class="hm-eye">Own a local shop?</p><h2>Bring your shop online</h2><p>Join ShopNip and take click &amp; collect or delivery orders from nearby customers. We list your usual products for you, you set the prices, and every order is yours to keep, with no commission.</p></div>
     <div class="hm-sell-a"><a class="btn" href="${SU('register')}" data-sell>Become a seller ${svg('arrow')}</a><a class="hm-link" href="/how" data-go="/how">See how it works</a></div></div>
 </section>`;
 

@@ -1,5 +1,15 @@
 /* ShopNip boot (loaded in <head>, before the app). Replaces former inline script + inline onerror handlers so the CSP needs no 'unsafe-inline' for scripts. */
 (function(){
+  /* Local preview: mock is only on with ?mock=1. Drop leftover mock flags and unregister old service workers. */
+  try{
+    var host=location.hostname,local=host==='127.0.0.1'||host==='localhost'||host==='::1';
+    if(local){
+      Object.keys(localStorage).forEach(function(k){if(/^nb_mock/i.test(k))localStorage.removeItem(k)});
+      Object.keys(sessionStorage).forEach(function(k){if(/mock/i.test(k))sessionStorage.removeItem(k)});
+      if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister()})}).catch(function(){});
+      if(window.caches&&caches.keys)caches.keys().then(function(keys){keys.forEach(function(k){if(/^shopnip-/i.test(k))caches.delete(k)})}).catch(function(){});
+    }
+  }catch(e){}
   /* seller auth lives in seller.html: ?seller=1 links go to the seller portal (shop registration still uses view=register here) */
   var Q=new URLSearchParams(location.search);
   if(Q.get('seller')==='1'&&Q.get('view')!=='register'){var v=Q.get('view'),k=['mock','as','shop','status'].filter(function(x){return Q.has(x)}).map(function(x){return x+'='+encodeURIComponent(Q.get(x))}).join('&');

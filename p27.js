@@ -56,7 +56,7 @@ Object.assign(I,{upl:'<path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 16v4h16v-4"/>
   bars:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',crown:'<path d="M3 18h18l-2-10-5 4-2-6-2 6-5-4z"/>',qr:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4"/>',
   tab:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M11 17h2"/>',copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',dlf:'<path d="M12 4v12M6 10l6 6 6-6M4 20h16"/>',mailx:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   wa:'<path d="M3 21l1.6-4.7A8.5 8.5 0 1 1 8 19.6z"/><path d="M9 9.5c.5 2.5 2.5 4.5 5 5l1.2-1.2-2-1-1 .7a5 5 0 0 1-2.2-2.2l.7-1-1-2z"/>',link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',print:'<path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z"/>'});
-const ADD=[['invoice','upl','Invoice auto-fill'],['reorder','cart','Re-order'],['insights','bars','Insights'],['plan','crown','Plan & fees'],['boost','qr','Promote my shop'],['counter','tab','Counter mode']];
+const ADD=[['invoice','upl','Invoice auto-fill'],['reorder','cart','Re-order'],['insights','bars','Insights'],['plan','crown','Your plan'],['boost','qr','Promote my shop'],['counter','tab','Counter mode']];
 ADD.forEach(([k,ic,t])=>{if(!DASH.includes(k))DASH.push(k);TITLE[k]=t;if(!NAV.find(n=>n[0]===k))NAV.push([k,ic])});
 
 // ---------- small helpers ----------
@@ -208,7 +208,7 @@ function ivEdit(t){const tr=t.closest('[data-iv]'),x=U.inv.lines[+tr.dataset.iv]
 
 // =================== 2. PLAN & FEES (two-tier) ===================
 const feeTxt=f=>f>0?gbp(f):'£0';
-function saveStrip(compact){const t=U.tier;if(!t)return '';const best=(U.partners||[]).reduce((m,p)=>Math.min(m,+p.partner_fee),Infinity),save=+t.standard_fee-best;
+function saveStrip(compact){return '';const t=U.tier;if(!t)return '';const best=(U.partners||[]).reduce((m,p)=>Math.min(m,+p.partner_fee),Infinity),save=+t.standard_fee-best;
   if(t.tier==='partner')return compact?`<div class="bnr info">${svg('crown')}<div><b>Partner plan · ${feeTxt(t.fee)}/month</b>You’re linked to ${esc(t.partner_name||'a partner wholesaler')}, so you get the lower listing fee.</div></div>`:'';
   if(t.link_status==='requested')return `<div class="bnr">${svg('clock')}<div><b>Partner link pending</b>We’re checking your account with ${esc(t.partner_name||'the wholesaler')}. Once verified your fee drops to the partner rate.</div></div>`;
   if(!(save>0))return '';
@@ -307,7 +307,7 @@ setInterval(()=>{if(location.hash==='#counter'&&!document.activeElement?.id?.sta
 const _ov=PAGES.overview;
 PAGES.overview=()=>{loadTier();const h=_ov(),low=reList().length;
   const extra=saveStrip(true)+(low?`<div class="bnr info">${svg('cart')}<div><b>${low} product${low>1?'s':''} to re-order</b>Your re-order list is ready, grouped by supplier. <a href="#reorder">Open re-order list</a></div></div>`:'')
-   +(U.code&&U.tier&&U.tier.tier!=='partner'&&U.tier.link_status!=='requested'?`<div class="p27save">${svg('crown')}<div><b>You have a partner invite code: ${esc(U.code)}</b><span class="mut">Apply it to move to the lower partner fee once verified.</span></div><a class="btn coral sm" href="#plan">Apply code</a></div>`:'');
+   +(false&&U.code&&U.tier&&U.tier.tier!=='partner'&&U.tier.link_status!=='requested'?`<div class="p27save">${svg('crown')}<div><b>You have a partner invite code: ${esc(U.code)}</b><span class="mut">Apply it to move to the lower partner fee once verified.</span></div><a class="btn coral sm" href="#plan">Apply code</a></div>`:'');
   return extra+h};
 
 // =================== events ===================
