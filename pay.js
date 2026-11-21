@@ -86,15 +86,20 @@ async function refund(orderId,amount){
     o.amount_refunded=Math.round(((+o.amount_refunded||0)+want)*100)/100;o.payment_status=o.amount_refunded+0.001>=+o.amount_paid?'refunded':'partially_refunded';return o}
   return call('stripe-refund',{order_id:orderId,amount});
 }
+async function refreshConnect(){
+  if(MOCK){const s=window.NBSeller&&NBSeller.D.shop;return {stripe_account_id:s&&s.stripe_account_id||null,stripe_charges_enabled:!!(s&&s.stripe_charges_enabled)}}
+  return call('stripe-connect-onboard',{refresh:true});
+}
 async function connect(){
   if(MOCK){const s=window.NBSeller&&NBSeller.D.shop;if(!s)throw new Error('Open the seller dashboard first');
     if(!s.stripe_account_id){s.stripe_account_id='acct_test';s.stripe_charges_enabled=false;toast('Stripe setup started. Finish it, then refresh status.')}
     else{s.stripe_charges_enabled=true;toast('Card payments are ready in test mode')}
-    return {mock:true}}
+    return {mock:true,stripe_account_id:s.stripe_account_id,stripe_charges_enabled:!!s.stripe_charges_enabled}}
   const data=await call('stripe-connect-onboard',{});
   if(!data||!data.url)throw new Error('Stripe did not return an onboarding link');
   location.href=data.url;
+  return data;
 }
 if(!document.getElementById('paycss')){const st=document.createElement('style');st.id='paycss';st.textContent='.pay-badge{display:inline-block;font-size:12px;font-weight:800;padding:2px 8px;border-radius:999px;background:#ecfdf5;color:#047857}.pay-badge.refunded,.pay-badge.failed{background:#fef2f2;color:#b42318}.pay-badge.authorised{background:#eff6ff;color:#1d4ed8}#pay-element{margin-top:8px}';document.head.appendChild(st)}
-window.NBPay={PK,isCard,shopReady,badge,phrase,extra,start,mount,confirmMock,confirmLive,settle,refund,connect,call};
+window.NBPay={PK,isCard,shopReady,badge,phrase,extra,start,mount,confirmMock,confirmLive,settle,refund,connect,refreshConnect,call};
 })();

@@ -53,7 +53,7 @@ const ownDriver=()=>{const d=D.shop&&D.shop.delivery_options||{};return !!(d.del
 const mapTo=o=>o.delivery_lat!=null?`https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([o.delivery_address,o.delivery_postcode].filter(Boolean).join(', '))}`;
 function jpegBlob(dataUrl){const bin=atob(String(dataUrl).split(',')[1]||'');const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type:'image/jpeg'})}
 const chip=s=>`<span class="st ${esc(s)}">${esc(LBL[s]||s)}</span>`;
-const D={user:null,shop:null,L:[],O:[],cat:null,ui:{oq:'',of:'open',pq:'',pf:'all',pn:60,drawer:null,cat:false,newIds:new Set(),stripeErr:''}};
+const D={user:null,shop:null,L:[],O:[],cat:null,ui:{oq:'',of:'open',pq:'',pf:'all',pn:60,drawer:null,cat:false,newIds:new Set(),stripeErr:'',stripeBusy:false}};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s||'');
 // ---------- data layer: Supabase (same calls/RLS as p2/p3/p5) or in-memory mock ----------
 const M={shops:[],L:[],O:[],user:null};
@@ -133,8 +133,9 @@ async function load(){const s=await API.session();D.user=s?.user||null;D.shop=nu
   if(!D.user)return;D.shop=await API.myShop();
   if(D.shop){[D.L,D.O]=await Promise.all([API.listings(),API.orders()]);if(!MOCK)API.live(D.shop.id,onLive);if(window.REL&&REL.startClocks)REL.startClocks(()=>onExpired());else startSellerClocks();try{const r=window.REL&&REL.expireDue?await REL.expireDue():null;if(r&&r.expired){D.O=await API.orders()}}catch(_){}}}
 async function boot(){try{if(MOCK)await seed();await load()}catch(e){console.warn(e);toast(e.message||'Could not load your shop')}
-  if(sb)sb.auth.onAuthStateChange(async ev=>{if(ev==='SIGNED_OUT'||ev==='SIGNED_IN'){await load().catch(()=>{});render()}});
-  addEventListener('hashchange',()=>{D.ui.drawer=null;if(!AUTH()&&!fromAuth())D.ui.amsg='';render();scrollTo(0,0)});render()}
+  if(sb)sb.auth.onAuthStateChange(async ev=>{if(ev==='SIGNED_OUT'||ev==='SIGNED_IN'){await load().catch(()=>{});render();if(D.shop&&!MOCK)syncStripeStatus()}});
+  addEventListener('hashchange',()=>{D.ui.drawer=null;if(!AUTH()&&!fromAuth())D.ui.amsg='';render();scrollTo(0,0);if(page()==='overview'&&D.shop&&!MOCK)syncStripeStatus()});
+  render();if(D.shop&&!MOCK)syncStripeStatus()}
 const DASH=['overview','orders','runs','products','deals','settings'];
 function page(){const h=location.hash.slice(1);if(h==='dash')return 'overview';if(h==='runs'&&!ownDriver())return 'overview';return DASH.includes(h)?h:''}
 const AUTH=()=>{const h=location.hash.slice(1);return h==='login'||h==='signup'?h:''};
@@ -256,10 +257,21 @@ function dash(p){
    ${s?`<a class="ib" href="#orders" aria-label="${n} new orders">${svg('bell')}${n?'<span class="dot"></span>':''}</a>`:''}<span class="av">${esc((D.user.email||'?')[0].toUpperCase())}</span><div class="who"><b>${esc(s?.name||'')}</b><small>${esc(D.user.email)}</small></div></div></header>`;
   const phone=ownDriver()?[['overview','grid','Overview'],['runs','pin','Deliveries'],['orders','orders','Orders'],['products','box','Products']]:[['overview','grid','Overview'],['orders','orders','Orders'],['products','box','Products'],['settings','cog','Settings']];
   const bn=s?`<nav class="bnav" aria-label="Dashboard sections">${phone.map(([k,i,l])=>`<a href="#${k}" class="${p===k?'on':''}">${svg(i)}${l}${k==='orders'&&n?`<span class="cnt">${n}</span>`:''}${k==='runs'&&D.O.filter(o=>o.fulfilment==='delivery'&&['accepted','picking','out_for_delivery'].includes(o.status)).length?`<span class="cnt">${D.O.filter(o=>o.fulfilment==='delivery'&&['accepted','picking','out_for_delivery'].includes(o.status)).length}</span>`:''}</a>`).join('')}<a href="#" data-a="menu" class="${['deals','settings','payouts'].includes(p)?'on':''}">${svg('dots')}More</a></nav>`:'';
-  return `<div class="dl">${side}<div class="main">${tb}<div class="pg">${statusBanner(p)}${(PAGES[p]||PAGES.overview)()}</div><footer class="dfoot">ShopNip · a trading name of Suman Bros (Wholesale) Limited</footer></div>${bn}${drawer()}${catModal()}</div>`}
+  return `<div class="dl">${side}<div class="main">${tb}<div class="pg">${statusBanner(p)}${p==='overview'?getPaidCard():''}${(PAGES[p]||PAGES.overview)()}</div><footer class="dfoot">ShopNip · a trading name of Suman Bros (Wholesale) Limited</footer></div>${bn}${drawer()}${catModal()}</div>`}
 function statusBanner(p){const s=D.shop;if(!s)return '';
   if(s.status==='pending')return `<div class="bnr">${svg('clock')}<div><b>Your shop is awaiting approval</b>We review new shops within a working day. You can set prices and stock now; customers will see your shop once it’s approved.</div></div>`;
   if(s.status==='rejected'||s.status==='suspended')return `<div class="bnr bad">${svg('alert')}<div><b>Your shop is ${statusLabel(s.status).toLowerCase()}</b>Customers can’t see your shop. Contact <a href="mailto:${esc(MAIL)}">${esc(MAIL)}</a>.</div></div>`;return ''}
+function getPaidCard(){const s=D.shop;if(!s)return '';
+  const ready=!!s.stripe_charges_enabled,pending=!!s.stripe_account_id&&!ready;
+  const label=ready?'READY':pending?'Pending':'Not connected';
+  const btn=ready?'Update Stripe details':pending?'Finish Stripe setup':'Connect Stripe';
+  const copy=ready?'Customers can pay by card. The money is taken when you accept, and only for the final total.':pending?'Stripe still needs a few details. Finish setup, then we will refresh your status from Stripe.':'Connect Stripe so customers can pay by card. Pay at the shop stays available either way.';
+  return `<div class="card" id="getpaid" style="margin:0 0 16px"><div class="chd"><h3>Get paid by card</h3><span class="chip ${ready?'ok':pending?'low':''}">${label}</span></div><div class="cb"><p class="mut" style="margin:0 0 10px">${copy}</p>${D.ui.stripeErr?`<div class="alert" role="alert" style="margin:0 0 10px">${esc(D.ui.stripeErr)}</div>`:''}<button class="btn" data-a="stripe" ${D.ui.stripeBusy?'disabled':''}>${D.ui.stripeBusy?'Opening Stripe…':btn}</button></div></div>`}
+async function syncStripeStatus(){if(MOCK||!D.shop||!window.NBPay||!NBPay.refreshConnect)return;
+  try{const st=await NBPay.refreshConnect();if(!st)return;
+    if('stripe_account_id' in st)D.shop.stripe_account_id=st.stripe_account_id;
+    if('stripe_charges_enabled' in st)D.shop.stripe_charges_enabled=!!st.stripe_charges_enabled;
+    D.ui.stripeErr='';rerender()}catch(er){D.ui.stripeErr=er.message||'Could not refresh Stripe status';rerender()}}
 const PAGES={};
 PAGES.overview=()=>{const O=D.O,L=D.L,t0=new Date();t0.setHours(0,0,0,0);const wk=new Date(t0);wk.setDate(wk.getDate()-((wk.getDay()+6)%7));
   const ok=o=>!DEAD.includes(o.status),today=O.filter(o=>Date.parse(o.created_at)>=+t0),rev=O.filter(o=>ok(o)&&Date.parse(o.created_at)>=+wk).reduce((a,o)=>a+ +o.total,0);
@@ -267,10 +279,7 @@ PAGES.overview=()=>{const O=D.O,L=D.L,t0=new Date();t0.setHours(0,0,0,0);const w
   const days=[...Array(7)].map((_,i)=>{const d=new Date(t0);d.setDate(d.getDate()-6+i);const e=+d+864e5;return{d,v:O.filter(o=>ok(o)&&Date.parse(o.created_at)>=+d&&Date.parse(o.created_at)<e).reduce((a,o)=>a+ +o.total,0)}}),mx=Math.max(1,...days.map(x=>x.v));
   const kpi=(c,ic,l,v,s,h,pf)=>`<a class="kpi ${c}" href="#${h}" ${pf?`data-pf="${pf}"`:''}><div class="kh">${l}<span class="ic">${svg(ic)}</span></div><b>${v}</b><small>${s}</small></a>`;
   const hi=new Date().getHours();
-  const stripeCard=()=>{const s=D.shop;if(!s)return '';const ready=!!s.stripe_charges_enabled,pending=!!s.stripe_account_id&&!ready,label=ready?'Ready':pending?'Pending':'Not connected';
-    return `<div class="card" id="getpaid" style="margin-bottom:16px"><div class="chd"><h3>Get paid by card</h3><span class="chip ${ready?'ok':pending?'low':''}">${label}</span></div><div class="cb"><p class="mut" style="margin:0 0 10px">${ready?'Customers can pay by card. The money is taken when you accept, and only for the final total.':pending?'Stripe still needs a few details. Continue setup, then refresh this page.':'Connect Stripe so customers can pay by card. Pay at the shop stays available either way.'}</p>${D.ui.stripeErr?`<div class="alert" style="margin:0 0 10px">${esc(D.ui.stripeErr)}</div>`:''}<button class="btn" data-a="stripe">${ready?'Update Stripe details':pending?'Continue Stripe setup':'Connect Stripe'}</button>${MOCK?'':`<p class="mut" style="margin:10px 0 0;font-size:12px">Live Stripe test mode · status from your shop record</p>`}</div></div>`};
   return `<div class="ph"><div><h2>Good ${hi<12?'morning':hi<18?'afternoon':'evening'}</h2><p>Here’s what’s happening at ${esc(D.shop.name)} today.</p></div><div class="acts"><a class="btn ghost sm" href="#products">${svg('box')}Manage stock</a><a class="btn sm" href="#orders">${svg('orders')}View orders</a></div></div>
-  ${stripeCard()}
   <div class="kpis">${kpi('','orders','Orders today',today.length,today.length?gbp(today.reduce((a,o)=>a+ +o.total,0))+' order value':'No orders yet today','orders')}
    ${kpi('c','bell','Pending orders',pend,pend?'Waiting for you to accept':'All caught up','orders')}
    ${kpi('p','pound','Revenue this week',gbp0(rev),'Since Monday, excl. cancelled','orders')}
@@ -416,9 +425,9 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
   if(t.closest('.side a'))document.body.classList.remove('sbo');
   if(d.a==='close'){D.ui.drawer=null;D.ui.cat=false;rerender();return}
   if(d.a==='stripe'){e.preventDefault();if(!window.NBPay){D.ui.stripeErr='Card payments are not loaded';return rerender()}
-    t.disabled=true;D.ui.stripeErr='';rerender();
-    try{await NBPay.connect();if(!MOCK){D.shop=await API.myShop();rerender()}else rerender()}
-    catch(er){D.ui.stripeErr=er.message||'Could not connect Stripe';toast(D.ui.stripeErr);t.disabled=false;rerender()}return}
+    D.ui.stripeBusy=true;D.ui.stripeErr='';rerender();
+    try{await NBPay.connect();if(MOCK){D.ui.stripeBusy=false;rerender()}else{D.shop=await API.myShop();D.ui.stripeBusy=false;rerender()}}
+    catch(er){D.ui.stripeBusy=false;D.ui.stripeErr=er.message||'Could not connect Stripe';toast(D.ui.stripeErr);rerender()}return}
   if(d.a==='crefund'){e.preventDefault();const amt=Math.round(+(document.getElementById('cr_amt')?.value||0)*100)/100,o=D.O.find(x=>x.id===d.id);if(!o)return;
     if(!confirm(`Refund ${gbp(amt)} to ${o.customer_name||'the customer'}’s card?`))return;t.disabled=true;try{await NBPay.refund(d.id,amt);if(!MOCK)D.O=await API.orders();toast(gbp(amt)+' refunded to the card');rerender()}catch(er){toast(er.message||'Refund failed');t.disabled=false}return}
   if(d.a==='wref'){e.preventDefault();const amt=Math.round(+(document.getElementById('wr_amt')?.value||0)*100)/100,why=(document.getElementById('wr_why')?.value||'').trim(),o=D.O.find(x=>x.id===d.id);if(!o)return;
