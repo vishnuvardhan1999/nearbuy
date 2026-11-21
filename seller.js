@@ -53,7 +53,7 @@ const ownDriver=()=>{const d=D.shop&&D.shop.delivery_options||{};return !!(d.del
 const mapTo=o=>o.delivery_lat!=null?`https://www.google.com/maps/dir/?api=1&destination=${o.delivery_lat},${o.delivery_lng}`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([o.delivery_address,o.delivery_postcode].filter(Boolean).join(', '))}`;
 function jpegBlob(dataUrl){const bin=atob(String(dataUrl).split(',')[1]||'');const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type:'image/jpeg'})}
 const chip=s=>`<span class="st ${esc(s)}">${esc(LBL[s]||s)}</span>`;
-const D={user:null,shop:null,L:[],O:[],cat:null,ui:{oq:'',of:'open',pq:'',pf:'all',pn:60,drawer:null,cat:false,newIds:new Set()}};
+const D={user:null,shop:null,L:[],O:[],cat:null,ui:{oq:'',of:'open',pq:'',pf:'all',pn:60,drawer:null,cat:false,newIds:new Set(),stripeErr:''}};
 const statusLabel=s=>({pending:'Pending approval',approved:'Live',rejected:'Not approved',suspended:'Suspended'}[s]||s||'');
 // ---------- data layer: Supabase (same calls/RLS as p2/p3/p5) or in-memory mock ----------
 const M={shops:[],L:[],O:[],user:null};
@@ -268,7 +268,7 @@ PAGES.overview=()=>{const O=D.O,L=D.L,t0=new Date();t0.setHours(0,0,0,0);const w
   const kpi=(c,ic,l,v,s,h,pf)=>`<a class="kpi ${c}" href="#${h}" ${pf?`data-pf="${pf}"`:''}><div class="kh">${l}<span class="ic">${svg(ic)}</span></div><b>${v}</b><small>${s}</small></a>`;
   const hi=new Date().getHours();
   const stripeCard=()=>{const s=D.shop;if(!s)return '';const ready=!!s.stripe_charges_enabled,pending=!!s.stripe_account_id&&!ready,label=ready?'Ready':pending?'Pending':'Not connected';
-    return `<div class="card" id="getpaid" style="margin-bottom:16px"><div class="chd"><h3>Get paid by card</h3><span class="chip ${ready?'ok':pending?'low':''}">${label}</span></div><div class="cb"><p class="mut" style="margin:0 0 10px">${ready?'Customers can pay by card. The money is taken when you accept, and only for the final total.':pending?'Stripe still needs a few details. Continue setup, then refresh this page.':'Connect Stripe so customers can pay by card. Pay at the shop stays available either way.'}</p><button class="btn" data-a="stripe">${ready?'Update Stripe details':pending?'Continue Stripe setup':'Connect Stripe'}</button></div></div>`};
+    return `<div class="card" id="getpaid" style="margin-bottom:16px"><div class="chd"><h3>Get paid by card</h3><span class="chip ${ready?'ok':pending?'low':''}">${label}</span></div><div class="cb"><p class="mut" style="margin:0 0 10px">${ready?'Customers can pay by card. The money is taken when you accept, and only for the final total.':pending?'Stripe still needs a few details. Continue setup, then refresh this page.':'Connect Stripe so customers can pay by card. Pay at the shop stays available either way.'}</p>${D.ui.stripeErr?`<div class="alert" style="margin:0 0 10px">${esc(D.ui.stripeErr)}</div>`:''}<button class="btn" data-a="stripe">${ready?'Update Stripe details':pending?'Continue Stripe setup':'Connect Stripe'}</button>${MOCK?'':`<p class="mut" style="margin:10px 0 0;font-size:12px">Live Stripe test mode · status from your shop record</p>`}</div></div>`};
   return `<div class="ph"><div><h2>Good ${hi<12?'morning':hi<18?'afternoon':'evening'}</h2><p>Here’s what’s happening at ${esc(D.shop.name)} today.</p></div><div class="acts"><a class="btn ghost sm" href="#products">${svg('box')}Manage stock</a><a class="btn sm" href="#orders">${svg('orders')}View orders</a></div></div>
   ${stripeCard()}
   <div class="kpis">${kpi('','orders','Orders today',today.length,today.length?gbp(today.reduce((a,o)=>a+ +o.total,0))+' order value':'No orders yet today','orders')}
@@ -415,7 +415,10 @@ document.addEventListener('click',async e=>{const t=e.target.closest('a,button,[
   if(d.a==='menu'){e.preventDefault();$('#side')?.classList.toggle('on');document.body.classList.toggle('sbo');return}
   if(t.closest('.side a'))document.body.classList.remove('sbo');
   if(d.a==='close'){D.ui.drawer=null;D.ui.cat=false;rerender();return}
-  if(d.a==='stripe'){e.preventDefault();t.disabled=true;try{await window.NBPay.connect();rerender()}catch(er){toast(er.message||'Could not connect Stripe');t.disabled=false}return}
+  if(d.a==='stripe'){e.preventDefault();if(!window.NBPay){D.ui.stripeErr='Card payments are not loaded';return rerender()}
+    t.disabled=true;D.ui.stripeErr='';rerender();
+    try{await NBPay.connect();if(!MOCK){D.shop=await API.myShop();rerender()}else rerender()}
+    catch(er){D.ui.stripeErr=er.message||'Could not connect Stripe';toast(D.ui.stripeErr);t.disabled=false;rerender()}return}
   if(d.a==='crefund'){e.preventDefault();const amt=Math.round(+(document.getElementById('cr_amt')?.value||0)*100)/100,o=D.O.find(x=>x.id===d.id);if(!o)return;
     if(!confirm(`Refund ${gbp(amt)} to ${o.customer_name||'the customer'}’s card?`))return;t.disabled=true;try{await NBPay.refund(d.id,amt);if(!MOCK)D.O=await API.orders();toast(gbp(amt)+' refunded to the card');rerender()}catch(er){toast(er.message||'Refund failed');t.disabled=false}return}
   if(d.a==='wref'){e.preventDefault();const amt=Math.round(+(document.getElementById('wr_amt')?.value||0)*100)/100,why=(document.getElementById('wr_why')?.value||'').trim(),o=D.O.find(x=>x.id===d.id);if(!o)return;
@@ -468,7 +471,8 @@ document.addEventListener('submit',async e=>{const f=e.target;if(f.id==='authf'|
    if(r.bluepark_customer_email!==(s.bluepark_customer_email||'')){if(!confirm('Changing your wholesale email sends your shop for re-approval. Continue?'))return;r._tradeChanged=true}
    try{let x;try{x=await API.saveShop(r)}catch(er){if(!/location_source|location_set_at/.test(er.message||''))throw er;delete r.location_source;delete r.location_set_at;x=await API.saveShop(r)}D.shop={...s,...x};toast('Shop settings saved');rerender()}catch(er){toast(er.message||'Could not save')}}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(D.ui.drawer||D.ui.cat)){D.ui.drawer=null;D.ui.cat=false;rerender()}});
-if('serviceWorker' in navigator&&!MOCK)navigator.serviceWorker.register('sw.js').catch(()=>{});
+const _local=location.hostname==='127.0.0.1'||location.hostname==='localhost'||location.hostname==='::1';
+if('serviceWorker' in navigator&&!MOCK&&!_local)navigator.serviceWorker.register('sw.js').catch(()=>{});
 window.NBSeller={D,API,render,rerender,PAGES,TITLE,DASH,I,M,MOCK,sb,catalog,svg,esc,gbp,gbp0,toast,keep,LOW,DEAD,OPEN,LBL,chip,nexts,actBtns,when,ago};
 if(!MOCK)catalog().then(()=>{if(!page())rerender()});else catalog();
 boot();
