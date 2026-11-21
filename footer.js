@@ -14,7 +14,7 @@ function html(o){o=o||{};var sel=o.seller;
    col('Sellers',[['Seller account','/seller.html']].concat(/^\/(account|signin|login|signup)/.test(location.pathname)?[]:[['Register shop','/seller.html#register']]).concat([['Fees','/seller.html#fees'],['How it works','/how']]))+
    col('Help',[['Contact us','/contact'],['hello@shopnip.co.uk','mailto:hello@shopnip.co.uk'],['Delivery &amp; collection'.replace('&amp;','&'),'/how'],['Returns &amp; refunds'.replace('&amp;','&'),'/faq'],['FAQ','/faq']])+
    col('Legal',[['Terms of Use','/terms'],['Privacy Policy','/privacy'],['Cookie Notice','/cookies'],['Seller Terms','/seller-terms']])+
-   '</div></div><div class="sf-bar"><span>© '+new Date().getFullYear()+' ShopNip, a service operated by Suman Bros (Wholesale) Limited</span><span class="sf-pay">Pay the shop in store or on delivery</span></div></footer>'}
+   '</div></div><div class="sf-bar"><span>© '+new Date().getFullYear()+' ShopNip, a Suman Bros product, built by NuvonHub</span><span class="sf-pay">Pay the shop in store or on delivery</span></div></footer>'}
 var css=document.createElement('style');css.textContent=
 '.sf{background:#0c4a45;color:#d5e7e4;margin-top:48px;font:inherit;font-size:14px}'+
 '.sf a{color:#d5e7e4;text-decoration:none}.sf a:hover{color:#fff;text-decoration:underline}'+
