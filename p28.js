@@ -53,8 +53,7 @@ const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator
 const iOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent);
 function instBar(ios){if(dismissed()||standalone()||document.getElementById('p28inst')||document.body.dataset.page==='checkout'||(typeof cur!=='undefined'&&cur&&cur[0]==='checkout'))return;const d=document.createElement('div');d.id='p28inst';d.setAttribute('role','dialog');d.setAttribute('aria-label','Install ShopNip');
   d.innerHTML=`<img src="/icon-192.png" alt=""><div><b>Get the ShopNip app</b>${ios?'Tap Share, then “Add to Home Screen”.':'Install for faster ordering and order-ready alerts.'}</div>${ios?'':'<button class="p28btn" data-p28="inst">Install</button>'}<button class="notnow" data-p28="instx" type="button">Not now</button>`;document.body.appendChild(d);document.body.classList.add('nb-inst')}
-addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e;setTimeout(()=>instBar(false),4000)});
-if(iOS&&!standalone())setTimeout(()=>{if(+(localStorage.nb_visits||0)>=2)instBar(true)},5000);
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();bip=e});   // no automatic install pop-up
 localStorage.nb_visits=(+(localStorage.nb_visits||0))+1;
 if(new URLSearchParams(location.search).get('install')==='1')setTimeout(()=>instBar(false),300);   // preview/screenshot
 
