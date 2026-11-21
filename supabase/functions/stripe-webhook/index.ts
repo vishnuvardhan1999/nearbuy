@@ -1,4 +1,4 @@
-// Stripe webhook. Verify STRIPE_WEBHOOK_SECRET, then update the shop or the order.
+// Stripe webhook. Accept either signing secret, then update the shop or the order.
 // Events: account.updated, payment_intent.succeeded, payment_intent.amount_capturable_updated,
 // payment_intent.payment_failed, charge.refunded. Include connected-account events in Stripe.
 import { admin } from "../_shared/http.ts";

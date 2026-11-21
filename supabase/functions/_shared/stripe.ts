@@ -48,19 +48,25 @@ export async function sellingPct(admin: { from: (t: string) => any }, shop: { bl
 }
 
 export async function verifyStripe(raw: string, header: string | null) {
-  const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
-  if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+  // Connected-accounts endpoint, then the platform endpoint. Accept the first match.
+  const secrets = ["STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_PLATFORM"]
+    .map((name) => Deno.env.get(name) || "")
+    .filter((secret) => secret.length > 0);
+  if (!secrets.length) throw new Error("Webhook secret is not set");
   if (!header) throw new Error("Missing Stripe signature");
   const bits = header.split(",").map((p) => p.split("="));
   const t = bits.find((p) => p[0] === "t")?.[1];
   const sigs = bits.filter((p) => p[0] === "v1").map((p) => p[1]);
   if (!t || !sigs.length) throw new Error("Bad Stripe signature");
   if (Math.abs(Date.now() / 1000 - Number(t)) > 300) throw new Error("Stale Stripe signature");
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(t + "." + raw));
-  const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  const ok = sigs.some((s) => s.length === hex.length && timingSafe(s, hex));
-  if (!ok) throw new Error("Stripe signature does not match");
+  const payload = new TextEncoder().encode(t + "." + raw);
+  for (const secret of secrets) {
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const mac = await crypto.subtle.sign("HMAC", key, payload);
+    const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (sigs.some((s) => s.length === hex.length && timingSafe(s, hex))) return;
+  }
+  throw new Error("Stripe signature does not match");
 }
 
 function timingSafe(a: string, b: string) {
