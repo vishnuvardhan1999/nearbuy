@@ -1,4 +1,4 @@
-/* ShopNip · ninja helper. Jogs an item to the basket on add (~2s, kid-friendly); peeks in while idle.
+/* ShopNip · ninja helper. Picks up an item, stows it, and runs it to the basket (~2.2s); peeks in while idle.
    Mask stays on. Transform/opacity only, pointer-events none. Basket count updates in saveB first. */
 (()=>{
 const KEY='nb_ninja';
@@ -8,116 +8,140 @@ const on=()=>wanted()&&!reduced();
 
 const SVG=`<svg class="nj-svg" viewBox="0 0 80 80" aria-hidden="true">
   <defs>
-    <linearGradient id="njg-hood" x1="18" y1="6" x2="52" y2="40" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#4a5b75"/><stop offset=".38" stop-color="#1c2738"/><stop offset="1" stop-color="#0a1018"/>
+    <linearGradient id="njg-hood" x1="18" y1="4" x2="52" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6a7d94"/><stop offset=".26" stop-color="#2c3a4c"/><stop offset=".68" stop-color="#141b25"/><stop offset="1" stop-color="#070a0f"/>
     </linearGradient>
-    <linearGradient id="njg-hood-in" x1="24" y1="16" x2="44" y2="36" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2a3548"/><stop offset="1" stop-color="#0c111a"/>
+    <linearGradient id="njg-hood-in" x1="26" y1="16" x2="44" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#334257"/><stop offset="1" stop-color="#0a0e14"/>
     </linearGradient>
-    <linearGradient id="njg-suit" x1="24" y1="34" x2="46" y2="60" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2b3b4c"/><stop offset=".45" stop-color="#151d28"/><stop offset="1" stop-color="#070b11"/>
+    <linearGradient id="njg-suit" x1="24" y1="33" x2="46" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3a4d60"/><stop offset=".4" stop-color="#18212c"/><stop offset="1" stop-color="#080b10"/>
     </linearGradient>
-    <linearGradient id="njg-limb" x1="0" y1="0" x2=".2" y2="1">
-      <stop offset="0" stop-color="#2c3c4e"/><stop offset=".55" stop-color="#151c28"/><stop offset="1" stop-color="#070a10"/>
+    <linearGradient id="njg-limb" x1="0" y1="0" x2=".15" y2="1">
+      <stop offset="0" stop-color="#3a4d60"/><stop offset=".55" stop-color="#161d27"/><stop offset="1" stop-color="#070a10"/>
     </linearGradient>
-    <linearGradient id="njg-scarf" x1="16" y1="12" x2="74" y2="28" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffb199"/><stop offset=".4" stop-color="#ff6b4a"/><stop offset="1" stop-color="#d9382a"/>
+    <linearGradient id="njg-scarf" x1="16" y1="10" x2="80" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffc8b6"/><stop offset=".42" stop-color="#ff6b4a"/><stop offset="1" stop-color="#c02922"/>
     </linearGradient>
-    <linearGradient id="njg-bag" x1="50" y1="30" x2="72" y2="62" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3d5c58"/><stop offset=".4" stop-color="#1a3d3a"/><stop offset="1" stop-color="#0b2422"/>
+    <linearGradient id="njg-scarf-fold" x1="68" y1="16" x2="80" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff8a6c"/><stop offset="1" stop-color="#9a1a18"/>
     </linearGradient>
-    <radialGradient id="njg-hl" cx="34%" cy="28%" r="65%">
-      <stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".5" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    <linearGradient id="njg-bag" x1="51" y1="32" x2="72" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3aafa3"/><stop offset=".36" stop-color="#0f766e"/><stop offset="1" stop-color="#0a4743"/>
+    </linearGradient>
+    <linearGradient id="njg-bag-in" x1="54" y1="33" x2="68" y2="39" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0d4440"/><stop offset="1" stop-color="#062422"/>
+    </linearGradient>
+    <linearGradient id="njg-rim" x1="18" y1="7" x2="38" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e4eef6"/><stop offset="1" stop-color="#e4eef6" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="njg-hl" cx="33%" cy="24%" r="60%">
+      <stop offset="0" stop-color="#fff" stop-opacity=".32"/><stop offset=".42" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="njg-eye-sh" cx="50%" cy="78%" r="70%">
-      <stop offset="0" stop-color="#d9dee7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    <radialGradient id="njg-eye-sh" cx="50%" cy="80%" r="70%">
+      <stop offset="0" stop-color="#c5cedb"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
   <g class="nj-leg nj-leg-l">
-    <path d="M30 51c-2.6.2-4.4 2-4 4.6l1.8 13.2c.3 1.8 1.7 2.7 3.5 2.5l3.4-.3c1.7-.2 2.5-1.6 2.2-3.2L34.8 55c-.5-2.6-2.6-4.2-4.8-4z" fill="url(#njg-limb)"/>
-    <ellipse cx="28.6" cy="69.6" rx="5.8" ry="2.8" fill="url(#njg-limb)"/>
-    <ellipse cx="27.8" cy="70.8" rx="5.2" ry="1.5" fill="#07090e"/>
-    <path d="M31.2 52.4l1.4 15" stroke="#6f8498" stroke-width=".7" stroke-linecap="round" opacity=".28"/>
+    <path d="M30.2 51.2c-2.4.2-4.1 1.8-3.8 4.2l1.6 12.8c.24 1.7 1.6 2.5 3.3 2.3l3.1-.3c1.55-.18 2.3-1.5 2-3L34.4 54.8c-.46-2.4-2.4-3.8-4.2-3.6z" fill="url(#njg-limb)"/>
+    <ellipse cx="28.8" cy="69.4" rx="5.4" ry="2.5" fill="url(#njg-limb)"/>
+    <ellipse cx="28.2" cy="70.5" rx="4.9" ry="1.25" fill="#05070b"/>
+    <path d="M31.2 52.6l1.2 14.4" stroke="#8aa0b4" stroke-width=".55" stroke-linecap="round" opacity=".3"/>
   </g>
   <g class="nj-leg nj-leg-r">
-    <path d="M38 51c2.6.2 4.4 2 4 4.6l-1.8 13.2c-.3 1.8-1.7 2.7-3.5 2.5l-3.4-.3c-1.7-.2-2.5-1.6-2.2-3.2L33.2 55c.5-2.6 2.6-4.2 4.8-4z" fill="url(#njg-limb)"/>
-    <ellipse cx="39.4" cy="69.6" rx="5.8" ry="2.8" fill="url(#njg-limb)"/>
-    <ellipse cx="40.2" cy="70.8" rx="5.2" ry="1.5" fill="#07090e"/>
-    <path d="M36.8 52.4l-1.4 15" stroke="#6f8498" stroke-width=".7" stroke-linecap="round" opacity=".28"/>
+    <path d="M37.8 51.2c2.4.2 4.1 1.8 3.8 4.2l-1.6 12.8c-.24 1.7-1.6 2.5-3.3 2.3l-3.1-.3c-1.55-.18-2.3-1.5-2-3L33.6 54.8c.46-2.4 2.4-3.8 4.2-3.6z" fill="url(#njg-limb)"/>
+    <ellipse cx="39.2" cy="69.4" rx="5.4" ry="2.5" fill="url(#njg-limb)"/>
+    <ellipse cx="39.8" cy="70.5" rx="4.9" ry="1.25" fill="#05070b"/>
+    <path d="M36.8 52.6l-1.2 14.4" stroke="#8aa0b4" stroke-width=".55" stroke-linecap="round" opacity=".3"/>
   </g>
 
   <g class="nj-arm nj-arm-l">
-    <path d="M27.2 38.4c-4 2.8-7.8 7.4-8.6 13" fill="none" stroke="url(#njg-limb)" stroke-width="4.2" stroke-linecap="round"/>
-    <circle cx="18.4" cy="51.8" r="2.4" fill="#151c28"/>
-    <circle cx="18.9" cy="51.2" r=".7" fill="#9fb4c6" opacity=".45"/>
+    <path d="M27.4 38.2c-3.8 2.6-7.4 7-8.2 12.4" fill="none" stroke="url(#njg-limb)" stroke-width="3.8" stroke-linecap="round"/>
+    <circle cx="18.9" cy="51.2" r="2.25" fill="#151c28"/>
+    <circle cx="19.35" cy="50.65" r=".55" fill="#c5d4e2" opacity=".5"/>
   </g>
 
   <g class="nj-body">
-    <path d="M25.4 37.2c0-2.8 3.8-5.2 8.8-5.2s8.8 2.4 8.8 5.2v14.4c0 3.8-3.8 6.6-8.8 6.6s-8.8-2.8-8.8-6.6z" fill="url(#njg-suit)"/>
-    <path d="M28.8 37.4c1.6-1.8 4.6-2.8 7-2.6" fill="none" stroke="#8ea6b8" stroke-width="1.15" stroke-linecap="round" opacity=".4"/>
-    <rect x="28.4" y="52.2" width="11.2" height="2.4" rx="1.2" fill="#0a0e14"/>
-    <path d="M34.2 33.2v18.4" stroke="#000" stroke-width=".7" opacity=".22"/>
+    <path d="M26 37c0-2.5 3.6-4.8 8.2-4.8s8.2 2.3 8.2 4.8v14.2c0 3.5-3.6 6.2-8.2 6.2s-8.2-2.7-8.2-6.2z" fill="url(#njg-suit)"/>
+    <path d="M28.8 37.2c1.5-1.6 4.2-2.5 6.6-2.3" fill="none" stroke="url(#njg-rim)" stroke-width="1.05" stroke-linecap="round" opacity=".6"/>
+    <rect x="28.8" y="51.8" width="10.4" height="2" rx="1" fill="#0a0e14"/>
+    <path d="M34.2 33.6v17.6" stroke="#000" stroke-width=".55" opacity=".2"/>
   </g>
 
   <g class="nj-arm nj-arm-r">
-    <path d="M41.2 38.4c4 2.8 7.8 7.4 8.6 13" fill="none" stroke="url(#njg-limb)" stroke-width="4.2" stroke-linecap="round"/>
-    <circle cx="50" cy="51.8" r="2.4" fill="#151c28"/>
-    <circle cx="50.5" cy="51.2" r=".7" fill="#9fb4c6" opacity=".45"/>
+    <path d="M41 38.2c3.8 2.6 7.4 7 8.2 12.4" fill="none" stroke="url(#njg-limb)" stroke-width="3.8" stroke-linecap="round"/>
+    <circle cx="49.6" cy="51.2" r="2.25" fill="#151c28"/>
+    <circle cx="50.05" cy="50.65" r=".55" fill="#c5d4e2" opacity=".5"/>
   </g>
 
   <g class="nj-head">
-    <path d="M18.8 28C17.6 13.2 24.2 5.2 34.2 5.2 46.4 5.2 55.2 13.6 54.4 28.2 53.8 37 46.6 41.6 34.2 41.6 22.2 41.6 19.4 36 18.8 28Z" fill="url(#njg-hood)"/>
-    <path d="M22.4 27.2c.4-9.2 6-15.2 11.8-15.2 6.2 0 11.8 6.2 12 15.2 0 7.2-5.2 12.6-12 12.6s-11.6-5.4-11.8-12.6Z" fill="url(#njg-hood-in)"/>
-    <path d="M20.2 22C22 11 27.6 7 34.2 7" fill="none" stroke="#c5d5e2" stroke-width="1.35" stroke-linecap="round" opacity=".42"/>
-    <ellipse cx="34.2" cy="25" rx="13.2" ry="12.2" fill="#121822"/>
+    <path d="M19.8 27.2C18.8 13.4 24.8 5.4 34.2 5.4 45.6 5.4 53.6 13.6 53 27.4 52.5 36.4 45.8 41.2 34.2 41.2 23 41.2 20.4 35.4 19.8 27.2Z" fill="url(#njg-hood)"/>
+    <path d="M23.2 26.6c.3-8.4 5.4-13.8 11-13.8 5.7 0 10.8 5.6 11 13.8.1 6.4-4.7 11.4-11 11.4S23.1 33 23.2 26.6Z" fill="url(#njg-hood-in)"/>
+    <path d="M20.8 21.2C22.5 10.8 27.8 7.2 34.2 7.2" fill="none" stroke="url(#njg-rim)" stroke-width="1.3" stroke-linecap="round" opacity=".58"/>
     <g class="nj-eyes">
       <g class="nj-eye nj-eye-l">
-        <ellipse cx="28.2" cy="24.2" rx="5.7" ry="6.6" fill="#fff"/>
-        <ellipse cx="28.2" cy="24.2" rx="5.7" ry="6.6" fill="url(#njg-eye-sh)"/>
+        <ellipse cx="28.3" cy="24.5" rx="5.15" ry="5.7" fill="#0b0f15"/>
+        <ellipse cx="28.3" cy="24.5" rx="5.15" ry="5.7" fill="none" stroke="#6a7d94" stroke-width=".45" opacity=".28"/>
+        <ellipse cx="28.3" cy="24.5" rx="4.35" ry="4.85" fill="#fff"/>
+        <ellipse cx="28.3" cy="24.5" rx="4.35" ry="4.85" fill="url(#njg-eye-sh)"/>
+                <path d="M24.6 22.3c1-1.45 2.3-2.15 3.7-2.15 1.4 0 2.7.7 3.7 2.15" fill="none" stroke="#0b0f15" stroke-width=".6" stroke-linecap="round" opacity=".4"/>
         <g class="nj-pupil">
-          <ellipse cx="29" cy="24.8" rx="2.55" ry="3.15" fill="#171d2a"/>
-          <circle cx="28.15" cy="23.4" r="1.15" fill="#fff"/>
-          <circle cx="29.7" cy="25.5" r=".4" fill="#fff" opacity=".7"/>
+          <ellipse cx="28.95" cy="25.05" rx="1.95" ry="2.4" fill="#151a24"/>
+          <circle cx="28.3" cy="23.95" r=".8" fill="#fff"/>
+          <circle cx="29.55" cy="25.6" r=".26" fill="#fff" opacity=".65"/>
         </g>
-        <ellipse class="nj-lid-l" cx="28.2" cy="24.2" rx="5.9" ry="6.8" fill="#121822"/>
+        <ellipse class="nj-lid-l" cx="28.3" cy="24.5" rx="4.55" ry="5.05" fill="#0b0f15"/>
       </g>
       <g class="nj-eye nj-eye-r">
-        <ellipse cx="40.6" cy="24.2" rx="5.7" ry="6.6" fill="#fff"/>
-        <ellipse cx="40.6" cy="24.2" rx="5.7" ry="6.6" fill="url(#njg-eye-sh)"/>
+        <ellipse cx="40.3" cy="24.5" rx="5.15" ry="5.7" fill="#0b0f15"/>
+        <ellipse cx="40.3" cy="24.5" rx="5.15" ry="5.7" fill="none" stroke="#6a7d94" stroke-width=".45" opacity=".28"/>
+        <ellipse cx="40.3" cy="24.5" rx="4.35" ry="4.85" fill="#fff"/>
+        <ellipse cx="40.3" cy="24.5" rx="4.35" ry="4.85" fill="url(#njg-eye-sh)"/>
+                <path d="M36.6 22.3c1-1.45 2.3-2.15 3.7-2.15 1.4 0 2.7.7 3.7 2.15" fill="none" stroke="#0b0f15" stroke-width=".6" stroke-linecap="round" opacity=".4"/>
         <g class="nj-pupil">
-          <ellipse cx="41.4" cy="24.8" rx="2.55" ry="3.15" fill="#171d2a"/>
-          <circle cx="40.55" cy="23.4" r="1.15" fill="#fff"/>
-          <circle cx="42.1" cy="25.5" r=".4" fill="#fff" opacity=".7"/>
+          <ellipse cx="40.95" cy="25.05" rx="1.95" ry="2.4" fill="#151a24"/>
+          <circle cx="40.3" cy="23.95" r=".8" fill="#fff"/>
+          <circle cx="41.55" cy="25.6" r=".26" fill="#fff" opacity=".65"/>
         </g>
       </g>
     </g>
-    <path d="M22 27.8c2.4 4.6 7.2 7 12.2 7s9.8-2.4 12.2-7" fill="none" stroke="#0a0e14" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
-    <circle cx="34.2" cy="22" r="16" fill="url(#njg-hl)"/>
-    <path d="M21.4 15.2c4.6-3.4 8.8-4.4 12.8-4.4 4.2 0 8.6 1.2 13.2 4.4" fill="none" stroke="url(#njg-scarf)" stroke-width="3.1" stroke-linecap="round"/>
-    <circle cx="47.4" cy="15.4" r="1.7" fill="#ff6b4a"/>
-    <circle cx="47.4" cy="15.4" r=".7" fill="#ffd0c2"/>
+    <path d="M23.6 28.6c2.1 3.2 6.2 4.9 10.6 4.9s8.5-1.7 10.6-4.9" fill="none" stroke="#070a0f" stroke-width="1.25" stroke-linecap="round" opacity=".45"/>
+    <ellipse cx="34.2" cy="21.6" rx="15" ry="15.2" fill="url(#njg-hl)"/>
+    <path d="M21.8 15.5c4.4-3 8.4-3.95 12.4-3.95 4.1 0 8.3 1.1 12.6 3.95" fill="none" stroke="url(#njg-scarf)" stroke-width="2.65" stroke-linecap="round"/>
+    <path d="M22 14.75c4.3-2.7 8.2-3.5 12.2-3.5" fill="none" stroke="#ffe4da" stroke-width=".7" stroke-linecap="round" opacity=".5"/>
+    <ellipse cx="47.15" cy="15.55" rx="1.9" ry="1.7" fill="#ff6b4a"/>
+    <ellipse cx="47.35" cy="15.1" rx=".7" ry=".5" fill="#ffd6c8"/>
   </g>
 
   <g class="nj-bag">
-    <path d="M51.6 38.4c-2-4.2 1.6-7.6 6.6-7.8 6.2-.2 11.8 4.6 11.2 13.2-.6 8.6-7.8 13.6-13.8 11.6-5.2-1.8-6-10.2-4-17z" fill="url(#njg-bag)"/>
-    <path d="M53.4 37.6c1.2-3.4 4.8-5.4 8.4-5 3.2.4 5.4 2.2 6 4.2" fill="none" stroke="#7dcdc4" stroke-width="1.1" stroke-linecap="round" opacity=".35"/>
-    <ellipse cx="58.6" cy="32.4" rx="6.2" ry="2.6" fill="#0f2a28"/>
-    <path d="M54.8 32.2c-1.6-5.2 1.4-8.4 4-8.6" fill="none" stroke="#ff6b4a" stroke-width="1.5" stroke-linecap="round"/>
-    <path d="M62.4 32.2c1.8-5.4-.6-8.6-3-9" fill="none" stroke="#ff6b4a" stroke-width="1.5" stroke-linecap="round"/>
-    <circle cx="58.8" cy="22.8" r="1.35" fill="#ff6b4a"/>
-    <g transform="translate(58.4 46.2)" fill="#ff6b4a">
-      <path d="M-3.1-1.1h6.2l-.7 6.2h-4.8z" rx="1"/>
-      <path d="M-1.6-1.1v-2.1a1.6 1.6 0 0 1 3.2 0v2.1" fill="none" stroke="#ff6b4a" stroke-width="1.15" stroke-linecap="round"/>
+    <path d="M54.6 33c-1.55-4.5 1.5-8 4.3-8.3" fill="none" stroke="#ff6b4a" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M63 33c1.55-4.7-.45-8.15-3.05-8.5" fill="none" stroke="#ff6b4a" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M54.6 32.5c-1.5-4.2 1.5-7.6 4.1-7.85" fill="none" stroke="#ffc2b0" stroke-width=".55" stroke-linecap="round" opacity=".5"/>
+    <circle cx="58.85" cy="23.85" r="1.2" fill="#ff6b4a"/>
+    <circle cx="59.05" cy="23.55" r=".4" fill="#ffd6c8"/>
+    <path d="M52.4 36.2c0-1.4 1.15-2.5 2.7-2.5h11.4c1.55 0 2.7 1.1 2.7 2.5v16c0 2.1-1.7 3.6-3.8 3.6H56.2c-2.1 0-3.8-1.5-3.8-3.6z" fill="url(#njg-bag)"/>
+    <path d="M64.4 36.4c1.2.5 1.5 1.2 1.5 2.3v13.4c0 1.5-.7 2.6-2 3.1" fill="none" stroke="#062422" stroke-width="2" stroke-linecap="round" opacity=".22"/>
+    <ellipse cx="59.35" cy="33.9" rx="7" ry="2.2" fill="url(#njg-bag-in)"/>
+    <path d="M54.4 36.8c1.4-2.4 4.4-3.5 7.8-3.15 2.2.25 3.9 1.25 4.7 2.55" fill="none" stroke="#b8efe8" stroke-width=".85" stroke-linecap="round" opacity=".45"/>
+    <g class="nj-flap">
+      <path d="M52.3 34.2c.15-2.6 3.15-4.5 7.05-4.5s6.9 1.9 7.05 4.5c0 1.15-1.25 1.85-2.35 1.85H54.65c-1.1 0-2.35-.7-2.35-1.85z" fill="#0e5f58"/>
+      <path d="M53.4 33.2c1.5-1.7 4.1-2.5 6.4-2.4 2.1.1 4 .9 5 2.2" fill="none" stroke="#9ee4dc" stroke-width=".7" stroke-linecap="round" opacity=".45"/>
+    </g>
+        <g transform="translate(59.3 47.3)" fill="#ff6b4a">
+      <path d="M-2.25-1.15h4.5l-.5 4.15c-.08.5-.48.85-.95.85h-2.6c-.47 0-.87-.35-.95-.85z"/>
+      <path d="M-1.05-1.15v-1.5a1.3 1.3 0 0 1 2.6 0v1.5" fill="none" stroke="#ff6b4a" stroke-width="1" stroke-linecap="round"/>
     </g>
   </g>
-  <g class="nj-tail">
-    <path d="M48.2 14.6c7.4-5.2 16.6-2.2 19.4 5.2 1.6 4.2 6.8 5.6 10.2 1.6-1.4 7.4-11 10.4-17.2 5.2-3.8-3.2-8.2-6.4-12.4-12z" fill="url(#njg-scarf)"/>
-    <path d="M50 14.8c5.6-3.2 12.2-1.2 14.6 3.4" fill="none" stroke="#ffd0c2" stroke-width="1.15" stroke-linecap="round" opacity=".45"/>
+    <g class="nj-tail">
+    <path d="M47.2 15.1c5.6 1.4 11.2 6.6 15 12 1.8 2.6 5.2 3.8 8.2 1.8-2.6 4.6-9.4 5-13.8 1.4-3.6-2.8-7-8.6-9.4-15.2z" fill="url(#njg-scarf-fold)"/>
+    <path d="M47.4 13.6c7.4-3.6 16.4-1.2 20.4 5.6 2.2 3.6 7 5.2 11.8 1.8-2.2 6.4-12 9.6-18.6 5.2-4-2.6-9-6.6-13.6-12.6z" fill="url(#njg-scarf)"/>
+    <path d="M69.4 20.4c3.6 2 8.2 1.4 10.4-2.8-1.4 5.6-8 8.6-13.8 5.8-1.5-.7-1.5-2.2-.2-3.1 1.2-.8 2.3-.7 3.6.1z" fill="url(#njg-scarf-fold)"/>
+    <path d="M49.2 13.9c6-2.6 13.6 0 17.2 5.2" fill="none" stroke="#ffe4da" stroke-width="1.05" stroke-linecap="round" opacity=".55"/>
   </g>
 </svg>`;
 
-let root=null,busy=0,idleT=0,queue=[];
+let root=null,busy=0,idleT=0,queue=[],gen=0,at=null;
 
 function hopTarget(){const cands=[...document.querySelectorAll('.hbtn[data-t="basket"],#tabs [data-t="basket"],button[data-t="basket"]')];
   const vis=cands.filter(el=>{const r=el.getBoundingClientRect();return r.width>8&&r.height>8&&r.bottom>8&&r.top<innerHeight-8});
@@ -185,7 +209,7 @@ function ensure(){
   document.body.appendChild(root);
   return root;
 }
-function hide(){if(!root)return;root.className='nj';root.style.transform='translate(-140px,-140px)';root.style.opacity='0';const loot=root.querySelector('.nj-loot');if(loot)loot.innerHTML='';}
+function hide(){gen++;if(!root)return;root.className='nj';root.style.transform='translate(-140px,-140px)';root.style.opacity='0';const loot=root.querySelector('.nj-loot');if(loot){loot.getAnimations().forEach(a=>a.cancel());loot.innerHTML='';loot.style.cssText=''}at=null;}
 function face(x0,x1){if(!root)return;root.classList.toggle('face-left',x1<x0)}
 function bump(dest){if(!dest)return;dest.classList.remove('bag-pop');void dest.offsetWidth;dest.classList.add('bag-pop');dest.addEventListener('animationend',()=>dest.classList.remove('bag-pop'),{once:true})}
 function spark(on){if(!root)return;root.classList.toggle('is-spark',!!on)}
@@ -206,33 +230,124 @@ function restPos(){
   const y=Math.min(innerHeight-130,Math.max(150,innerHeight*.6));
   return {x:innerWidth+46,y};
 }
-const JOG='cubic-bezier(.42,.08,.2,1)';
+const EASE='cubic-bezier(.22,.68,.28,1)';
+const SOFT='cubic-bezier(.33,.1,.2,1)';
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function clampY(y){return Math.min(innerHeight-72,Math.max(64,y))}
+function sidePos(fromX,y){
+  const useRight=(innerWidth+48-fromX)>=(fromX+48);
+  return {x:useRight?innerWidth+48:-48,y:clampY(y)};
+}
+function quad(a,c,b,t){const u=1-t;return{x:u*u*a.x+2*u*t*c.x+t*t*b.x,y:u*u*a.y+2*u*t*c.y+t*t*b.y}}
+function liftFor(a,b){return Math.min(58,Math.max(26,Math.hypot(b.x-a.x,b.y-a.y)*.2))}
+function arcKfs(a,b,lift,opt){
+  const c={x:(a.x+b.x)*.5,y:(a.y+b.y)*.5-lift};
+  const n=6,k=[];
+  for(let i=0;i<=n;i++){
+    const t=i/n,p=quad(a,c,b,t),kf={transform:`translate(${p.x}px,${p.y}px)`,offset:i/n,opacity:1};
+    if(opt&&opt.fadeIn)kf.opacity=i===0?0:1;
+    if(opt&&opt.fadeOut)kf.opacity=i>=n-1?(i===n?0:.7):1;
+    k.push(kf);
+  }
+  return k;
+}
+function lootEl(){return root&&root.querySelector('.nj-loot')}
+function lootAnim(kfs,ms,ease){const el=lootEl();if(!el)return Promise.resolve();el.getAnimations().forEach(a=>a.cancel());return anim(el,kfs,ms,ease)}
+function clearLoot(){const el=lootEl();if(!el)return;el.getAnimations().forEach(a=>a.cancel());el.innerHTML='';el.style.cssText=''}
 
 async function runToBasket(from){
   const dest=hopTarget();
   const snap=mark(from);
   if(!dest||!snap._ok)return;
+  const my=++gen;
+  const alive=()=>my===gen&&wanted()&&!reduced()&&root;
   const n=ensure();
   n.getAnimations().forEach(a=>a.cancel());
+  const lo=lootEl();if(lo)lo.getAnimations().forEach(a=>a.cancel());
   const b=dest.getBoundingClientRect();
   const xC=snap.x,yC=snap.y,xB=b.left+b.width/2,yB=b.top+b.height/2;
-  const home=restPos();
+  const onStage=at&&root&&parseFloat(root.style.opacity||'0')>0;
+  const start=onStage?at:sidePos(xC,yC);
+  const side=start.x>xC?1:-1;
+  const pick={x:xC+side*58,y:yC+12};
+  const drop={x:xB+(xB>innerWidth*.5?-48:48),y:yB+46};
+  const exit=sidePos(xB,yB);
+  const go=async(kfs,ms,ease)=>{if(!alive())return false;await anim(n,kfs,ms,ease);return alive()};
+
   lootFrom(snap);
   n.style.opacity='1';
-  n.className='nj is-run';
-  face(home.x,xC);
-  n.style.transform=`translate(${home.x}px,${home.y}px)`;
-  await anim(n,[{transform:`translate(${home.x}px,${home.y}px)`,opacity:1},{transform:`translate(${(home.x+xC)/2}px,${(home.y+yC)/2-8}px)`,offset:.5},{transform:`translate(${xC+14}px,${yC}px)`}],620,JOG);
-  n.classList.remove('is-run');n.classList.add('is-grab');
-  await anim(n,[{transform:`translate(${xC+14}px,${yC}px)`},{transform:`translate(${xC}px,${yC+8}px) scale(.98)`,offset:.4},{transform:`translate(${xC}px,${yC}px)`}],280,'cubic-bezier(.33,.12,.2,1)');
-  n.classList.remove('is-grab');n.classList.add('has-loot','is-carry','is-run');
-  face(xC,xB);
-  await anim(n,[{transform:`translate(${xC}px,${yC}px)`},{transform:`translate(${xC+(xB-xC)*.5}px,${yC+(yB-yC)*.5-10}px)`,offset:.5},{transform:`translate(${xB}px,${yB+8}px)`}],520,JOG);
-  n.classList.remove('is-run','is-carry');n.classList.add('is-drop');
-  await anim(n,[{transform:`translate(${xB}px,${yB+8}px)`},{transform:`translate(${xB}px,${yB-6}px)`,offset:.45},{transform:`translate(${xB}px,${yB+4}px)`}],180,'cubic-bezier(.33,.12,.2,1)');
-  bump(dest);n.classList.remove('has-loot','is-drop');n.classList.add('is-run');
-  face(xB,home.x);
-  await anim(n,[{transform:`translate(${xB}px,${yB+4}px)`,opacity:1},{transform:`translate(${(xB+home.x)/2}px,${(yB+4+home.y)/2-8}px)`,offset:.5},{transform:`translate(${home.x}px,${home.y}px)`,opacity:1}],400,JOG);
+  n.className='nj is-run'+(onStage?' bag-shut':'');
+  face(start.x,pick.x);
+  n.style.transform=`translate(${start.x}px,${start.y}px)`;
+  if(!await go(arcKfs(start,pick,liftFor(start,pick),onStage?null:{fadeIn:1}),onStage?400:460,EASE))return;
+  at=pick;
+
+  n.classList.remove('is-run','bag-shut');
+  n.classList.add('is-reach','has-loot');
+  const hold=lootAnim([
+    {transform:'translate(16px,12px) scale(.5)',opacity:0},
+    {transform:'translate(6px,6px) scale(1.08)',opacity:1,offset:.5},
+    {transform:'translate(2px,2px) scale(1)',opacity:1}
+  ],320,EASE);
+  if(!await go([
+    {transform:`translate(${pick.x}px,${pick.y}px)`},
+    {transform:`translate(${pick.x}px,${pick.y+7}px)`,offset:.4},
+    {transform:`translate(${pick.x}px,${pick.y}px)`}
+  ],320,SOFT))return;
+  await hold;
+
+  n.classList.remove('is-reach');
+  n.classList.add('is-stow');
+  const stow=lootAnim([
+    {transform:'translate(2px,2px) scale(1)',opacity:1},
+    {transform:'translate(8px,-8px) scale(.55)',opacity:1,offset:.45},
+    {transform:'translate(10px,-4px) scale(.2)',opacity:0}
+  ],320,SOFT);
+  if(!await go([
+    {transform:`translate(${pick.x}px,${pick.y}px)`},
+    {transform:`translate(${pick.x}px,${pick.y-4}px)`,offset:.35},
+    {transform:`translate(${pick.x}px,${pick.y}px)`}
+  ],320,SOFT))return;
+  await stow;
+  n.classList.remove('is-stow','has-loot');
+  n.classList.add('bag-shut');
+  clearLoot();
+  await wait(40);
+  if(!alive())return;
+
+  n.classList.add('is-run');
+  face(pick.x,drop.x);
+  if(!await go(arcKfs(pick,drop,liftFor(pick,drop)+10),520,EASE))return;
+  at=drop;
+
+  n.classList.remove('is-run','bag-shut');
+  n.classList.add('is-drop','has-loot');
+  lootFrom(snap);
+  const tip=lootAnim([
+    {transform:'translate(8px,0) scale(.2)',opacity:0},
+    {transform:'translate(10px,-18px) scale(1.05)',opacity:1,offset:.3},
+    {transform:'translate(14px,-36px) scale(1)',opacity:1,offset:.7},
+    {transform:'translate(16px,-52px) scale(.4)',opacity:0}
+  ],340,EASE);
+  if(!await go([
+    {transform:`translate(${drop.x}px,${drop.y}px)`},
+    {transform:`translate(${drop.x}px,${drop.y-10}px)`,offset:.4},
+    {transform:`translate(${drop.x}px,${drop.y+2}px)`}
+  ],340,SOFT))return;
+  await tip;
+  bump(dest);
+  n.classList.remove('has-loot','is-drop');
+  clearLoot();
+  at={x:drop.x,y:drop.y+2};
+
+  if(queue.length){n.classList.add('is-run','bag-shut');return}
+  n.classList.add('is-nod');
+  await wait(180);
+  if(!alive())return;
+  n.classList.remove('is-nod');
+  n.classList.add('is-run');
+  face(at.x,exit.x);
+  if(!await go(arcKfs(at,exit,liftFor(at,exit),{fadeOut:1}),220,EASE))return;
   hide();
 }
 
@@ -303,9 +418,9 @@ const st=document.createElement('style');st.id='ninja-css';st.textContent=`
 .nj-lean{width:72px;height:72px;transform-origin:50% 74%}
 .nj.face-left .nj-bob{transform:scaleX(-1)}
 .nj .nj-svg{width:72px;height:72px;display:block;overflow:visible}
-.nj-loot{position:absolute;left:50px;top:38px;width:16px;height:16px;border-radius:5px;overflow:hidden;opacity:0;transform:scale(.4);box-shadow:0 2px 6px rgba(15,23,42,.2)}
-.nj-loot img,.nj-dot{width:16px;height:16px;object-fit:cover;display:block;background:#0f766e;border-radius:5px}
-.nj.has-loot .nj-loot{opacity:1;transform:scale(1)}
+.nj-loot{position:absolute;left:48px;top:34px;width:22px;height:22px;border-radius:6px;overflow:hidden;opacity:0;transform:scale(.4);box-shadow:0 1px 2px rgba(15,23,42,.28),0 0 0 2px #fff;z-index:2}
+.nj-loot img,.nj-dot{width:22px;height:22px;object-fit:cover;display:block;background:#fff;border-radius:6px}
+.nj.has-loot .nj-loot{opacity:1}
 .nj.slung .nj-loot{left:42px;top:18px;transform:rotate(-26deg) scale(.85)}
 .nj-fx{position:absolute;left:38px;top:16px;width:0;height:0;pointer-events:none;opacity:0}
 .nj-fx i{position:absolute;width:7px;height:7px;border-radius:1px;background:linear-gradient(135deg,#fff,#ffe08a 40%,#ff6b4a);transform:rotate(45deg) scale(0);box-shadow:0 0 6px rgba(255,107,74,.6)}
@@ -314,11 +429,25 @@ const st=document.createElement('style');st.id='ninja-css';st.textContent=`
 .nj.is-spark .nj-fx i:nth-child(2){animation:nj-star .38s ease-out .04s forwards;left:10px;top:-8px}
 .nj.is-spark .nj-fx i:nth-child(3){animation:nj-star .38s ease-out .08s forwards;left:-12px;top:-2px}
 .nj.is-spark .nj-fx i:nth-child(4){animation:nj-star .38s ease-out .06s forwards;left:6px;top:10px;width:5px;height:5px}
-.nj .nj-leg,.nj .nj-arm,.nj .nj-bag,.nj .nj-head,.nj .nj-tail,.nj .nj-body,.nj .nj-pupil,.nj .nj-lid-l{transform-box:fill-box;transform-origin:50% 0}
+.nj .nj-leg,.nj .nj-arm,.nj .nj-bag,.nj .nj-head,.nj .nj-tail,.nj .nj-body,.nj .nj-pupil,.nj .nj-lid-l,.nj .nj-flap{transform-box:fill-box;transform-origin:50% 0}
 .nj .nj-head{transform-origin:50% 80%}
 .nj .nj-bag{transform-origin:18% 8%}
 .nj .nj-pupil{transform-origin:50% 50%}
 .nj .nj-lid-l{transform-origin:50% 50%;transform:scaleY(0)}
+.nj .nj-flap{transform-origin:50% 8%;transform:rotate(-88deg);opacity:0;transition:transform .28s cubic-bezier(.22,.68,.28,1),opacity .18s ease}
+.nj.bag-shut .nj-flap,.nj.is-stow .nj-flap{transform:rotate(0);opacity:1}
+.nj.is-reach .nj-lean{transform:rotate(5deg) translateY(3px)}
+.nj.is-reach .nj-arm-r{transform:rotate(-62deg)}
+.nj.is-reach .nj-arm-l{transform:rotate(14deg)}
+.nj.is-reach .nj-head{transform:rotate(6deg)}
+.nj.is-stow .nj-lean{transform:rotate(-2deg)}
+.nj.is-stow .nj-arm-r{transform:rotate(-36deg)}
+.nj.is-stow .nj-arm-l{transform:rotate(10deg)}
+.nj.is-stow .nj-bag{animation:nj-bag-bounce .3s cubic-bezier(.22,.68,.28,1)}
+.nj.is-nod .nj-lean{transform:rotate(-4deg)}
+.nj.is-nod .nj-head{animation:nj-nod .32s cubic-bezier(.22,.68,.28,1)}
+.nj.is-nod .nj-arm-r{transform:rotate(-50deg)}
+.nj.is-nod .nj-arm-l{transform:rotate(8deg)}
 .nj.is-sneak .nj-lean{transform:rotate(7deg)}
 .nj.is-sneak .nj-bob{animation:nj-tiptoe .36s ease-in-out infinite}
 .nj.face-left.is-sneak .nj-bob{animation-name:nj-tiptoe-l}
@@ -328,23 +457,26 @@ const st=document.createElement('style');st.id='ninja-css';st.textContent=`
 .nj.is-sneak .nj-arm-l{animation:nj-arm-l .36s ease-in-out infinite}
 .nj.is-sneak .nj-tail{animation:nj-tail .36s ease-in-out infinite}
 .nj.is-sneak .nj-shadow{animation:nj-shadow .36s ease-in-out infinite}
-.nj.is-run .nj-lean{transform:rotate(8deg)}
-.nj.is-run .nj-bob{animation:nj-bounce .44s ease-in-out infinite}
-.nj.face-left.is-run .nj-bob{animation-name:nj-bounce-l}
-.nj.is-run:not(.is-grab) .nj-leg-r{animation:nj-leg-r .44s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-leg-l{animation:nj-leg-l .44s ease-in-out infinite}
-.nj.is-run:not(.is-grab):not(.is-carry) .nj-arm-r{animation:nj-arm-r .44s ease-in-out infinite}
-.nj.is-run:not(.is-grab):not(.is-carry) .nj-arm-l{animation:nj-arm-l .44s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-bag{animation:nj-bag .44s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-tail{animation:nj-tail .44s ease-in-out infinite}
-.nj.is-run:not(.is-grab) .nj-shadow{animation:nj-shadow .44s ease-in-out infinite}
+.nj.is-run .nj-lean{transform:rotate(7deg)}
+.nj.is-run .nj-bob{animation:nj-run-bob .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.face-left.is-run .nj-bob{animation-name:nj-run-bob-l}
+.nj.is-run:not(.is-grab) .nj-leg-r{animation:nj-run-leg-r .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.is-run:not(.is-grab) .nj-leg-l{animation:nj-run-leg-l .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.is-run:not(.is-grab):not(.is-carry):not(.bag-shut) .nj-arm-r{animation:nj-run-arm-r .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.is-run:not(.is-grab):not(.is-carry) .nj-arm-l{animation:nj-run-arm-l .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.is-run:not(.is-grab) .nj-bag{animation:nj-bag .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.is-run:not(.is-grab) .nj-tail{animation:nj-tail .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.is-run:not(.is-grab) .nj-shadow{animation:nj-shadow .4s cubic-bezier(.45,.08,.55,.92) infinite}
+.nj.is-run.bag-shut:not(.is-grab) .nj-arm-r{animation:none;transform:rotate(-32deg)}
+.nj.is-run.bag-shut:not(.is-grab) .nj-bag{animation-name:nj-bag-carry}
 .nj.is-carry .nj-lean{transform:rotate(6deg)}
 .nj.is-carry .nj-arm-r{animation:none;transform:rotate(-42deg)}
 .nj.is-carry .nj-arm-l{animation:none;transform:rotate(16deg)}
 .nj.is-carry .nj-loot{left:46px;top:28px;transform:rotate(-8deg) scale(.95)}
-.nj.is-drop .nj-lean{transform:rotate(-4deg) translateY(4px)}
-.nj.is-drop .nj-arm-r{transform:rotate(-70deg)}
-.nj.is-drop .nj-loot{left:36px;top:8px;transform:rotate(0) scale(.8)}
+.nj.is-drop .nj-lean{transform:rotate(-6deg) translateY(2px)}
+.nj.is-drop .nj-arm-r{transform:rotate(-58deg)}
+.nj.is-drop .nj-bag{transform:rotate(-16deg) translate(1px,-4px)}
+.nj.is-drop .nj-loot{left:50px;top:30px;transform:scale(.2);opacity:0}
 .nj.slung .nj-bag{transform:translate(-7px,-12px) rotate(-28deg)}
 .nj.slung.is-run:not(.is-grab) .nj-bag{animation-name:nj-bag-slung}
 .nj.is-grab .nj-lean{transform:rotate(0) translateY(5px) scaleY(.9)}
@@ -380,6 +512,15 @@ const st=document.createElement('style');st.id='ninja-css';st.textContent=`
 @keyframes nj-shift{0%,100%{transform:translate(0,0)}28%{transform:translate(-2.3px,.4px)}68%{transform:translate(2.5px,-.3px)}}
 @keyframes nj-tail{0%,100%{transform:rotate(0)}50%{transform:rotate(18deg)}}
 @keyframes nj-star{0%{transform:rotate(45deg) scale(0);opacity:1}70%{opacity:1}100%{transform:rotate(45deg) translate(14px,-16px) scale(.3);opacity:0}}
+@keyframes nj-run-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@keyframes nj-run-bob-l{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-2px)}}
+@keyframes nj-run-leg-r{0%,100%{transform:rotate(13deg)}50%{transform:rotate(-11deg)}}
+@keyframes nj-run-leg-l{0%,100%{transform:rotate(-11deg)}50%{transform:rotate(13deg)}}
+@keyframes nj-run-arm-r{0%,100%{transform:rotate(-18deg)}50%{transform:rotate(12deg)}}
+@keyframes nj-run-arm-l{0%,100%{transform:rotate(12deg)}50%{transform:rotate(-18deg)}}
+@keyframes nj-bag-carry{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(8deg)}}
+@keyframes nj-bag-bounce{0%{transform:rotate(0) scale(1)}32%{transform:rotate(-7deg) scale(1.06,.94)}58%{transform:rotate(4deg) scale(.97,1.04)}100%{transform:rotate(0) scale(1)}}
+@keyframes nj-nod{0%,100%{transform:rotate(0)}40%{transform:rotate(14deg)}70%{transform:rotate(-3deg)}}
 [data-ninja-toggle]{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;text-align:left;background:#fff;border:1px solid #e6e9ee;border-radius:14px;padding:14px 16px;font:inherit;color:#0f172a;cursor:pointer;pointer-events:auto}
 [data-ninja-toggle]:hover{border-color:#1f6f66;box-shadow:0 6px 18px rgba(15,23,42,.08)}
 [data-ninja-toggle] svg{width:26px;height:26px;flex:none;stroke:#1f6f66;fill:none}
