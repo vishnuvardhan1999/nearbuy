@@ -26,8 +26,8 @@ function hero(){
   return `<section class="nb-hero" id="h5" aria-label="ShopNip">
     <div class="nb-hero-art" aria-hidden="true"><span class="nb-hero-cut c0"><img decoding="async" src="${HERO_L}" alt=""></span><span class="nb-hero-cut c1"><img decoding="async" src="${HERO_R}" alt=""></span></div>
     <div class="nb-hero-mid">
-      <h2>Your local shops, delivered or ready to collect</h2>
-      <p class="nb-hero-sub">Order from real shops near you. The shop checks every item before you pay.</p>
+      <h2>Nip to the shop</h2>
+      <p class="nb-hero-sub">Everyday essentials from your corner shop, without the trip.</p>
       <form class="nb-hero-card" id="nb-hero-pc" action="#" autocomplete="on">
         <label for="nb-hero-q">Enter a postcode to see shops near you</label>
         <div class="nb-hero-row">
